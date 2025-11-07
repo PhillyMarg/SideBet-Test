@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==== Base Styles ==== */
+html, body {
+  @apply bg-gray-950 text-white font-inter min-h-screen overflow-x-hidden;
+}
+
+main {
+  @apply flex flex-col justify-start min-h-screen bg-gray-950 text-white;
+}
+
+button {
+  @apply font-medium transition-all duration-200 rounded-xl;
+}
+
+h1, h2, h3, h4 {
+  @apply font-semibold text-white;
+}
+
+/* ==== Header + Top Bar ==== */
+header {
+  @apply w-full flex flex-col items-center justify-center border-b border-gray-800 py-4 bg-black;
+}
+
+header h1 {
+  @apply text-lg font-bold tracking-tight mb-3;
+}
+
+/* ==== Button Variants ==== */
+.btn-orange {
+  @apply bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-full shadow-md transition-all;
+}
+
+.btn-outline {
+  @apply border border-gray-700 text-gray-300 hover:border-orange-500 hover:text-orange-400 px-6 py-2 rounded-full transition-all;
+}
+
+.btn-dark {
+  @apply bg-gray-900 hover:bg-gray-800 text-gray-200 px-6 py-2 rounded-full transition-all;
+}
+
+/* ==== Section Titles ==== */
+.section-title {
+  @apply text-sm font-semibold text-gray-300 mb-2 text-center;
+}
+
+/* ==== Empty state text ==== */
+.empty-state {
+  @apply text-gray-400 text-sm mt-2 text-center;
+}
+
+/* ==== Bottom Nav ==== */
+footer {
+  @apply fixed bottom-0 left-0 w-full bg-gray-950 border-t border-gray-800 text-gray-400 text-xs flex justify-around py-3;
+}
+
+footer button {
+  @apply hover:text-orange-500 transition-colors;
+}
+
+footer .active {
+  @apply text-orange-500 font-medium;
+}
