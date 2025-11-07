@@ -1,23 +1,45 @@
 // src/lib/firebase/client.ts
-import { initializeApp } from "firebase/app";
+"use client";
+
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getAnalytics } from "firebase/analytics";
+import { getAnalytics, isSupported } from "firebase/analytics";
 
 // ✅ Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyAuHor8NaEzyqwOw5D-Hbo5i7c1njGwwho",
   authDomain: "sidebet-mvp.firebaseapp.com",
   projectId: "sidebet-mvp",
-  storageBucket: "sidebet-mvp.appspot.com", // ✅ FIXED HERE
+  storageBucket: "sidebet-mvp.appspot.com", // ✅ Corrected bucket
   messagingSenderId: "563164526633",
   appId: "1:563164526633:web:f4cfb85cb4ffbe387d8438",
   measurementId: "G-P3LH2H1LGC",
 };
 
-// ✅ Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const analytics = getAnalytics(app);
+// ✅ Initialize Firebase safely (prevents duplicate initialization in Next.js)
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+
+// ✅ Initialize Auth and Firestore
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// ✅ Initialize Analytics only on the client side
+let analytics: any = null;
+
+if (typeof window !== "undefined") {
+  isSupported()
+    .then((supported) => {
+      if (supported) {
+        analytics = getAnalytics(app);
+        console.log("✅ Firebase Analytics initialized");
+      } else {
+        console.log("⚠️ Analytics not supported in this environment");
+      }
+    })
+    .catch((err) => console.warn("Analytics init failed:", err));
+}
+
+// ✅ Exports
+export { app, auth, db, analytics };
 export default app;

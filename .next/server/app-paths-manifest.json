@@ -1,5 +1,4 @@
 {
-  "/home/page": "app/home/page.js",
-  "/groups/[groupId]/page": "app/groups/[groupId]/page.js",
-  "/login/page": "app/login/page.js"
+  "/login/page": "app/login/page.js",
+  "/home/page": "app/home/page.js"
 }
