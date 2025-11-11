@@ -216,7 +216,7 @@ export default function CreateBetWizard({
                     {
                       type: "CLOSEST_GUESS",
                       label: "Closest Guess",
-                      desc: "Guess the exact number",
+                      desc: "Guess a number or text answer",
                     },
                   ].map((option) => (
                     <button
@@ -264,7 +264,11 @@ export default function CreateBetWizard({
                       onChange={(e) =>
                         setBetData({ ...betData, title: e.target.value })
                       }
-                      placeholder="e.g., Will it rain tomorrow?"
+                      placeholder={
+                        betData.type === "CLOSEST_GUESS"
+                          ? "e.g., What color will the car be?"
+                          : "e.g., Will it rain tomorrow?"
+                      }
                       className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
                     />
                   </div>
@@ -282,31 +286,39 @@ export default function CreateBetWizard({
                       className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 resize-none"
                     />
                   </div>
-                 {betData.type === "OVER_UNDER" && (
-  <div>
-    <label className="block text-zinc-400 text-sm mb-2">
-      Over/Under Line *
-    </label>
-    <p className="text-zinc-500 text-xs mb-2">
-      Line will automatically be set to .5 (e.g., 50 becomes 50.5)
-    </p>
-    <input
-      type="number"
-      value={betData.line}
-      onChange={(e) => {
-        const inputValue = e.target.value;
-        if (inputValue && !inputValue.includes('.')) {
-          setBetData({ ...betData, line: inputValue + '.5' });
-        } else {
-          setBetData({ ...betData, line: inputValue });
-        }
-      }}
-      placeholder="e.g., 50"
-      step="0.5"
-      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
-    />
-  </div>
-)}
+                  {betData.type === "OVER_UNDER" && (
+                    <div>
+                      <label className="block text-zinc-400 text-sm mb-2">
+                        Over/Under Line *
+                      </label>
+                      <p className="text-zinc-500 text-xs mb-2">
+                        Line will automatically be set to .5 (e.g., 50 becomes 50.5)
+                      </p>
+                      <input
+                        type="number"
+                        value={betData.line}
+                        onChange={(e) => {
+                          const inputValue = e.target.value;
+                          if (inputValue && !inputValue.includes('.')) {
+                            setBetData({ ...betData, line: inputValue + '.5' });
+                          } else {
+                            setBetData({ ...betData, line: inputValue });
+                          }
+                        }}
+                        placeholder="e.g., 50"
+                        step="0.5"
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                      />
+                    </div>
+                  )}
+                  {betData.type === "CLOSEST_GUESS" && (
+                    <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+                      <p className="text-sm text-zinc-300">
+                        💡 <span className="font-semibold">Tip:</span> For Closest Guess bets, participants can submit either numbers or text. 
+                        The creator will judge who was closest when the bet closes!
+                      </p>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -322,28 +334,43 @@ export default function CreateBetWizard({
                 <h3 className="text-xl font-bold text-white mb-4">
                   Select Group
                 </h3>
-                <div className="space-y-3">
-                  {groups.map((group) => (
+                
+                {groups.length > 0 ? (
+                  <div className="space-y-3">
+                    {groups.map((group) => (
+                      <button
+                        key={group.id}
+                        onClick={() =>
+                          setBetData({ ...betData, groupId: group.id })
+                        }
+                        className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
+                          betData.groupId === group.id
+                            ? "border-orange-500 bg-orange-500/10"
+                            : "border-zinc-800 hover:border-zinc-700"
+                        }`}
+                      >
+                        <div className="font-semibold text-white">
+                          {group.name}
+                        </div>
+                        <div className="text-sm text-zinc-400">
+                          {group.memberIds?.length || 0} members
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400 mb-4">
+                      You need to create a group first before creating a bet.
+                    </p>
                     <button
-                      key={group.id}
-                      onClick={() =>
-                        setBetData({ ...betData, groupId: group.id })
-                      }
-                      className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                        betData.groupId === group.id
-                          ? "border-orange-500 bg-orange-500/10"
-                          : "border-zinc-800 hover:border-zinc-700"
-                      }`}
+                      onClick={onClose}
+                      className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition-colors"
                     >
-                      <div className="font-semibold text-white">
-                        {group.name}
-                      </div>
-                      <div className="text-sm text-zinc-400">
-                        {group.memberIds?.length || 0} members
-                      </div>
+                      Close & Create Group
                     </button>
-                  ))}
-                </div>
+                  </div>
+                )}
               </motion.div>
             )}
 
@@ -513,6 +540,13 @@ export default function CreateBetWizard({
                       <div className="text-white font-semibold">
                         {betData.line}
                       </div>
+                    </div>
+                  )}
+                  {betData.type === "CLOSEST_GUESS" && (
+                    <div className="bg-zinc-800 rounded-lg p-3 mt-2">
+                      <p className="text-xs text-zinc-400">
+                        Note: Participants can submit numbers or text. You'll judge the winner when the bet closes.
+                      </p>
                     </div>
                   )}
                 </div>

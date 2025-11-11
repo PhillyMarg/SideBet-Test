@@ -226,49 +226,47 @@ export default function Header() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="grid grid-cols-3 items-center w-full max-w-7xl mx-auto px-4 md:px-8 py-3 text-white">
-          {/* left */}
+        <div className="flex items-center justify-between w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-8 py-2 sm:py-3 text-white">
+          {/* Left - Logo */}
           <div
             onClick={() => router.push("/home")}
-            className="text-xl md:text-2xl font-bold cursor-pointer select-none whitespace-nowrap justify-self-start"
+            className="text-lg sm:text-xl md:text-2xl font-bold cursor-pointer select-none whitespace-nowrap"
           >
             Side Bet
           </div>
 
-          {/* center */}
-          <div className="justify-self-center">
-            <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-5">
-              <button
-                onClick={() => setShowCreateBet(true)}
-                className="w-40 sm:w-36 md:w-40 lg:w-44 px-5 py-2.5 text-sm font-semibold bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-all duration-200"
-              >
-                Create Bet
-              </button>
-              <button
-                onClick={() => setShowCreateGroup(true)}
-                className="w-40 sm:w-36 md:w-40 lg:w-44 px-5 py-2.5 text-sm font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200"
-              >
-                Create Group
-              </button>
-              <button
-                onClick={() => setShowJoinGroup(true)}
-                className="w-40 sm:w-36 md:w-40 lg:w-44 px-5 py-2.5 text-sm font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200"
-              >
-                Join Group
-              </button>
-            </div>
+          {/* Center - Action Buttons */}
+          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
+            <button
+              onClick={() => setShowCreateBet(true)}
+              className="px-2 py-1.5 sm:px-3 sm:py-2 md:px-5 md:py-2.5 text-xs sm:text-sm font-semibold bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-all duration-200 whitespace-nowrap"
+            >
+              <span className="hidden xs:inline">Create </span>Bet
+            </button>
+            <button
+              onClick={() => setShowCreateGroup(true)}
+              className="px-2 py-1.5 sm:px-3 sm:py-2 md:px-5 md:py-2.5 text-xs sm:text-sm font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200 whitespace-nowrap"
+            >
+              <span className="hidden xs:inline">Create </span>Group
+            </button>
+            <button
+              onClick={() => setShowJoinGroup(true)}
+              className="px-2 py-1.5 sm:px-3 sm:py-2 md:px-5 md:py-2.5 text-xs sm:text-sm font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200 whitespace-nowrap"
+            >
+              Join
+            </button>
           </div>
 
-          {/* right */}
-          <div className="flex items-center gap-2 sm:gap-4 justify-self-end">
+          {/* Right - User & Logout */}
+          <div className="flex items-center gap-2">
             {user && userName && (
-              <span className="hidden sm:block text-sm text-gray-300 truncate max-w-[160px] text-right">
+              <span className="hidden md:block text-sm text-gray-300 truncate max-w-[120px] lg:max-w-[160px]">
                 {userName}
               </span>
             )}
             <button
               onClick={handleLogout}
-              className="px-5 py-2 text-sm font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200 whitespace-nowrap"
+              className="px-2 py-1.5 sm:px-3 sm:py-2 md:px-5 md:py-2 text-xs sm:text-sm font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200 whitespace-nowrap"
             >
               Logout
             </button>
