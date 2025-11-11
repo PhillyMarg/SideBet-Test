@@ -226,50 +226,94 @@ export default function Header() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="flex items-center justify-between w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-8 py-2 sm:py-3 text-white">
-          {/* Left - Logo */}
-          <div
-            onClick={() => router.push("/home")}
-            className="text-lg sm:text-xl md:text-2xl font-bold cursor-pointer select-none whitespace-nowrap"
-          >
-            Side Bet
+        <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-8 text-white">
+          {/* Desktop: Single Row Layout */}
+          <div className="hidden md:flex items-center justify-between py-3">
+            {/* Logo */}
+            <div
+              onClick={() => router.push("/home")}
+              className="text-2xl font-bold cursor-pointer select-none whitespace-nowrap"
+            >
+              Side Bet
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowCreateBet(true)}
+                className="px-5 py-2.5 text-sm font-semibold bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-all duration-200 whitespace-nowrap"
+              >
+                Create Bet
+              </button>
+              <button
+                onClick={() => setShowCreateGroup(true)}
+                className="px-5 py-2.5 text-sm font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200 whitespace-nowrap"
+              >
+                Create Group
+              </button>
+              <button
+                onClick={() => setShowJoinGroup(true)}
+                className="px-5 py-2.5 text-sm font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200 whitespace-nowrap"
+              >
+                Join
+              </button>
+            </div>
+
+            {/* User & Logout */}
+            <div className="flex items-center gap-2">
+              {user && userName && (
+                <span className="text-sm text-gray-300 truncate max-w-[120px] lg:max-w-[160px]">
+                  {userName}
+                </span>
+              )}
+              <button
+                onClick={handleLogout}
+                className="px-5 py-2 text-sm font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200 whitespace-nowrap"
+              >
+                Logout
+              </button>
+            </div>
           </div>
 
-          {/* Center - Action Buttons */}
-          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
-            <button
-              onClick={() => setShowCreateBet(true)}
-              className="px-2 py-1.5 sm:px-3 sm:py-2 md:px-5 md:py-2.5 text-xs sm:text-sm font-semibold bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-all duration-200 whitespace-nowrap"
-            >
-              <span className="hidden xs:inline">Create </span>Bet
-            </button>
-            <button
-              onClick={() => setShowCreateGroup(true)}
-              className="px-2 py-1.5 sm:px-3 sm:py-2 md:px-5 md:py-2.5 text-xs sm:text-sm font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200 whitespace-nowrap"
-            >
-              <span className="hidden xs:inline">Create </span>Group
-            </button>
-            <button
-              onClick={() => setShowJoinGroup(true)}
-              className="px-2 py-1.5 sm:px-3 sm:py-2 md:px-5 md:py-2.5 text-xs sm:text-sm font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200 whitespace-nowrap"
-            >
-              Join
-            </button>
-          </div>
+          {/* Mobile: Two Row Layout */}
+          <div className="md:hidden">
+            {/* Row 1: Logo + Logout */}
+            <div className="flex items-center justify-between py-2">
+              <div
+                onClick={() => router.push("/home")}
+                className="text-lg font-bold cursor-pointer select-none whitespace-nowrap"
+              >
+                Side Bet
+              </div>
+              <button
+                onClick={handleLogout}
+                className="px-3 py-1.5 text-xs font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200 whitespace-nowrap"
+              >
+                Logout
+              </button>
+            </div>
 
-          {/* Right - User & Logout */}
-          <div className="flex items-center gap-2">
-            {user && userName && (
-              <span className="hidden md:block text-sm text-gray-300 truncate max-w-[120px] lg:max-w-[160px]">
-                {userName}
-              </span>
-            )}
-            <button
-              onClick={handleLogout}
-              className="px-2 py-1.5 sm:px-3 sm:py-2 md:px-5 md:py-2 text-xs sm:text-sm font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200 whitespace-nowrap"
-            >
-              Logout
-            </button>
+            {/* Row 2: Action Buttons */}
+            <div className="flex items-center justify-center gap-2 pb-2">
+              <button
+                onClick={() => setShowCreateBet(true)}
+                className="flex-1 px-3 py-2 text-xs font-semibold bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-all duration-200 whitespace-nowrap"
+              >
+                Create Bet
+              </button>
+              <button
+                onClick={() => setShowCreateGroup(true)}
+                className="flex-1 px-3 py-2 text-xs font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200 whitespace-nowrap"
+              >
+                Create Group
+              </button>
+              <button
+                onClick={() => setShowJoinGroup(true)}
+                className="flex-1 px-3 py-2 text-xs font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200 whitespace-nowrap"
+              >
+                Join
+              </button>
+            </div>
           </div>
         </div>
       </motion.header>
