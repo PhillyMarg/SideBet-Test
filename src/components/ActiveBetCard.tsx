@@ -32,38 +32,47 @@ export default function ActiveBetCard({
   const needsJudging = isClosed && bet.status !== "JUDGED" && isCreator;
 
   const calculateEstimatedPayout = (side: "yes" | "no") => {
-    if (people === 0) return wager;
-    
+    // Current picks
     const yesVotes = Object.values(bet.picks || {}).filter(
       (v) => v === "YES" || v === "OVER"
     ).length;
-    const noVotes = people - yesVotes;
+    const noVotes = Object.values(bet.picks || {}).filter(
+      (v) => v === "NO" || v === "UNDER"
+    ).length;
+
+    // Add this user to the calculation
+    const potentialYesVotes = side === "yes" ? yesVotes + 1 : yesVotes;
+    const potentialNoVotes = side === "no" ? noVotes + 1 : noVotes;
+    const potentialPot = (potentialYesVotes + potentialNoVotes) * wager;
 
     if (side === "yes") {
-      const potentialWinners = yesVotes + 1;
-      return pot / potentialWinners + wager;
+      return potentialYesVotes > 0 ? potentialPot / potentialYesVotes : potentialPot;
     } else {
-      const potentialWinners = noVotes + 1;
-      return pot / potentialWinners + wager;
+      return potentialNoVotes > 0 ? potentialPot / potentialNoVotes : potentialPot;
     }
   };
 
   const getEstimatedPayoutAfterPick = () => {
     if (bet.type === "CLOSEST_GUESS") {
-      return pot + wager;
+      // Winner takes all for closest guess
+      return pot;
     }
 
     const userPick = bet.picks[user?.uid];
     const yesVotes = Object.values(bet.picks || {}).filter(
       (v) => v === "YES" || v === "OVER"
     ).length;
-    const noVotes = people - yesVotes;
+    const noVotes = Object.values(bet.picks || {}).filter(
+      (v) => v === "NO" || v === "UNDER"
+    ).length;
 
     if (userPick === "YES" || userPick === "OVER") {
-      return yesVotes > 0 ? (pot + wager * yesVotes) / yesVotes : pot + wager;
-    } else {
-      return noVotes > 0 ? (pot + wager * noVotes) / noVotes : pot + wager;
+      return yesVotes > 0 ? pot / yesVotes : pot;
+    } else if (userPick === "NO" || userPick === "UNDER") {
+      return noVotes > 0 ? pot / noVotes : pot;
     }
+    
+    return 0;
   };
 
   return (
@@ -100,8 +109,8 @@ export default function ActiveBetCard({
 
       <div className="flex justify-between text-sm text-gray-400 mb-4">
         <span>Wager: ${wager.toFixed(2)}</span>
-        <span>People: {people}</span>
-        <span>Total Pot: ${pot.toFixed(2)}</span>
+        <span>Players: {people}</span>
+        <span className="font-semibold text-orange-400">Pot: ${pot.toFixed(2)}</span>
       </div>
 
       {needsJudging && (
@@ -166,7 +175,7 @@ export default function ActiveBetCard({
                   <p className="text-xs text-gray-400 mb-3">
                     Estimated Payout:{" "}
                     <span className="font-bold text-green-400">
-                      ${(pot + wager).toFixed(2)}
+                      ${pot.toFixed(2)}
                     </span>{" "}
                     if you win
                   </p>
@@ -186,7 +195,16 @@ export default function ActiveBetCard({
                       {bet.picks && Object.keys(bet.picks).length > 0 ? (
                         <ul className="space-y-1 text-sm text-gray-300">
                           {Object.entries(bet.picks)
-                            .sort(([, a]: any, [, b]: any) => a - b)
+                            .sort(([, a]: any, [, b]: any) => {
+                              // Try to sort numerically if possible
+                              const numA = parseFloat(a);
+                              const numB = parseFloat(b);
+                              if (!isNaN(numA) && !isNaN(numB)) {
+                                return numA - numB;
+                              }
+                              // Otherwise sort alphabetically
+                              return String(a).localeCompare(String(b));
+                            })
                             .map(([userId, guess]: any) => (
                               <li key={userId} className="flex justify-between">
                                 <span
@@ -242,8 +260,8 @@ export default function ActiveBetCard({
               ) : bet.type === "CLOSEST_GUESS" ? (
                 <div className="flex items-center gap-2 mt-auto">
                   <input
-                    type="number"
-                    placeholder="Enter your guess..."
+                    type="text"
+                    placeholder="Enter guess (number or text)..."
                     id={`guess-${bet.id}`}
                     className="flex-1 bg-zinc-800 text-white text-sm p-2 rounded-lg border border-zinc-700 focus:outline-none focus:border-orange-500 transition"
                   />
@@ -252,8 +270,13 @@ export default function ActiveBetCard({
                       const value = (
                         document.getElementById(`guess-${bet.id}`) as HTMLInputElement
                       )?.value;
-                      if (!value) return alert("Please enter a number.");
-                      onPick(bet, parseFloat(value));
+                      if (!value || !value.trim()) return alert("Please enter a guess.");
+                      
+                      // Try to parse as number, otherwise keep as string
+                      const numValue = parseFloat(value);
+                      const finalValue = isNaN(numValue) ? value.trim() : numValue;
+                      
+                      onPick(bet, finalValue);
                     }}
                     className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-3 py-2 rounded-lg shadow transition-all"
                   >
