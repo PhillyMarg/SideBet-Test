@@ -24,6 +24,7 @@ export default function LoginPage() {
   return (
     <main className="flex flex-col items-center justify-center min-h-screen bg-black text-white">
       <h1 className="text-2xl font-bold mb-6">Sign In</h1>
+
       <form onSubmit={handleLogin} className="flex flex-col gap-3 w-80">
         <input
           type="email"
@@ -46,6 +47,14 @@ export default function LoginPage() {
           Log In
         </button>
       </form>
+
+      {/* Added sign-up link section */}
+      <p
+        className="text-sm mt-4 text-gray-400 cursor-pointer hover:text-orange-400"
+        onClick={() => router.push("/signup")}
+      >
+        Don’t have an account? Sign Up
+      </p>
     </main>
   );
 }

@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 /* ==== Base Styles ==== */
-html, body {
+html,
+body {
   @apply bg-gray-950 text-white font-inter min-h-screen overflow-x-hidden;
 }
 
@@ -15,17 +16,61 @@ button {
   @apply font-medium transition-all duration-200 rounded-xl;
 }
 
-h1, h2, h3, h4 {
+h1,
+h2,
+h3,
+h4 {
   @apply font-semibold text-white;
 }
 
-/* ==== Header + Top Bar ==== */
-header {
-  @apply w-full flex flex-col items-center justify-center border-b border-gray-800 py-4 bg-black;
+/* ==== Input & Form Styles ==== */
+/* Remove default browser focus outlines and standardize focus states */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+textarea,
+select {
+  @apply focus:outline-none focus:ring-0;
 }
 
-header h1 {
-  @apply text-lg font-bold tracking-tight mb-3;
+/* Consistent focus style across all inputs */
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+textarea:focus,
+select:focus {
+  @apply border-orange-500;
+}
+
+/* Remove any default input styling */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+
+/* Checkbox styling */
+input[type="checkbox"] {
+  @apply focus:outline-none focus:ring-0 focus:ring-offset-0;
+}
+
+input[type="checkbox"]:checked {
+  @apply bg-orange-500 border-orange-500;
+}
+
+/* ==== Header (Component-Specific) ==== */
+/* Removed global "header" tag overrides */
+.site-header {
+  @apply w-full border-b border-gray-800 bg-black;
+}
+
+/* Optional title styling if used */
+.site-header h1 {
+  @apply text-lg font-bold tracking-tight;
 }
 
 /* ==== Button Variants ==== */
@@ -33,8 +78,8 @@ header h1 {
   @apply bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-full shadow-md transition-all;
 }
 
-.btn-outline {
-  @apply border border-gray-700 text-gray-300 hover:border-orange-500 hover:text-orange-400 px-6 py-2 rounded-full transition-all;
+.btn-orange-outline {
+  @apply border border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white px-6 py-2 rounded-full transition-all;
 }
 
 .btn-dark {
@@ -46,7 +91,7 @@ header h1 {
   @apply text-sm font-semibold text-gray-300 mb-2 text-center;
 }
 
-/* ==== Empty state text ==== */
+/* ==== Empty State ==== */
 .empty-state {
   @apply text-gray-400 text-sm mt-2 text-center;
 }

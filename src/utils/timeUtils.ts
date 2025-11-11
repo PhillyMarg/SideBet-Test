@@ -1,5 +1,16 @@
 // src/utils/timeUtils.ts
-export function getTimeRemaining(closingAt: string) {
+
+export interface TimeRemaining {
+  text: string;
+  isClosed: boolean;
+}
+
+export interface LivePercentages {
+  yes: number;
+  no: number;
+}
+
+export function getTimeRemaining(closingAt: string | null | undefined): TimeRemaining {
   if (!closingAt) return { text: "No close time", isClosed: false };
 
   const parsed = new Date(closingAt).getTime();
@@ -20,4 +31,21 @@ export function getTimeRemaining(closingAt: string) {
   else text = `${seconds}s`;
 
   return { text: `Closes in ${text}`, isClosed: false };
+}
+
+export function getLivePercentages(bet: any): LivePercentages {
+  if (!bet?.picks) return { yes: 0, no: 0 };
+  
+  const values = Object.values(bet.picks);
+  const total = values.filter((v) => v !== null && v !== undefined).length;
+  
+  if (total === 0) return { yes: 0, no: 0 };
+  
+  const yesCount = values.filter((v) => v === "YES" || v === "OVER").length;
+  const noCount = total - yesCount;
+  
+  return {
+    yes: Math.round((yesCount / total) * 100),
+    no: Math.round((noCount / total) * 100),
+  };
 }
