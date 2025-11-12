@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { Home, Users, Settings } from "lucide-react";
 
 export default function Footer() {
   const router = useRouter();
@@ -15,13 +16,10 @@ export default function Footer() {
       const currentScrollY = window.scrollY;
 
       if (currentScrollY < 10) {
-        // Always show at top
         setIsVisible(true);
       } else if (currentScrollY > lastScrollY) {
-        // Scrolling down - hide footer
         setIsVisible(false);
       } else {
-        // Scrolling up - show footer
         setIsVisible(true);
       }
 
@@ -45,40 +43,44 @@ export default function Footer() {
           animate={{ y: 0 }}
           exit={{ y: 100 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="fixed bottom-0 left-0 w-full bg-gray-950 border-t border-gray-800 text-gray-400 text-xs flex justify-around py-3 z-40"
+          className="fixed bottom-0 left-0 w-full bg-gray-950 border-t border-gray-800 z-40"
         >
-          <button
-            onClick={() => router.push("/home")}
-            className={`hover:text-orange-500 transition-colors ${
-              isActive("/home") ? "text-orange-500 font-medium" : ""
-            }`}
-          >
-            Home
-          </button>
-          <button
-            onClick={() => router.push("/groups")}
-            className={`hover:text-orange-500 transition-colors ${
-              isActive("/groups") ? "text-orange-500 font-medium" : ""
-            }`}
-          >
-            Groups
-          </button>
-          <button
-            onClick={() => router.push("/mybets")}
-            className={`hover:text-orange-500 transition-colors ${
-              isActive("/mybets") ? "text-orange-500 font-medium" : ""
-            }`}
-          >
-            My Bets
-          </button>
-          <button
-            onClick={() => router.push("/settings")}
-            className={`hover:text-orange-500 transition-colors ${
-              isActive("/settings") ? "text-orange-500 font-medium" : ""
-            }`}
-          >
-            Settings
-          </button>
+          <div className="flex justify-evenly items-center w-full py-3">
+            {/* Home */}
+            <button
+              onClick={() => router.push("/home")}
+              className={`flex flex-col items-center justify-center transition-colors ${
+                isActive("/home") ? "text-orange-500" : "text-gray-400 hover:text-orange-500"
+              }`}
+            >
+              <Home size={24} strokeWidth={2} />
+              <span className="text-xs mt-1.5 font-medium">Home</span>
+            </button>
+
+            {/* Groups */}
+            <button
+              onClick={() => router.push("/groups")}
+              className={`flex flex-col items-center justify-center transition-colors ${
+                isActive("/groups") || pathname.startsWith("/groups/")
+                  ? "text-orange-500"
+                  : "text-gray-400 hover:text-orange-500"
+              }`}
+            >
+              <Users size={24} strokeWidth={2} />
+              <span className="text-xs mt-1.5 font-medium">Groups</span>
+            </button>
+
+            {/* Settings */}
+            <button
+              onClick={() => router.push("/settings")}
+              className={`flex flex-col items-center justify-center transition-colors ${
+                isActive("/settings") ? "text-orange-500" : "text-gray-400 hover:text-orange-500"
+              }`}
+            >
+              <Settings size={24} strokeWidth={2} />
+              <span className="text-xs mt-1.5 font-medium">Settings</span>
+            </button>
+          </div>
         </motion.footer>
       )}
     </AnimatePresence>

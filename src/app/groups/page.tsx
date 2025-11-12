@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "../../lib/firebase/client";
 import CreateGroupWizard from "../../components/CreateGroupWizard";
+import Footer from "../../components/Footer";
+import FloatingCreateBetButton from "../../components/FloatingCreateBetButton";
 import {
   collection,
   query,
@@ -59,9 +61,6 @@ export default function GroupsPage() {
           ...d.data(),
         }));
 
-        console.log("Fetched groups:", groupsData);
-        console.log("User ID:", firebaseUser.uid);
-
         // Fetch active bets count for each group
         const activeBetsMap: { [key: string]: number } = {};
         const activeBetsPromises = groupsData.map(async (group) => {
@@ -71,7 +70,6 @@ export default function GroupsPage() {
           );
           const betsSnap = await getDocs(betsQuery);
           
-          // Filter out JUDGED bets in code
           const activeBetsCount = betsSnap.docs.filter(
             (doc) => doc.data().status !== "JUDGED"
           ).length;
@@ -124,7 +122,6 @@ export default function GroupsPage() {
           totalTies += stat.ties || 0;
           totalBalance += stat.balance || 0;
 
-          // Track longest streak
           const streakCount = stat.current_streak || 0;
           const streakType = stat.streak_type || "W";
           if (streakCount > longestStreak.count) {
@@ -141,7 +138,6 @@ export default function GroupsPage() {
         setTotalBetsPlaced(totalGames);
         setCurrentStreak(longestStreak);
 
-        // Count total active bets
         const totalActiveBets = Object.values(activeBetsMap).reduce(
           (sum, count) => sum + count,
           0
@@ -187,11 +183,47 @@ export default function GroupsPage() {
     try {
       await addDoc(collection(db, "groups"), groupDoc);
       alert("✅ Group created successfully!");
-      // Refresh page
       window.location.reload();
     } catch (error: any) {
       console.error("Firestore error:", error);
       alert(`Failed to create group: ${error.message || "Unknown error"}`);
+    }
+  };
+
+  // Create Bet Handler
+  const handleCreateBet = async (betData: any) => {
+    if (betData.type === "OVER_UNDER" && !betData.line) {
+      alert("Please set a valid line ending in .5 for Over/Under bets.");
+      return;
+    }
+
+    if (!user || !betData.title.trim() || !betData.groupId || !betData.wager) {
+      alert("Please complete all required fields.");
+      return;
+    }
+
+    const betDoc = {
+      title: betData.title,
+      description: betData.description || "",
+      type: betData.type,
+      status: "OPEN",
+      line: betData.line || null,
+      perUserWager: parseFloat(betData.wager),
+      participants: [],
+      picks: {},
+      creatorId: user.uid,
+      groupId: betData.groupId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      closingAt: betData.closingAt,
+    };
+
+    try {
+      await addDoc(collection(db, "bets"), betDoc);
+      alert("✅ Bet created successfully!");
+    } catch (err) {
+      console.error("Error creating bet:", err);
+      alert("Failed to create bet. Please try again.");
     }
   };
 
@@ -244,7 +276,6 @@ export default function GroupsPage() {
       alert(`✅ Successfully joined "${groupData.name}"`);
       setShowJoinGroup(false);
       setJoinInput("");
-      // Refresh page
       window.location.reload();
     } catch (err) {
       console.error("Error joining group:", err);
@@ -252,13 +283,11 @@ export default function GroupsPage() {
     }
   };
 
-  // Get user's balance for a specific group
   const getGroupBalance = (groupId: string) => {
     const stat = groupStats.find((s: any) => s.groupId === groupId);
     return stat?.balance || 0;
   };
 
-  // Get user's record for a specific group
   const getGroupRecord = (groupId: string) => {
     const stat = groupStats.find((s: any) => s.groupId === groupId);
     if (!stat) return "0-0-0";
@@ -273,7 +302,6 @@ export default function GroupsPage() {
     );
   }
 
-  // Determine which groups to show
   const visibleGroups = showAllGroups ? groups : groups.slice(0, 5);
   const hasMoreGroups = groups.length > 5;
 
@@ -286,7 +314,7 @@ export default function GroupsPage() {
         className="w-[92%] mx-auto py-6"
         style={{ maxWidth: "var(--content-width)" }}
       >
-        {/* Stats Section - 2 rows of 3 */}
+        {/* Stats Section */}
         <section className="bg-orange-500/10 border-2 border-orange-500/30 rounded-2xl p-6 mb-6">
           <h2 className="text-2xl font-bold text-white mb-4">Your Stats</h2>
 
@@ -416,7 +444,6 @@ export default function GroupsPage() {
                 })}
               </div>
 
-              {/* View More Button */}
               {hasMoreGroups && (
                 <div className="mt-4 text-center">
                   <button
@@ -509,13 +536,14 @@ export default function GroupsPage() {
         </div>
       )}
 
-      {/* Footer */}
-      <footer className="fixed bottom-0 left-0 w-full bg-gray-950 border-t border-gray-800 text-gray-400 text-xs flex justify-around py-3">
-        <button onClick={() => router.push("/home")}>Home</button>
-        <button className="text-orange-500 font-medium">Groups</button>
-        <button onClick={() => router.push("/mybets")}>My Bets</button>
-        <button onClick={() => router.push("/settings")}>Settings</button>
-      </footer>
+    {/* Footer */}
+<Footer />
+
+      {/* Floating Create Bet Button */}
+      <FloatingCreateBetButton
+        groups={groups}
+        onCreateBet={handleCreateBet}
+      />
     </main>
   );
 }

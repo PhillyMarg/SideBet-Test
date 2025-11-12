@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { onAuthStateChanged, signOut, User } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
 import { db, auth } from "../../../lib/firebase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -14,10 +14,12 @@ import {
   orderBy,
   updateDoc,
   getDoc,
+  addDoc,
 } from "firebase/firestore";
 import JudgeBetModal from "../../../components/JudgeBetModal";
 import ActiveBetCard from "../../../components/ActiveBetCard";
 import ArchivedBetCard from "../../../components/ArchivedBetCard";
+import FloatingCreateBetButton from "../../../components/FloatingCreateBetButton";
 
 export default function GroupDetailPage() {
   const { groupId } = useParams();
@@ -25,6 +27,7 @@ export default function GroupDetailPage() {
 
   const [user, setUser] = useState<User | null>(null);
   const [group, setGroup] = useState<any>(null);
+  const [groups, setGroups] = useState<any[]>([]);
   const [bets, setBets] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,16 +36,6 @@ export default function GroupDetailPage() {
   const [creatorName, setCreatorName] = useState<string>("Loading...");
   const [judgingBet, setJudgingBet] = useState<any>(null);
   const [, forceUpdate] = useState(0);
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      router.push("/login");
-    } catch (error) {
-      console.error("Error logging out:", error);
-      alert("Failed to log out. Please try again.");
-    }
-  };
 
   // 🎯 Handle user pick
   const handleUserPick = async (bet: any, pick: string | number) => {
@@ -72,6 +65,43 @@ export default function GroupDetailPage() {
     } catch (err) {
       console.error("Error updating bet pick:", err);
       alert("Failed to place bet. Please try again.");
+    }
+  };
+
+  // Create Bet Handler
+  const handleCreateBet = async (betData: any) => {
+    if (betData.type === "OVER_UNDER" && !betData.line) {
+      alert("Please set a valid line ending in .5 for Over/Under bets.");
+      return;
+    }
+
+    if (!user || !betData.title.trim() || !betData.groupId || !betData.wager) {
+      alert("Please complete all required fields.");
+      return;
+    }
+
+    const betDoc = {
+      title: betData.title,
+      description: betData.description || "",
+      type: betData.type,
+      status: "OPEN",
+      line: betData.line || null,
+      perUserWager: parseFloat(betData.wager),
+      participants: [],
+      picks: {},
+      creatorId: user.uid,
+      groupId: betData.groupId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      closingAt: betData.closingAt,
+    };
+
+    try {
+      await addDoc(collection(db, "bets"), betDoc);
+      alert("✅ Bet created successfully!");
+    } catch (err) {
+      console.error("Error creating bet:", err);
+      alert("Failed to create bet. Please try again.");
     }
   };
 
@@ -115,6 +145,16 @@ export default function GroupDetailPage() {
 
       setUser(firebaseUser);
 
+      // Fetch user's groups for bet creation
+      const groupsQuery = query(
+        collection(db, "groups"),
+        where("memberIds", "array-contains", firebaseUser.uid)
+      );
+      const unsubGroups = onSnapshot(groupsQuery, (snap) => {
+        const groupsData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setGroups(groupsData);
+      });
+
       // Group info
       const groupRef = doc(db, "groups", groupId as string);
       const unsubGroup = onSnapshot(groupRef, (snap) => {
@@ -149,6 +189,7 @@ export default function GroupDetailPage() {
         unsubGroup();
         unsubBets();
         unsubLeaderboard();
+        unsubGroups();
       };
     });
 
@@ -180,23 +221,11 @@ export default function GroupDetailPage() {
   const seasonEnabled = group.settings?.season_enabled;
   const seasonEnd = group.settings?.season_end_date;
   
-  // ✅ Active bets include expired bets that haven't been judged yet
   const activeBets = bets.filter((b) => b.status !== "JUDGED");
-  
-  // ✅ Archived bets are only judged bets
   const archivedBets = bets.filter((b) => b.status === "JUDGED");
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center pb-20 relative overflow-y-auto">
-      {/* Floating Logout Button (top-right) */}
-      <button
-        onClick={handleLogout}
-        className="fixed top-4 right-4 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-lg shadow-md z-50 transition-all"
-      >
-        Logout
-      </button>
-
-      {/* Wrapper for all content */}
       <div className="w-full max-w-2xl px-4">
         {/* 🧩 GROUP INFO */}
         <section className="w-full mt-6 px-2">
@@ -231,7 +260,6 @@ export default function GroupDetailPage() {
                 <p className="text-sm text-gray-500 mt-1">
                   <span className="font-semibold text-gray-300">Season Ends In:</span>{" "}
                   <span className="text-orange-400 font-medium">
-                    {/* Will need to calculate countdown */}
                     {seasonEnd}
                   </span>
                 </p>
@@ -241,71 +269,71 @@ export default function GroupDetailPage() {
         </section>
 
        {/* 🔶 USER STATS BAR */}
-<section className="bg-zinc-900 border-2 border-orange-500/80 rounded-2xl p-5 shadow-lg mt-6">
-  <h2 className="text-xl font-bold mb-1 text-left text-white">Your Stats</h2>
+        <section className="bg-zinc-900 border-2 border-orange-500/80 rounded-2xl p-5 shadow-lg mt-6">
+          <h2 className="text-xl font-bold mb-1 text-left text-white">Your Stats</h2>
 
-  {(() => {
-    const userStats = leaderboard.find((l) => l.user_id === user?.uid);
-    
-    if (!userStats) {
-      return (
-        <p className="text-sm text-gray-400">
-          No stats yet. Place your first bet to get started!
-        </p>
-      );
-    }
+          {(() => {
+            const userStats = leaderboard.find((l) => l.user_id === user?.uid);
+            
+            if (!userStats) {
+              return (
+                <p className="text-sm text-gray-400">
+                  No stats yet. Place your first bet to get started!
+                </p>
+              );
+            }
 
-    const balance = userStats.balance || 0;
-    const wins = userStats.wins || 0;
-    const losses = userStats.losses || 0;
-    const ties = userStats.ties || 0;
-    const totalGames = wins + losses + ties;
-    const winPercentage = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
-    const currentStreak = userStats.current_streak || 0;
-    const streakType = userStats.streak_type || "W"; // "W" for wins, "L" for losses
+            const balance = userStats.balance || 0;
+            const wins = userStats.wins || 0;
+            const losses = userStats.losses || 0;
+            const ties = userStats.ties || 0;
+            const totalGames = wins + losses + ties;
+            const winPercentage = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
+            const currentStreak = userStats.current_streak || 0;
+            const streakType = userStats.streak_type || "W";
 
-    return (
-      <>
-        <p
-          className={`text-sm mb-4 ${
-            balance >= 0 ? "text-green-400" : "text-red-400"
-          }`}
-        >
-          Total Balance: {balance >= 0 ? "+" : ""}${balance.toFixed(2)}
-        </p>
+            return (
+              <>
+                <p
+                  className={`text-sm mb-4 ${
+                    balance >= 0 ? "text-green-400" : "text-red-400"
+                  }`}
+                >
+                  Total Balance: {balance >= 0 ? "+" : ""}${balance.toFixed(2)}
+                </p>
 
-        <div className="grid grid-cols-3 gap-3 text-center text-sm font-semibold">
-          <div className="bg-zinc-800 rounded-xl py-3 flex flex-col justify-center">
-            <p className="text-xs text-gray-400 mb-1">Record</p>
-            <p className="text-lg font-bold text-white">
-              {wins}-{losses}-{ties}
-            </p>
-          </div>
+                <div className="grid grid-cols-3 gap-3 text-center text-sm font-semibold">
+                  <div className="bg-zinc-800 rounded-xl py-3 flex flex-col justify-center">
+                    <p className="text-xs text-gray-400 mb-1">Record</p>
+                    <p className="text-lg font-bold text-white">
+                      {wins}-{losses}-{ties}
+                    </p>
+                  </div>
 
-          <div className="bg-zinc-800 rounded-xl py-3 flex flex-col justify-center">
-            <p className="text-xs text-gray-400 mb-1">Win %</p>
-            <p className="text-lg font-bold text-white">{winPercentage}%</p>
-          </div>
+                  <div className="bg-zinc-800 rounded-xl py-3 flex flex-col justify-center">
+                    <p className="text-xs text-gray-400 mb-1">Win %</p>
+                    <p className="text-lg font-bold text-white">{winPercentage}%</p>
+                  </div>
 
-          <div className="bg-zinc-800 rounded-xl py-3 flex flex-col justify-center">
-            <p className="text-xs text-gray-400 mb-1">Current Streak</p>
-            <p
-              className={`text-lg font-bold ${
-                streakType === "W" && currentStreak > 0
-                  ? "text-green-400"
-                  : streakType === "L" && currentStreak > 0
-                  ? "text-red-400"
-                  : "text-gray-400"
-              }`}
-            >
-              {currentStreak > 0 ? `${currentStreak}${streakType}` : "-"}
-            </p>
-          </div>
-        </div>
-      </>
-    );
-  })()}
-</section>
+                  <div className="bg-zinc-800 rounded-xl py-3 flex flex-col justify-center">
+                    <p className="text-xs text-gray-400 mb-1">Current Streak</p>
+                    <p
+                      className={`text-lg font-bold ${
+                        streakType === "W" && currentStreak > 0
+                          ? "text-green-400"
+                          : streakType === "L" && currentStreak > 0
+                          ? "text-red-400"
+                          : "text-gray-400"
+                      }`}
+                    >
+                      {currentStreak > 0 ? `${currentStreak}${streakType}` : "-"}
+                    </p>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </section>
 
         {/* 🎯 ACTIVE BETS */}
         <section className="mt-6">
@@ -322,7 +350,6 @@ export default function GroupDetailPage() {
                   user={user}
                   onPick={handleUserPick}
                   onJudge={setJudgingBet}
-                  // Don't pass groupName since we're already in the group
                 />
               ))}
             </ul>
@@ -449,11 +476,17 @@ export default function GroupDetailPage() {
       )}
 
       <footer className="fixed bottom-0 left-0 w-full bg-gray-950 border-t border-gray-800 text-gray-400 text-xs flex justify-around py-3">
-  <button onClick={() => router.push("/home")}>Home</button>
-  <button onClick={() => router.push("/groups")} className="text-orange-500 font-medium">Groups</button>
-  <button onClick={() => router.push("/mybets")}>My Bets</button>
-  <button onClick={() => router.push("/settings")}>Settings</button>
-</footer>
+        <button onClick={() => router.push("/home")}>Home</button>
+        <button onClick={() => router.push("/groups")} className="text-orange-500 font-medium">Groups</button>
+        <button onClick={() => router.push("/mybets")}>My Bets</button>
+        <button onClick={() => router.push("/settings")}>Settings</button>
+      </footer>
+
+      {/* Floating Create Bet Button */}
+      <FloatingCreateBetButton
+        groups={groups}
+        onCreateBet={handleCreateBet}
+      />
     </main>
   );
 }

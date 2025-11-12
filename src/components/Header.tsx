@@ -49,53 +49,40 @@ export default function Header() {
 
   // Create Bet Handler
   const handleCreateBet = async (betData: any) => {
-    if (betData.type === "OVER_UNDER" && !betData.line) {
-      alert("Please set a valid line ending in .5 for Over/Under bets.");
-      return;
-    }
+  if (betData.type === "OVER_UNDER" && !betData.line) {
+    alert("Please set a valid line ending in .5 for Over/Under bets.");
+    return;
+  }
 
-    if (!user || !betData.title.trim() || !betData.groupId || !betData.wager) {
-      alert("Please complete all required fields.");
-      return;
-    }
+  if (!user || !betData.title.trim() || !betData.groupId || !betData.wager) {
+    alert("Please complete all required fields.");
+    return;
+  }
 
-    const uid = user.uid;
-    const now = new Date();
-    const closingAt =
-      betData.closingAt === "1m"
-        ? new Date(now.getTime() + 60 * 1000)
-        : betData.closingAt === "5m"
-        ? new Date(now.getTime() + 5 * 60 * 1000)
-        : betData.closingAt === "30m"
-        ? new Date(now.getTime() + 30 * 60 * 1000)
-        : betData.closingAt === "1h"
-        ? new Date(now.getTime() + 60 * 60 * 1000)
-        : new Date(now.getTime() + 10 * 60 * 1000);
-
-    const betDoc = {
-      title: betData.title,
-      description: betData.description || "",
-      type: betData.type,
-      status: "OPEN",
-      line: betData.line || null,
-      perUserWager: parseFloat(betData.wager),
-      participants: [],
-      picks: {},
-      creatorId: uid,
-      groupId: betData.groupId,
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
-      closingAt: closingAt.toISOString(),
-    };
-
-    try {
-      await addDoc(collection(db, "bets"), betDoc);
-      setShowCreateBet(false);
-    } catch (err) {
-      console.error("Error creating bet:", err);
-      alert("Failed to create bet. Please try again.");
-    }
+  const betDoc = {
+    title: betData.title,
+    description: betData.description || "",
+    type: betData.type,
+    status: "OPEN",
+    line: betData.line || null,
+    perUserWager: parseFloat(betData.wager),
+    participants: [],
+    picks: {},
+    creatorId: user.uid,
+    groupId: betData.groupId,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    closingAt: betData.closingAt, // ✅ Use the closingAt from wizard (already ISO string)
   };
+
+  try {
+    await addDoc(collection(db, "bets"), betDoc);
+    setShowCreateBet(false);
+  } catch (err) {
+    console.error("Error creating bet:", err);
+    alert("Failed to create bet. Please try again.");
+  }
+};
 
   // Create Group Handler
   const handleCreateGroup = async (groupData: any) => {

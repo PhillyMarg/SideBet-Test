@@ -6,6 +6,8 @@ import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { auth, db } from "../../lib/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 import { motion } from "framer-motion";
+import { Plus } from "lucide-react";
+import Footer from "../../components/Footer";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -125,12 +127,16 @@ export default function SettingsPage() {
       </div>
 
       {/* Footer */}
-      <footer className="fixed bottom-0 left-0 w-full bg-gray-950 border-t border-gray-800 text-gray-400 text-xs flex justify-around py-3">
-        <button onClick={() => router.push("/home")}>Home</button>
-        <button onClick={() => router.push("/groups")}>Groups</button>
-        <button onClick={() => router.push("/mybets")}>My Bets</button>
-        <button className="text-orange-500 font-medium">Settings</button>
-      </footer>
+      <Footer />
+
+      {/* Floating Create Bet Button - Navigate to home */}
+      <button
+        onClick={() => router.push("/home")}
+        className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-50 w-14 h-14 bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+        aria-label="Create Bet"
+      >
+        <Plus size={28} strokeWidth={2.5} />
+      </button>
     </main>
   );
 }

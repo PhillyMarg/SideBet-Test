@@ -18,6 +18,8 @@ import { signOut } from "firebase/auth";
 import JudgeBetModal from "../../components/JudgeBetModal";
 import ActiveBetCard from "../../components/ActiveBetCard";
 import CreateBetWizard from "../../components/CreateBetWizard";
+import FloatingCreateBetButton from "../../components/FloatingCreateBetButton";
+import Footer from "../../components/Footer";
 
 function getActiveBetCount(bets: any[], groupId: string) {
   return bets.filter((b) => b.groupId === groupId && b.status !== "JUDGED").length;
@@ -188,19 +190,6 @@ export default function HomePage() {
     return;
   }
 
-  const uid = user.uid;
-  const now = new Date();
-  const closingAt =
-    betData.closingAt === "1m"
-      ? new Date(now.getTime() + 60 * 1000)
-      : betData.closingAt === "5m"
-      ? new Date(now.getTime() + 5 * 60 * 1000)
-      : betData.closingAt === "30m"
-      ? new Date(now.getTime() + 30 * 60 * 1000)
-      : betData.closingAt === "1h"
-      ? new Date(now.getTime() + 60 * 60 * 1000)
-      : new Date(now.getTime() + 10 * 60 * 1000);
-
   const betDoc = {
     title: betData.title,
     description: betData.description || "",
@@ -210,11 +199,11 @@ export default function HomePage() {
     perUserWager: parseFloat(betData.wager),
     participants: [],
     picks: {},
-    creatorId: uid,
+    creatorId: user.uid,
     groupId: betData.groupId,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    closingAt: closingAt.toISOString(),
+    closingAt: betData.closingAt, // ✅ Use the closingAt from wizard (already ISO string)
   };
 
   try {
@@ -222,7 +211,7 @@ export default function HomePage() {
     setShowCreateBet(false);
   } catch (err) {
     console.error("Error creating bet:", err);
-    alert("Failed to create bet. Check console for details.");
+    alert("Failed to create bet. Please try again.");
   }
 };
 
@@ -864,12 +853,14 @@ export default function HomePage() {
       )}
 
       {/* Bottom Nav */}
-      <footer className="fixed bottom-0 left-0 w-full bg-gray-950 border-t border-gray-800 text-gray-400 text-xs flex justify-around py-3">
-        <button className="text-orange-500 font-medium">Home</button>
-        <button>My Bets</button>
-        <button>Groups</button>
-        <button>Settings</button>
-      </footer>
+  
+      <Footer />
+
+      {/* Floating Create Bet Button */}
+      <FloatingCreateBetButton
+        groups={groups}
+        onCreateBet={handleCreateBet}
+      />
     </main>
   );
 }
