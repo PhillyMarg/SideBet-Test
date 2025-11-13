@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* PWA Safe Areas for iPhone Notch */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+}
 /* ==== Base Styles ==== */
 html,
 body {
