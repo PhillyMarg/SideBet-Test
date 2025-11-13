@@ -45,7 +45,7 @@ export default function Footer() {
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className="fixed bottom-0 left-0 w-full bg-gray-950 border-t border-gray-800 z-40"
         >
-          <div className="flex justify-evenly items-center w-full py-3">
+          <div className="flex justify-evenly items-center w-full py-2 sm:py-3">
             {/* Home */}
             <button
               onClick={() => router.push("/home")}
@@ -53,8 +53,8 @@ export default function Footer() {
                 isActive("/home") ? "text-orange-500" : "text-gray-400 hover:text-orange-500"
               }`}
             >
-              <Home size={24} strokeWidth={2} />
-              <span className="text-xs mt-1.5 font-medium">Home</span>
+              <Home size={20} className="sm:w-6 sm:h-6" strokeWidth={2} />
+              <span className="text-[10px] sm:text-xs mt-1 sm:mt-1.5 font-medium">Home</span>
             </button>
 
             {/* Groups */}
@@ -66,8 +66,8 @@ export default function Footer() {
                   : "text-gray-400 hover:text-orange-500"
               }`}
             >
-              <Users size={24} strokeWidth={2} />
-              <span className="text-xs mt-1.5 font-medium">Groups</span>
+              <Users size={20} className="sm:w-6 sm:h-6" strokeWidth={2} />
+              <span className="text-[10px] sm:text-xs mt-1 sm:mt-1.5 font-medium">Groups</span>
             </button>
 
             {/* Settings */}
@@ -77,8 +77,8 @@ export default function Footer() {
                 isActive("/settings") ? "text-orange-500" : "text-gray-400 hover:text-orange-500"
               }`}
             >
-              <Settings size={24} strokeWidth={2} />
-              <span className="text-xs mt-1.5 font-medium">Settings</span>
+              <Settings size={20} className="sm:w-6 sm:h-6" strokeWidth={2} />
+              <span className="text-[10px] sm:text-xs mt-1 sm:mt-1.5 font-medium">Settings</span>
             </button>
           </div>
         </motion.footer>

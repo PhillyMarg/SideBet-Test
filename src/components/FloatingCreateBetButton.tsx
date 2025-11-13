@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
 import CreateBetWizard from "./CreateBetWizard";
 
 interface FloatingCreateBetButtonProps {
@@ -13,21 +12,43 @@ export default function FloatingCreateBetButton({
   groups,
   onCreateBet,
 }: FloatingCreateBetButtonProps) {
-  const [showCreateBet, setShowCreateBet] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
 
   return (
     <>
+      {/* Floating Button */}
       <button
-        onClick={() => setShowCreateBet(true)}
-        className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-50 w-14 h-14 bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
-        aria-label="Create Bet"
+        onClick={() => setShowWizard(true)}
+        className="fixed bottom-[90px] sm:bottom-[80px] right-4 z-30
+                   bg-orange-500 hover:bg-orange-600 text-white 
+                   px-6 py-2 rounded-full shadow-lg
+                   text-sm font-semibold
+                   transition-all duration-200 
+                   hover:shadow-[0_0_20px_rgba(249,115,22,0.6)]
+                   active:scale-95
+                   flex items-center gap-2
+                   min-w-[10         0px] justify-center"
       >
-        <Plus size={28} strokeWidth={2.5} />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+        Create Bet
       </button>
 
+      {/* Wizard Modal */}
       <CreateBetWizard
-        isOpen={showCreateBet}
-        onClose={() => setShowCreateBet(false)}
+        isOpen={showWizard}
+        onClose={() => setShowWizard(false)}
         groups={groups}
         onCreateBet={onCreateBet}
       />
