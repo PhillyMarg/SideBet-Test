@@ -27,7 +27,7 @@ export default function FloatingCreateBetButton({
                    hover:shadow-[0_0_20px_rgba(249,115,22,0.6)]
                    active:scale-95
                    flex items-center gap-2
-                   min-w-[10         0px] justify-center"
+                   min-w-[10          0px] justify-center"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
