@@ -35,7 +35,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
-  ],
+, ".next/types/app/groups/[groupId]/page.tsx", ".next/types/app/groups/page.tsx"  ],
   "exclude": [
     "node_modules"
   ]
