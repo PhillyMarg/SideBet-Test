@@ -19,6 +19,8 @@ import JudgeBetModal from "../../components/JudgeBetModal";
 import ActiveBetCard from "../../components/ActiveBetCard";
 import CreateBetWizard from "../../components/CreateBetWizard";
 import FloatingCreateBetButton from "../../components/FloatingCreateBetButton";
+import BetCardSkeleton from "../../components/BetCardSkeleton";
+import GroupCardSkeleton from "../../components/GroupCardSkeleton";
 import Footer from "../../components/Footer";
 
 function getActiveBetCount(bets: any[], groupId: string) {
@@ -31,7 +33,7 @@ export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
   const [bets, setBets] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showAllBets, setShowAllBets] = useState(false);
   const [showCreateBet, setShowCreateBet] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
@@ -120,6 +122,7 @@ export default function HomePage() {
       const unsubGroups = onSnapshot(groupsQuery, (snapshot) => {
         const groupsData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
         setGroups(groupsData);
+        setLoading(false); // ← Set loading to false after groups load
       });
 
       // ✅ Real-time listener for bets created OR joined
@@ -169,60 +172,56 @@ export default function HomePage() {
   useEffect(() => {
     if (!bets.length || !groups.length) return;
 
-    // Update counts without recreating arrays
     setGroups((prevGroups) =>
       prevGroups.map((g) => ({
         ...g,
         activeCount: getActiveBetCount(bets, g.id),
       }))
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bets]);
 
   const handleCreateBet = async (betData: any) => {
-  if (betData.type === "OVER_UNDER" && !betData.line) {
-    alert("Please set a valid line ending in .5 for Over/Under bets.");
-    return;
-  }
+    if (betData.type === "OVER_UNDER" && !betData.line) {
+      alert("Please set a valid line ending in .5 for Over/Under bets.");
+      return;
+    }
 
-  if (!user || !betData.title.trim() || !betData.groupId || !betData.wager) {
-    alert("Please complete all required fields.");
-    return;
-  }
+    if (!user || !betData.title.trim() || !betData.groupId || !betData.wager) {
+      alert("Please complete all required fields.");
+      return;
+    }
 
-  const betDoc = {
-    title: betData.title,
-    description: betData.description || "",
-    type: betData.type,
-    status: "OPEN",
-    line: betData.line || null,
-    perUserWager: parseFloat(betData.wager),
-    participants: [],
-    picks: {},
-    creatorId: user.uid,
-    groupId: betData.groupId,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    closingAt: betData.closingAt, // ✅ Use the closingAt from wizard (already ISO string)
+    const betDoc = {
+      title: betData.title,
+      description: betData.description || "",
+      type: betData.type,
+      status: "OPEN",
+      line: betData.line || null,
+      perUserWager: parseFloat(betData.wager),
+      participants: [],
+      picks: {},
+      creatorId: user.uid,
+      groupId: betData.groupId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      closingAt: betData.closingAt,
+    };
+
+    try {
+      await addDoc(collection(db, "bets"), betDoc);
+      setShowCreateBet(false);
+    } catch (err) {
+      console.error("Error creating bet:", err);
+      alert("Failed to create bet. Please try again.");
+    }
   };
 
-  try {
-    await addDoc(collection(db, "bets"), betDoc);
-    setShowCreateBet(false);
-  } catch (err) {
-    console.error("Error creating bet:", err);
-    alert("Failed to create bet. Please try again.");
-  }
-};
-
-  // --- Update user pick in Firestore so bets persist ---
   const handleUserPick = async (bet: any, pick: string | number) => {
     if (!user) return;
 
     const uid = user.uid;
 
     try {
-      // 🧠 Update picks & participants in Firestore
       const updatedPicks = { ...bet.picks, [uid]: pick };
       const updatedParticipants = Array.from(
         new Set([...(bet.participants || []), uid])
@@ -235,7 +234,6 @@ export default function HomePage() {
         updatedAt: new Date().toISOString(),
       });
 
-      // ✅ Update local state too
       setBets((prev) =>
         prev.map((b) =>
           b.id === bet.id
@@ -255,21 +253,16 @@ export default function HomePage() {
   };
 
   const handleCreateGroup = async () => {
-    console.log("🟠 handleCreateGroup triggered");
-
     if (!user) {
-      console.error("❌ No user logged in.");
       alert("You must be signed in to create a group.");
       return;
     }
 
     if (!newGroup.name.trim()) {
-      console.error("❌ Missing group name.");
       alert("Group name is required.");
       return;
     }
 
-    // Build the document
     const groupDoc = {
       name: newGroup.name,
       tagline: newGroup.tagline || "",
@@ -290,11 +283,8 @@ export default function HomePage() {
       created_at: new Date().toISOString(),
     };
 
-    console.log("🟢 Attempting to add group to Firestore:", groupDoc);
-
     try {
-      const ref = await addDoc(collection(db, "groups"), groupDoc);
-      console.log("✅ Group successfully created with ID:", ref.id);
+      await addDoc(collection(db, "groups"), groupDoc);
 
       setShowConfirm(false);
       setShowCreateGroup(false);
@@ -314,32 +304,24 @@ export default function HomePage() {
 
       alert("✅ Group created successfully!");
     } catch (error: any) {
-      console.error("🔥 Full Firestore Error Object:", error);
-      alert(
-        `Failed to create group. Error: ${error.message || JSON.stringify(error)}`
-      );
+      console.error("Error creating group:", error);
+      alert(`Failed to create group. Error: ${error.message || JSON.stringify(error)}`);
     }
   };
 
-  // ✅ Active bets include expired bets that haven't been judged yet
   const activeBets = bets.filter((bet) => bet.status !== "JUDGED");
 
   const getGroupName = (groupId: string) =>
     groups.find((g) => g.id === groupId)?.name || "Unknown Group";
 
-  if (loading)
-    return (
-      <main className="flex items-center justify-center min-h-screen bg-black text-white">
-        <p>Loading...</p>
-      </main>
-    );
-
-  if (!user)
+  // Only redirect if not loading and no user
+  if (!loading && !user) {
     return (
       <main className="flex items-center justify-center min-h-screen bg-black text-white">
         <p>Redirecting to login...</p>
       </main>
     );
+  }
 
   return (
     <main
@@ -349,10 +331,20 @@ export default function HomePage() {
       {/* Active Bets */}
       <section className="p-4 flex flex-col items-center text-center mt-4">
         <h2 className="text-lg font-semibold mb-3 text-white">Active Bets</h2>
-        {activeBets.length > 0 ? (
+
+        {loading ? (
+          <ul
+            className="space-y-2 sm:space-y-3 w-[95%] sm:w-[92%] mx-auto"
+            style={{ maxWidth: "var(--content-width)" }}
+          >
+            {[...Array(3)].map((_, i) => (
+              <BetCardSkeleton key={i} />
+            ))}
+          </ul>
+        ) : activeBets.length > 0 ? (
           <>
             <ul
-              className="space-y-3 w-[92%] mx-auto"
+              className="space-y-2 sm:space-y-3 w-[95%] sm:w-[92%] mx-auto"
               style={{ maxWidth: "var(--content-width)" }}
             >
               {(showAllBets ? activeBets : activeBets.slice(0, 5)).map((bet) => (
@@ -385,7 +377,17 @@ export default function HomePage() {
       {/* Groups Section */}
       <section className="p-4 flex flex-col items-center text-center mt-6">
         <h2 className="text-lg font-semibold mb-3 text-white">Groups</h2>
-        {groups.length > 0 ? (
+
+        {loading ? (
+          <ul
+            className="space-y-4 w-full mx-auto"
+            style={{ maxWidth: "var(--content-width)" }}
+          >
+            {[...Array(2)].map((_, i) => (
+              <GroupCardSkeleton key={i} />
+            ))}
+          </ul>
+        ) : groups.length > 0 ? (
           <ul
             className="space-y-4 w-full mx-auto"
             style={{ maxWidth: "var(--content-width)" }}
@@ -401,7 +403,6 @@ export default function HomePage() {
                   onClick={() => router.push(`/groups/${group.id}`)}
                   className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col text-left shadow-md hover:border-orange-500 hover:scale-[1.02] transition-transform duration-200 text-base cursor-pointer"
                 >
-                  {/* Header */}
                   <div className="flex justify-between items-center mb-3">
                     <h3 className="font-semibold text-white text-sm sm:text-base">
                       {group.name}
@@ -411,14 +412,12 @@ export default function HomePage() {
                     </p>
                   </div>
 
-                  {/* Description */}
                   {group.tagline && (
                     <p className="text-sm text-gray-300 mb-3 line-clamp-2">
                       {group.tagline}
                     </p>
                   )}
 
-                  {/* Stats Row */}
                   <div className="flex justify-between text-sm text-gray-400">
                     <span>
                       Wager Range:{" "}
@@ -446,7 +445,6 @@ export default function HomePage() {
           </p>
         )}
 
-        {/* Create Group Button */}
         <button
           onClick={() => setShowCreateGroup(true)}
           className="mt-6 bg-orange-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-orange-600 hover:shadow-[0_0_10px_2px_rgba(38,38,38,0.5)] transition duration-200"
@@ -455,13 +453,13 @@ export default function HomePage() {
         </button>
       </section>
 
-{/* Replace the entire Create Bet Modal with: */}
-<CreateBetWizard
-  isOpen={showCreateBet}
-  onClose={() => setShowCreateBet(false)}
-  groups={groups}
-  onCreateBet={handleCreateBet}
-/>
+      <CreateBetWizard
+        isOpen={showCreateBet}
+        onClose={() => setShowCreateBet(false)}
+        groups={groups}
+        onCreateBet={handleCreateBet}
+      />
+
       {/* Create Group Modal */}
       {showCreateGroup && (
         <div
@@ -470,13 +468,12 @@ export default function HomePage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-[95%] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl px-5 py-5 transform transition-all duration-300 ease-out"
+            className="w-[95%] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl px-5 py-5 transform transition-all duration-300 ease-out max-h-[90vh] overflow-y-auto"
           >
             <h3 className="text-lg font-semibold mb-4 text-center text-white">
               Create Group
             </h3>
 
-            {/* --- Group Info --- */}
             <div className="mb-3">
               <label className="block text-sm mb-2 text-gray-400">Group Name</label>
               <input
@@ -503,7 +500,6 @@ export default function HomePage() {
               />
             </div>
 
-            {/* --- Wager Range --- */}
             <div className="mb-4">
               <label className="block text-sm mb-2 text-gray-400">Wager Range</label>
               <div className="flex gap-2">
@@ -534,7 +530,6 @@ export default function HomePage() {
                 )}
             </div>
 
-            {/* --- Season Setup --- */}
             <div className="border-t border-zinc-800 pt-3 mb-4">
               <label className="flex items-center gap-2 text-sm text-gray-300 mb-3">
                 <input
@@ -611,13 +606,11 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* --- Invite Members --- */}
             <div className="border-t border-zinc-800 pt-3 mb-4">
               <label className="block text-sm mb-3 text-gray-400">
                 Invite Members
               </label>
 
-              {/* Join Link */}
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="flex flex-col flex-1">
                   <p className="text-xs text-gray-400 mb-1">Join Link</p>
@@ -640,7 +633,6 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Access Code */}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex flex-col flex-1">
                   <p className="text-xs text-gray-400 mb-1">Access Code</p>
@@ -664,7 +656,6 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* --- Actions --- */}
             <div className="flex justify-between mt-4">
               <button
                 onClick={() => setShowCreateGroup(false)}
@@ -728,7 +719,6 @@ export default function HomePage() {
                     const input = joinInput.trim().toUpperCase();
                     const groupsRef = collection(db, "groups");
 
-                    // Search by accessCode or joinLink
                     const codeQuery = query(
                       groupsRef,
                       where("accessCode", "==", input)
@@ -757,7 +747,6 @@ export default function HomePage() {
                     const groupRef = matchSnap.ref;
                     const groupData = matchSnap.data();
 
-                    // Prevent duplicates
                     if (groupData.memberIds?.includes(user.uid)) {
                       alert("You're already a member of this group!");
                       return;
@@ -784,7 +773,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* --- Confirmation Modal --- */}
+      {/* Confirmation Modal */}
       {showConfirm && (
         <div
           className="fixed inset-0 flex justify-center items-center z-50 bg-black/70"
@@ -852,11 +841,8 @@ export default function HomePage() {
         <JudgeBetModal bet={judgingBet} onClose={() => setJudgingBet(null)} />
       )}
 
-      {/* Bottom Nav */}
-  
       <Footer />
 
-      {/* Floating Create Bet Button */}
       <FloatingCreateBetButton
         groups={groups}
         onCreateBet={handleCreateBet}
