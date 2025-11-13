@@ -1,12 +1,26 @@
-import "./globals.css";
+import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import ConditionalLayout from "../components/ConditionalLayout";
+import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata = {
-  title: "SideBet",
-  description: "Friendly wagers with friends — no money, just bragging rights.",
+export const metadata: Metadata = {
+  title: "SideBet - Social Betting for Friends",
+  description: "Create and join bets with your friends",
+  manifest: "/manifest.json",
+  themeColor: "#f97316",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    viewportFit: "cover",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "SideBet",
+  },
 };
 
 export default function RootLayout({
@@ -16,11 +30,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body
-        className={`${inter.className} bg-gray-950 text-white flex flex-col min-h-screen`}
-      >
-        <ConditionalLayout>{children}</ConditionalLayout>
-      </body>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="mobile-web-app-capable" content="yes" />
+      </head>
+      <body className={inter.className}>{children}</body>
     </html>
   );
 }
