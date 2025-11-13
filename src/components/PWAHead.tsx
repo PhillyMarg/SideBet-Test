@@ -8,8 +8,8 @@ export default function PWAHead() {
     const links = [
       { rel: 'manifest', href: '/manifest.json' },
       { rel: 'apple-touch-icon', href: '/icon-192.png' },
-      { rel: 'apple-touch-icon', sizes: '192x192', href: '/icon-192.png' },
-      { rel: 'apple-touch-icon', sizes: '512x512', href: '/icon-512.png' },
+      { rel: 'apple-touch-icon', href: '/icon-192.png', sizes: '192x192' },
+      { rel: 'apple-touch-icon', href: '/icon-512.png', sizes: '512x512' },
     ];
 
     const metas = [
@@ -25,7 +25,7 @@ export default function PWAHead() {
       const link = document.createElement('link');
       link.rel = rel;
       link.href = href;
-      if (sizes) link.sizes = sizes;
+      if (sizes) link.setAttribute('sizes', sizes); // ✅ Use setAttribute
       document.head.appendChild(link);
     });
 
