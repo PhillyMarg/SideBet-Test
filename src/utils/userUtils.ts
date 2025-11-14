@@ -5,11 +5,13 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase/client";
 
 // Cache for user data to avoid repeated queries
-const userCache = new Map<string, { displayName: string | null; email: string | null; timestamp: number }>();
+const userCache = new Map<string, { displayName: string | null; firstName: string | null; lastName: string | null; email: string | null; timestamp: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export interface UserData {
   displayName: string | null;
+  firstName: string | null;
+  lastName: string | null;
   email: string | null;
 }
 
@@ -22,7 +24,12 @@ export async function fetchUserData(userId: string): Promise<UserData> {
   // Check cache first
   const cached = userCache.get(userId);
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-    return { displayName: cached.displayName, email: cached.email };
+    return {
+      displayName: cached.displayName,
+      firstName: cached.firstName,
+      lastName: cached.lastName,
+      email: cached.email
+    };
   }
 
   try {
@@ -33,6 +40,8 @@ export async function fetchUserData(userId: string): Promise<UserData> {
       const data = userSnap.data();
       const userData = {
         displayName: data.displayName || null,
+        firstName: data.firstName || null,
+        lastName: data.lastName || null,
         email: data.email || null,
       };
 
@@ -46,7 +55,7 @@ export async function fetchUserData(userId: string): Promise<UserData> {
     }
 
     // User not found, cache null values
-    const emptyData = { displayName: null, email: null };
+    const emptyData = { displayName: null, firstName: null, lastName: null, email: null };
     userCache.set(userId, {
       ...emptyData,
       timestamp: Date.now(),
@@ -55,19 +64,25 @@ export async function fetchUserData(userId: string): Promise<UserData> {
     return emptyData;
   } catch (error) {
     console.error("Error fetching user data:", error);
-    return { displayName: null, email: null };
+    return { displayName: null, firstName: null, lastName: null, email: null };
   }
 }
 
 /**
  * Gets a display name for a user with fallback logic
- * Priority: displayName → email → "Unknown User"
+ * Priority: displayName → firstName + lastName → email → "Unknown User"
  * @param userData - UserData object
  * @returns Display name string
  */
 export function getUserDisplayName(userData: UserData): string {
   if (userData.displayName) {
     return userData.displayName;
+  }
+  if (userData.firstName && userData.lastName) {
+    return `${userData.firstName} ${userData.lastName}`;
+  }
+  if (userData.firstName) {
+    return userData.firstName;
   }
   if (userData.email) {
     return userData.email;

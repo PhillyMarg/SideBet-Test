@@ -27,10 +27,15 @@ export default function SignUpPage() {
       const user = userCredential.user;
 
       // Create Firestore user document
+      const trimmedFirstName = firstName.trim();
+      const trimmedLastName = lastName.trim();
+      const displayName = `${trimmedFirstName} ${trimmedLastName}`;
+
       await setDoc(doc(db, "users", user.uid), {
         id: user.uid,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
+        firstName: trimmedFirstName,
+        lastName: trimmedLastName,
+        displayName: displayName,
         email: email.trim().toLowerCase(),
         joined_groups: [],
         total_stats: { totalBets: 0, wins: 0, losses: 0, net: 0 },
