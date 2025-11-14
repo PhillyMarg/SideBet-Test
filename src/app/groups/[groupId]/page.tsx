@@ -20,6 +20,7 @@ import JudgeBetModal from "../../../components/JudgeBetModal";
 import ActiveBetCard from "../../../components/ActiveBetCard";
 import ArchivedBetCard from "../../../components/ArchivedBetCard";
 import FloatingCreateBetButton from "../../../components/FloatingCreateBetButton";
+import Footer from "../../../components/Footer";
 
 export default function GroupDetailPage() {
   const { groupId } = useParams();
@@ -475,12 +476,7 @@ export default function GroupDetailPage() {
         />
       )}
 
-      <footer className="fixed bottom-0 left-0 w-full bg-gray-950 border-t border-gray-800 text-gray-400 text-xs flex justify-around py-3">
-        <button onClick={() => router.push("/home")}>Home</button>
-        <button onClick={() => router.push("/groups")} className="text-orange-500 font-medium">Groups</button>
-        <button onClick={() => router.push("/mybets")}>My Bets</button>
-        <button onClick={() => router.push("/settings")}>Settings</button>
-      </footer>
+      <Footer />
 
       {/* Floating Create Bet Button */}
       <FloatingCreateBetButton
