@@ -22,6 +22,7 @@ import FloatingCreateBetButton from "../../components/FloatingCreateBetButton";
 import BetCardSkeleton from "../../components/BetCardSkeleton";
 import GroupCardSkeleton from "../../components/GroupCardSkeleton";
 import Footer from "../../components/Footer";
+import Header from "../../components/Header";
 
 function getActiveBetCount(bets: any[], groupId: string) {
   return bets.filter((b) => b.groupId === groupId && b.status !== "JUDGED").length;
@@ -324,11 +325,13 @@ export default function HomePage() {
   }
 
   return (
-    <main
-      className="min-h-screen bg-black text-white flex flex-col pb-20 relative overflow-y-auto"
-      style={{ "--content-width": "500px" } as React.CSSProperties}
-    >
-      {/* Active Bets */}
+    <>
+      <Header />
+      <main
+        className="min-h-screen bg-black text-white flex flex-col pb-20 relative overflow-y-auto"
+        style={{ "--content-width": "500px" } as React.CSSProperties}
+      >
+        {/* Active Bets */}
       <section className="p-4 flex flex-col items-center text-center mt-4">
         <h2 className="text-lg font-semibold mb-3 text-white">Active Bets</h2>
 
@@ -847,6 +850,7 @@ export default function HomePage() {
         groups={groups}
         onCreateBet={handleCreateBet}
       />
-    </main>
+      </main>
+    </>
   );
 }
