@@ -13,11 +13,15 @@ import {
   onSnapshot,
   doc,
   updateDoc,
+  getDoc,
+  setDoc,
 } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import JudgeBetModal from "../../components/JudgeBetModal";
 import ActiveBetCard from "../../components/ActiveBetCard";
 import CreateBetWizard from "../../components/CreateBetWizard";
+import CreateGroupWizard from "../../components/CreateGroupWizard";
+import OnboardingWizard from "../../components/OnboardingWizard";
 import FloatingCreateBetButton from "../../components/FloatingCreateBetButton";
 import BetCardSkeleton from "../../components/BetCardSkeleton";
 import GroupCardSkeleton from "../../components/GroupCardSkeleton";
@@ -41,6 +45,8 @@ export default function HomePage() {
   const [showJoinGroup, setShowJoinGroup] = useState(false);
   const [joinInput, setJoinInput] = useState("");
   const [judgingBet, setJudgingBet] = useState<any>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(true);
 
   const handleLogout = async () => {
     try {
@@ -52,49 +58,19 @@ export default function HomePage() {
     }
   };
 
-  // --- Create Group State and Helpers ---
-  const [showConfirm, setShowConfirm] = useState(false);
+  const handleOnboardingComplete = async () => {
+    if (!user) return;
 
-  const calcEndDate = (type: string) => {
-    const now = new Date();
-    const ms = {
-      daily: 24 * 60 * 60 * 1000,
-      weekly: 7 * 24 * 60 * 60 * 1000,
-      monthly: 31 * 24 * 60 * 60 * 1000,
-    }[type];
-    return ms ? new Date(now.getTime() + ms).toISOString().split("T")[0] : "";
+    try {
+      const userDocRef = doc(db, "users", user.uid);
+      await setDoc(userDocRef, { onboardingCompleted: true }, { merge: true });
+      setOnboardingCompleted(true);
+      setShowOnboarding(false);
+    } catch (error) {
+      console.error("Error updating onboarding status:", error);
+    }
   };
 
-  const [newGroup, setNewGroup] = useState({
-    name: "",
-    tagline: "",
-    min_bet: "",
-    max_bet: "",
-    season_enabled: false,
-    season_type: "",
-    season_end_date: "",
-    auto_renew: false,
-    inviteType: "link",
-    joinLink: "",
-    accessCode: "",
-  });
-
-  useEffect(() => {
-    if (showCreateGroup) {
-      setNewGroup((prev) => ({
-        ...prev,
-        joinLink:
-          prev.joinLink ||
-          `https://sidebet.app/join/${Math.random()
-            .toString(36)
-            .substring(2, 7)
-            .toUpperCase()}`,
-        accessCode:
-          prev.accessCode ||
-          Math.random().toString(36).substring(2, 7).toUpperCase(),
-      }));
-    }
-  }, [showCreateGroup]);
 
   // 🔁 Countdown force re-render
   useEffect(() => {
@@ -168,6 +144,30 @@ export default function HomePage() {
 
     return () => unsubAuth();
   }, [router]);
+
+  // Check onboarding status
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      if (!user) return;
+
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        if (!userDoc.exists() || !userDoc.data()?.onboardingCompleted) {
+          setOnboardingCompleted(false);
+          setShowOnboarding(true);
+        } else {
+          setOnboardingCompleted(true);
+          setShowOnboarding(false);
+        }
+      } catch (error) {
+        console.error("Error checking onboarding status:", error);
+      }
+    };
+
+    checkOnboarding();
+  }, [user]);
 
   // 🔁 Real-time active bet count per group
   useEffect(() => {
@@ -253,56 +253,34 @@ export default function HomePage() {
     }
   };
 
-  const handleCreateGroup = async () => {
+  const handleCreateGroup = async (groupData: any) => {
     if (!user) {
       alert("You must be signed in to create a group.");
       return;
     }
 
-    if (!newGroup.name.trim()) {
-      alert("Group name is required.");
-      return;
-    }
-
     const groupDoc = {
-      name: newGroup.name,
-      tagline: newGroup.tagline || "",
+      name: groupData.name,
+      tagline: groupData.tagline || "",
       admin_id: user.uid,
       memberIds: [user.uid],
       settings: {
-        min_bet: parseFloat(newGroup.min_bet) || 0,
-        max_bet: parseFloat(newGroup.max_bet) || 0,
+        min_bet: groupData.min_bet || 0,
+        max_bet: groupData.max_bet || 0,
         starting_balance: 0,
-        season_enabled: newGroup.season_enabled,
-        season_type: newGroup.season_type || "none",
-        season_end_date: newGroup.season_end_date || null,
-        auto_renew: newGroup.auto_renew,
+        season_enabled: groupData.season_enabled,
+        season_type: groupData.season_type || "none",
+        season_end_date: groupData.season_end_date || null,
+        auto_renew: groupData.auto_renew,
       },
-      inviteType: newGroup.inviteType,
-      joinLink: newGroup.joinLink,
-      accessCode: newGroup.accessCode,
+      inviteType: groupData.inviteType,
+      joinLink: groupData.joinLink,
+      accessCode: groupData.accessCode,
       created_at: new Date().toISOString(),
     };
 
     try {
       await addDoc(collection(db, "groups"), groupDoc);
-
-      setShowConfirm(false);
-      setShowCreateGroup(false);
-      setNewGroup({
-        name: "",
-        tagline: "",
-        min_bet: "",
-        max_bet: "",
-        season_enabled: false,
-        season_type: "",
-        season_end_date: "",
-        auto_renew: false,
-        inviteType: "link",
-        joinLink: "",
-        accessCode: "",
-      });
-
       alert("✅ Group created successfully!");
     } catch (error: any) {
       console.error("Error creating group:", error);
@@ -456,6 +434,20 @@ export default function HomePage() {
         </button>
       </section>
 
+      <OnboardingWizard
+        isOpen={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        onComplete={handleOnboardingComplete}
+        onCreateGroup={() => {
+          setShowOnboarding(false);
+          setShowCreateGroup(true);
+        }}
+        onJoinGroup={() => {
+          setShowOnboarding(false);
+          setShowJoinGroup(true);
+        }}
+      />
+
       <CreateBetWizard
         isOpen={showCreateBet}
         onClose={() => setShowCreateBet(false)}
@@ -463,219 +455,11 @@ export default function HomePage() {
         onCreateBet={handleCreateBet}
       />
 
-      {/* Create Group Modal */}
-      {showCreateGroup && (
-        <div
-          className="fixed inset-0 flex justify-center items-center z-50 bg-black/60 transition-opacity duration-300 ease-out"
-          onClick={() => setShowCreateGroup(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-[95%] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl px-5 py-5 transform transition-all duration-300 ease-out max-h-[90vh] overflow-y-auto"
-          >
-            <h3 className="text-lg font-semibold mb-4 text-center text-white">
-              Create Group
-            </h3>
-
-            <div className="mb-3">
-              <label className="block text-sm mb-2 text-gray-400">Group Name</label>
-              <input
-                type="text"
-                placeholder="Enter group name"
-                value={newGroup.name}
-                onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
-                className="w-full bg-zinc-800 text-white p-2 rounded-md text-sm"
-              />
-            </div>
-
-            <div className="mb-3">
-              <label className="block text-sm mb-2 text-gray-400">
-                Description / Tagline
-              </label>
-              <textarea
-                rows={2}
-                placeholder="Enter a short description"
-                value={newGroup.tagline}
-                onChange={(e) =>
-                  setNewGroup({ ...newGroup, tagline: e.target.value })
-                }
-                className="w-full bg-zinc-800 text-white p-2 rounded-md text-sm resize-none"
-              />
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm mb-2 text-gray-400">Wager Range</label>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  placeholder="Min"
-                  value={newGroup.min_bet}
-                  onChange={(e) =>
-                    setNewGroup({ ...newGroup, min_bet: e.target.value })
-                  }
-                  className="flex-1 bg-zinc-800 text-white p-2 rounded-md text-sm"
-                />
-                <input
-                  type="number"
-                  placeholder="Max"
-                  value={newGroup.max_bet}
-                  onChange={(e) =>
-                    setNewGroup({ ...newGroup, max_bet: e.target.value })
-                  }
-                  className="flex-1 bg-zinc-800 text-white p-2 rounded-md text-sm"
-                />
-              </div>
-              {parseFloat(newGroup.min_bet) >= parseFloat(newGroup.max_bet) &&
-                newGroup.max_bet !== "" && (
-                  <p className="text-xs text-red-500 mt-1">
-                    Minimum wager must be less than maximum wager.
-                  </p>
-                )}
-            </div>
-
-            <div className="border-t border-zinc-800 pt-3 mb-4">
-              <label className="flex items-center gap-2 text-sm text-gray-300 mb-3">
-                <input
-                  type="checkbox"
-                  checked={newGroup.season_enabled}
-                  onChange={(e) =>
-                    setNewGroup({ ...newGroup, season_enabled: e.target.checked })
-                  }
-                  className="accent-orange-500 w-4 h-4"
-                />
-                Enable Season Tracking
-              </label>
-
-              {newGroup.season_enabled && (
-                <div className="bg-zinc-800 rounded-lg p-3 mb-3">
-                  <p className="text-sm text-gray-400 mb-2">Season Duration</p>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {["daily", "weekly", "monthly", "custom", "never"].map((opt) => (
-                      <button
-                        key={opt}
-                        onClick={() =>
-                          setNewGroup({
-                            ...newGroup,
-                            season_type: opt,
-                            season_end_date:
-                              opt === "custom"
-                                ? newGroup.season_end_date
-                                : calcEndDate(opt),
-                          })
-                        }
-                        className={`flex-1 py-2 rounded-md text-sm font-medium border ${
-                          newGroup.season_type === opt
-                            ? "bg-orange-500 text-white border-orange-500"
-                            : "border-zinc-700 text-gray-300 hover:bg-zinc-700"
-                        }`}
-                      >
-                        {opt === "never"
-                          ? "Never End"
-                          : opt.charAt(0).toUpperCase() + opt.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-
-                  {newGroup.season_type === "custom" && (
-                    <input
-                      type="date"
-                      min={new Date().toISOString().split("T")[0]}
-                      value={newGroup.season_end_date}
-                      onChange={(e) =>
-                        setNewGroup({ ...newGroup, season_end_date: e.target.value })
-                      }
-                      className="w-full bg-zinc-900 text-white p-2 rounded-md text-sm mb-3"
-                    />
-                  )}
-
-                  <label className="flex items-center gap-2 text-sm text-gray-300 mb-2">
-                    <input
-                      type="checkbox"
-                      checked={newGroup.auto_renew}
-                      onChange={(e) =>
-                        setNewGroup({ ...newGroup, auto_renew: e.target.checked })
-                      }
-                      className="accent-orange-500 w-4 h-4"
-                    />
-                    Auto-Renew Season
-                  </label>
-
-                  <p className="text-xs text-gray-500 mt-2">
-                    A "season" tracks activity for a set timeframe. Everything resets
-                    to $0 at the end of the season, when outcomes are finalized. At the
-                    start of a new season, every member begins again at $0.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-zinc-800 pt-3 mb-4">
-              <label className="block text-sm mb-3 text-gray-400">
-                Invite Members
-              </label>
-
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="flex flex-col flex-1">
-                  <p className="text-xs text-gray-400 mb-1">Join Link</p>
-                  <div className="flex items-center h-9 bg-zinc-800 rounded-md overflow-hidden">
-                    <div className="flex-1 text-white text-xs px-3 truncate">
-                      {newGroup.joinLink || "Generating..."}
-                    </div>
-                    <button
-                      onClick={() => {
-                        if (newGroup.joinLink) {
-                          navigator.clipboard.writeText(newGroup.joinLink);
-                          alert("Join link copied!");
-                        }
-                      }}
-                      className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-3 h-full"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex flex-col flex-1">
-                  <p className="text-xs text-gray-400 mb-1">Access Code</p>
-                  <div className="flex items-center h-9 bg-zinc-800 rounded-md overflow-hidden">
-                    <div className="flex-1 text-white text-xs px-3 tracking-widest text-left">
-                      {newGroup.accessCode || "Generating..."}
-                    </div>
-                    <button
-                      onClick={() => {
-                        if (newGroup.accessCode) {
-                          navigator.clipboard.writeText(newGroup.accessCode);
-                          alert("Access code copied!");
-                        }
-                      }}
-                      className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-3 h-full"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-between mt-4">
-              <button
-                onClick={() => setShowCreateGroup(false)}
-                className="text-gray-400 border border-gray-600 px-4 py-2 rounded-md text-sm hover:bg-gray-800 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => setShowConfirm(true)}
-                className="bg-orange-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-600 transition"
-              >
-                Review & Create
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CreateGroupWizard
+        isOpen={showCreateGroup}
+        onClose={() => setShowCreateGroup(false)}
+        onCreateGroup={handleCreateGroup}
+      />
 
       {/* Join Group Modal */}
       {showJoinGroup && (
@@ -770,69 +554,6 @@ export default function HomePage() {
                 className="bg-orange-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-600 transition"
               >
                 Join Group
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirmation Modal */}
-      {showConfirm && (
-        <div
-          className="fixed inset-0 flex justify-center items-center z-50 bg-black/70"
-          onClick={() => setShowConfirm(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-[95%] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl px-5 py-5"
-          >
-            <h3 className="text-lg font-semibold mb-4 text-center text-white">
-              Confirm Group Settings
-            </h3>
-
-            <ul className="text-sm text-gray-300 space-y-2 mb-4">
-              <li>
-                <span className="font-semibold text-white">Name:</span>{" "}
-                {newGroup.name}
-              </li>
-              <li>
-                <span className="font-semibold text-white">Description:</span>{" "}
-                {newGroup.tagline || "None"}
-              </li>
-              <li>
-                <span className="font-semibold text-white">Wager Range:</span> $
-                {newGroup.min_bet} – ${newGroup.max_bet}
-              </li>
-              {newGroup.season_enabled && (
-                <>
-                  <li>
-                    <span className="font-semibold text-white">Season Type:</span>{" "}
-                    {newGroup.season_type}
-                  </li>
-                  <li>
-                    <span className="font-semibold text-white">End Date:</span>{" "}
-                    {newGroup.season_end_date || "N/A"}
-                  </li>
-                  <li>
-                    <span className="font-semibold text-white">Auto-Renew:</span>{" "}
-                    {newGroup.auto_renew ? "Yes" : "No"}
-                  </li>
-                </>
-              )}
-            </ul>
-
-            <div className="flex justify-between mt-4">
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="text-gray-400 border border-gray-600 px-4 py-2 rounded-md text-sm hover:bg-gray-800 transition"
-              >
-                Back
-              </button>
-              <button
-                onClick={handleCreateGroup}
-                className="bg-orange-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-600 transition"
-              >
-                Confirm & Create
               </button>
             </div>
           </div>
