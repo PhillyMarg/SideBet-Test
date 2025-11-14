@@ -15,12 +15,14 @@ import {
   updateDoc,
   getDoc,
   addDoc,
+  limit,
 } from "firebase/firestore";
 import JudgeBetModal from "../../../components/JudgeBetModal";
 import ActiveBetCard from "../../../components/ActiveBetCard";
 import ArchivedBetCard from "../../../components/ArchivedBetCard";
 import FloatingCreateBetButton from "../../../components/FloatingCreateBetButton";
 import Footer from "../../../components/Footer";
+import { getTimeRemaining } from "../../../utils/timeUtils";
 
 export default function GroupDetailPage() {
   const { groupId } = useParams();
@@ -106,11 +108,18 @@ export default function GroupDetailPage() {
     }
   };
 
-  // ⏱️ Countdown force re-render
+  // ⏱️ Countdown force re-render (only if there are active bets with countdowns)
   useEffect(() => {
+    const activeBets = bets.filter((bet) => bet.status !== "JUDGED");
+    const hasActiveCountdowns = activeBets.some(
+      (bet) => !getTimeRemaining(bet.closingAt).isClosed
+    );
+
+    if (!hasActiveCountdowns) return; // Don't update if no active countdowns
+
     const timer = setInterval(() => forceUpdate((n) => n + 1), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [bets]);
 
   // 👤 Fetch creator name
   useEffect(() => {
@@ -149,7 +158,8 @@ export default function GroupDetailPage() {
       // Fetch user's groups for bet creation
       const groupsQuery = query(
         collection(db, "groups"),
-        where("memberIds", "array-contains", firebaseUser.uid)
+        where("memberIds", "array-contains", firebaseUser.uid),
+        limit(50)
       );
       const unsubGroups = onSnapshot(groupsQuery, (snap) => {
         const groupsData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -165,7 +175,8 @@ export default function GroupDetailPage() {
       // Bets in this group
       const betsQuery = query(
         collection(db, "bets"),
-        where("groupId", "==", groupId)
+        where("groupId", "==", groupId),
+        limit(100)
       );
       const unsubBets = onSnapshot(betsQuery, (snap) => {
         const betData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -177,7 +188,8 @@ export default function GroupDetailPage() {
       const leaderboardQuery = query(
         leaderboardRef,
         where("group_id", "==", groupId),
-        orderBy("balance", "desc")
+        orderBy("balance", "desc"),
+        limit(50)
       );
       const unsubLeaderboard = onSnapshot(leaderboardQuery, (snap) => {
         const leaders = snap.docs.map((d) => ({ id: d.id, ...d.data() }));

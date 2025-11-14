@@ -13,6 +13,7 @@ import {
   updateDoc,
   doc,
   getDoc,
+  limit,
 } from "firebase/firestore";
 import { motion } from "framer-motion";
 import CreateBetWizard from "./CreateBetWizard";
@@ -37,7 +38,8 @@ export default function Header() {
     const fetchGroups = async () => {
       const groupsQuery = query(
         collection(db, "groups"),
-        where("memberIds", "array-contains", user.uid)
+        where("memberIds", "array-contains", user.uid),
+        limit(50)
       );
       const snapshot = await getDocs(groupsQuery);
       const groupsData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));

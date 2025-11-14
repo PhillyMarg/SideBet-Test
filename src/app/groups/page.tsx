@@ -15,6 +15,7 @@ import {
   getDocs,
   addDoc,
   updateDoc,
+  limit,
 } from "firebase/firestore";
 import { motion } from "framer-motion";
 
@@ -67,7 +68,8 @@ export default function GroupsPage() {
         const activeBetsPromises = groupsData.map(async (group) => {
           const betsQuery = query(
             collection(db, "bets"),
-            where("groupId", "==", group.id)
+            where("groupId", "==", group.id),
+            limit(10)
           );
           const betsSnap = await getDocs(betsQuery);
           
@@ -94,7 +96,8 @@ export default function GroupsPage() {
           const leaderboardQuery = query(
             collection(db, "leaderboards"),
             where("group_id", "==", group.id),
-            where("user_id", "==", firebaseUser.uid)
+            where("user_id", "==", firebaseUser.uid),
+            limit(1)
           );
           const leaderboardSnap = await getDocs(leaderboardQuery);
 

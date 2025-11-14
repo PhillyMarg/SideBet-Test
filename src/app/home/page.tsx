@@ -15,6 +15,7 @@ import {
   updateDoc,
   getDoc,
   setDoc,
+  limit,
 } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import JudgeBetModal from "../../components/JudgeBetModal";
@@ -27,6 +28,7 @@ import BetCardSkeleton from "../../components/BetCardSkeleton";
 import GroupCardSkeleton from "../../components/GroupCardSkeleton";
 import Footer from "../../components/Footer";
 import Header from "../../components/Header";
+import { getTimeRemaining } from "../../utils/timeUtils";
 
 function getActiveBetCount(bets: any[], groupId: string) {
   return bets.filter((b) => b.groupId === groupId && b.status !== "JUDGED").length;
@@ -72,11 +74,18 @@ export default function HomePage() {
   };
 
 
-  // 🔁 Countdown force re-render
+  // 🔁 Countdown force re-render (only if there are active bets with countdowns)
   useEffect(() => {
+    const activeBets = bets.filter((bet) => bet.status !== "JUDGED");
+    const hasActiveCountdowns = activeBets.some(
+      (bet) => !getTimeRemaining(bet.closingAt).isClosed
+    );
+
+    if (!hasActiveCountdowns) return; // Don't update if no active countdowns
+
     const timer = setInterval(() => forceUpdate((n) => n + 1), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [bets]);
 
   // 👤 Auth + Firestore (fixed real-time listener)
   useEffect(() => {
@@ -94,7 +103,8 @@ export default function HomePage() {
       // ✅ Real-time listener for groups
       const groupsQuery = query(
         collection(db, "groups"),
-        where("memberIds", "array-contains", uid)
+        where("memberIds", "array-contains", uid),
+        limit(50)
       );
       const unsubGroups = onSnapshot(groupsQuery, (snapshot) => {
         const groupsData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -105,11 +115,13 @@ export default function HomePage() {
       // ✅ Real-time listener for bets created OR joined
       const betsCreatedQuery = query(
         collection(db, "bets"),
-        where("creatorId", "==", uid)
+        where("creatorId", "==", uid),
+        limit(50)
       );
       const betsJoinedQuery = query(
         collection(db, "bets"),
-        where("participants", "array-contains", uid)
+        where("participants", "array-contains", uid),
+        limit(50)
       );
 
       const unsubCreated = onSnapshot(betsCreatedQuery, (snapshot) => {
