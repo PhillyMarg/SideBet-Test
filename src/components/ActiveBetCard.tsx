@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getTimeRemaining, getLivePercentages } from "../utils/timeUtils";
+import { fetchUserData, getUserDisplayName } from "../utils/userUtils";
 
 interface ActiveBetCardProps {
   bet: any;
@@ -21,6 +22,8 @@ export default function ActiveBetCard({
 }: ActiveBetCardProps) {
   const router = useRouter();
   const [showResults, setShowResults] = useState(false);
+  const [creatorName, setCreatorName] = useState<string>("");
+  const [loadingCreator, setLoadingCreator] = useState<boolean>(true);
 
   const { text: countdownText, isClosed } = getTimeRemaining(bet.closingAt);
   const wager = bet.perUserWager ?? 0;
@@ -30,6 +33,21 @@ export default function ActiveBetCard({
   const { yes, no } = getLivePercentages(bet);
   const isCreator = bet.creatorId === user?.uid;
   const needsJudging = isClosed && bet.status !== "JUDGED" && isCreator;
+
+  // Fetch creator data on mount
+  useEffect(() => {
+    const loadCreatorData = async () => {
+      if (bet.creatorId) {
+        setLoadingCreator(true);
+        const userData = await fetchUserData(bet.creatorId);
+        const displayName = getUserDisplayName(userData);
+        setCreatorName(displayName);
+        setLoadingCreator(false);
+      }
+    };
+
+    loadCreatorData();
+  }, [bet.creatorId]);
 
   const calculateEstimatedPayout = (side: "yes" | "no") => {
     const yesVotes = Object.values(bet.picks || {}).filter(
@@ -100,7 +118,7 @@ export default function ActiveBetCard({
             </button>
           )}
           <span className="text-[9px] sm:text-xs text-gray-400">
-            by {bet.creatorId?.substring(0, 8)}
+            by {loadingCreator ? bet.creatorId?.substring(0, 8) : creatorName}
           </span>
         </div>
         <span className="text-[9px] sm:text-xs font-bold text-orange-500">{countdownText}</span>
