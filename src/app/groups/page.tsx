@@ -7,6 +7,7 @@ import { auth, db } from "../../lib/firebase/client";
 import CreateGroupWizard from "../../components/CreateGroupWizard";
 import Footer from "../../components/Footer";
 import FloatingCreateBetButton from "../../components/FloatingCreateBetButton";
+import Header from "../../components/Header";
 import {
   collection,
   query,
@@ -306,10 +307,12 @@ export default function GroupsPage() {
   const hasMoreGroups = groups.length > 5;
 
   return (
-    <main
-      className="min-h-screen bg-black text-white pb-20 flex flex-col items-center"
-      style={{ "--content-width": "500px" } as React.CSSProperties}
-    >
+    <>
+      <Header />
+      <main
+        className="min-h-screen bg-black text-white pb-20 flex flex-col items-center"
+        style={{ "--content-width": "500px" } as React.CSSProperties}
+      >
       <div
         className="w-[92%] mx-auto py-6"
         style={{ maxWidth: "var(--content-width)" }}
@@ -544,6 +547,7 @@ export default function GroupsPage() {
         groups={groups}
         onCreateBet={handleCreateBet}
       />
-    </main>
+      </main>
+    </>
   );
 }

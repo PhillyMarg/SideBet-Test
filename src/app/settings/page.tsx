@@ -8,6 +8,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import Footer from "../../components/Footer";
+import Header from "../../components/Header";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -58,10 +59,12 @@ export default function SettingsPage() {
   }
 
   return (
-    <main
-      className="min-h-screen bg-black text-white pb-20 flex flex-col items-center"
-      style={{ "--content-width": "500px" } as React.CSSProperties}
-    >
+    <>
+      <Header />
+      <main
+        className="min-h-screen bg-black text-white pb-20 flex flex-col items-center"
+        style={{ "--content-width": "500px" } as React.CSSProperties}
+      >
       <div
         className="w-[92%] mx-auto py-8"
         style={{ maxWidth: "var(--content-width)" }}
@@ -137,6 +140,7 @@ export default function SettingsPage() {
       >
         <Plus size={28} strokeWidth={2.5} />
       </button>
-    </main>
+      </main>
+    </>
   );
 }
