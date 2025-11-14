@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Home, Users, Settings } from "lucide-react";
 
-export default function Footer() {
+function Footer() {
   const router = useRouter();
   const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(true);
@@ -86,3 +86,4 @@ export default function Footer() {
     </AnimatePresence>
   );
 }
+export default React.memo(Footer);

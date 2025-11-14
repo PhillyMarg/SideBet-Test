@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getTimeRemaining, getLivePercentages } from "../utils/timeUtils";
 import { fetchUserData, getUserDisplayName } from "../utils/userUtils";
@@ -13,7 +13,7 @@ interface ActiveBetCardProps {
   groupName?: string;
 }
 
-export default function ActiveBetCard({
+function ActiveBetCard({
   bet,
   user,
   onPick,
@@ -327,3 +327,4 @@ export default function ActiveBetCard({
     </li>
   );
 }
+export default React.memo(ActiveBetCard);

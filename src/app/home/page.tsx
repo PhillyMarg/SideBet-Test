@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { db, auth } from "../../lib/firebase/client";
@@ -20,15 +20,17 @@ import {
 import { signOut } from "firebase/auth";
 import JudgeBetModal from "../../components/JudgeBetModal";
 import ActiveBetCard from "../../components/ActiveBetCard";
-import CreateBetWizard from "../../components/CreateBetWizard";
-import CreateGroupWizard from "../../components/CreateGroupWizard";
-import OnboardingWizard from "../../components/OnboardingWizard";
 import FloatingCreateBetButton from "../../components/FloatingCreateBetButton";
 import BetCardSkeleton from "../../components/BetCardSkeleton";
 import GroupCardSkeleton from "../../components/GroupCardSkeleton";
 import Footer from "../../components/Footer";
 import Header from "../../components/Header";
 import { getTimeRemaining } from "../../utils/timeUtils";
+
+// Lazy load heavy wizard components
+const CreateBetWizard = lazy(() => import("../../components/CreateBetWizard"));
+const CreateGroupWizard = lazy(() => import("../../components/CreateGroupWizard"));
+const OnboardingWizard = lazy(() => import("../../components/OnboardingWizard"));
 
 function getActiveBetCount(bets: any[], groupId: string) {
   return bets.filter((b) => b.groupId === groupId && b.status !== "JUDGED").length;
@@ -446,32 +448,44 @@ export default function HomePage() {
         </button>
       </section>
 
-      <OnboardingWizard
-        isOpen={showOnboarding}
-        onClose={() => setShowOnboarding(false)}
-        onComplete={handleOnboardingComplete}
-        onCreateGroup={() => {
-          setShowOnboarding(false);
-          setShowCreateGroup(true);
-        }}
-        onJoinGroup={() => {
-          setShowOnboarding(false);
-          setShowJoinGroup(true);
-        }}
-      />
+      {showOnboarding && (
+        <Suspense fallback={null}>
+          <OnboardingWizard
+            isOpen={showOnboarding}
+            onClose={() => setShowOnboarding(false)}
+            onComplete={handleOnboardingComplete}
+            onCreateGroup={() => {
+              setShowOnboarding(false);
+              setShowCreateGroup(true);
+            }}
+            onJoinGroup={() => {
+              setShowOnboarding(false);
+              setShowJoinGroup(true);
+            }}
+          />
+        </Suspense>
+      )}
 
-      <CreateBetWizard
-        isOpen={showCreateBet}
-        onClose={() => setShowCreateBet(false)}
-        groups={groups}
-        onCreateBet={handleCreateBet}
-      />
+      {showCreateBet && (
+        <Suspense fallback={null}>
+          <CreateBetWizard
+            isOpen={showCreateBet}
+            onClose={() => setShowCreateBet(false)}
+            groups={groups}
+            onCreateBet={handleCreateBet}
+          />
+        </Suspense>
+      )}
 
-      <CreateGroupWizard
-        isOpen={showCreateGroup}
-        onClose={() => setShowCreateGroup(false)}
-        onCreateGroup={handleCreateGroup}
-      />
+      {showCreateGroup && (
+        <Suspense fallback={null}>
+          <CreateGroupWizard
+            isOpen={showCreateGroup}
+            onClose={() => setShowCreateGroup(false)}
+            onCreateGroup={handleCreateGroup}
+          />
+        </Suspense>
+      )}
 
       {/* Join Group Modal */}
       {showJoinGroup && (

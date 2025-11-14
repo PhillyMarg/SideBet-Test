@@ -1,4 +1,6 @@
-export default function GroupCardSkeleton() {
+import React from "react";
+
+function GroupCardSkeleton() {
   return (
     <li className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 animate-pulse">
       {/* Header */}
@@ -19,3 +21,4 @@ export default function GroupCardSkeleton() {
     </li>
   );
 }
+export default React.memo(GroupCardSkeleton);
