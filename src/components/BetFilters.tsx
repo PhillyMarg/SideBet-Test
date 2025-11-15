@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import SearchBar from "./SearchBar";
 
 export type FilterTab = "all" | "open" | "myPicks" | "closingSoon";
 export type SortOption = "closingSoon" | "recent" | "group" | "wager";
@@ -14,6 +15,8 @@ interface BetFiltersProps {
   onTabChange: (tab: FilterTab) => void;
   onSortChange: (sort: SortOption) => void;
   showGroupSort?: boolean; // If false, hide "Group" sort option
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
 }
 
 export default function BetFilters({
@@ -25,6 +28,8 @@ export default function BetFilters({
   onTabChange,
   onSortChange,
   showGroupSort = true,
+  searchQuery = "",
+  onSearchChange,
 }: BetFiltersProps) {
   // Calculate counts for each tab
   const counts = useMemo(() => {
@@ -74,17 +79,29 @@ export default function BetFilters({
         ))}
       </div>
 
-      {/* Sort Dropdown */}
-      <div className="flex justify-end px-4 mt-3">
-        <div className="flex items-center gap-2">
-          <label htmlFor="sort-select" className="text-xs text-zinc-400">
+      {/* Search Bar and Sort - Responsive Layout */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center px-4 mt-3">
+        {/* Search Bar */}
+        {onSearchChange && (
+          <div className="flex-1">
+            <SearchBar
+              value={searchQuery}
+              onChange={onSearchChange}
+              placeholder="Search bets..."
+            />
+          </div>
+        )}
+
+        {/* Sort Dropdown */}
+        <div className="flex items-center gap-2 sm:w-48">
+          <label htmlFor="sort-select" className="text-xs text-zinc-400 whitespace-nowrap">
             Sort by:
           </label>
           <select
             id="sort-select"
             value={sortBy}
             onChange={(e) => onSortChange(e.target.value as SortOption)}
-            className="text-sm bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 text-white focus:outline-none focus:border-orange-500 transition-colors"
+            className="flex-1 text-sm bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 text-white focus:outline-none focus:border-orange-500 transition-colors"
           >
             <option value="closingSoon">Closing Soon</option>
             <option value="recent">Recent</option>
