@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { deleteDoc, doc } from "firebase/firestore";
+import { db } from "../lib/firebase/client";
+import { Trash2 } from "lucide-react";
 import { getTimeRemaining, getLivePercentages } from "../utils/timeUtils";
 import { fetchUserData, getUserDisplayName } from "../utils/userUtils";
 
@@ -24,6 +27,8 @@ function ActiveBetCard({
   const [showResults, setShowResults] = useState(false);
   const [creatorName, setCreatorName] = useState<string>("");
   const [loadingCreator, setLoadingCreator] = useState<boolean>(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { text: countdownText, isClosed } = getTimeRemaining(bet.closingAt);
   const wager = bet.perUserWager ?? 0;
@@ -90,6 +95,27 @@ function ActiveBetCard({
     return 0;
   };
 
+  const handleDeleteBet = async () => {
+    if (isDeleting) return; // Prevent double-click
+
+    try {
+      setIsDeleting(true);
+
+      // Delete from Firestore
+      // Note: Frontend check only - for production, add Firebase security rules to verify creator
+      await deleteDoc(doc(db, "bets", bet.id));
+
+      setShowDeleteModal(false);
+      // Real-time listener will automatically update UI
+
+    } catch (error: any) {
+      console.error("Error deleting bet:", error);
+      alert(`Failed to delete bet: ${error.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <li
       className={`
@@ -121,7 +147,18 @@ function ActiveBetCard({
             by {loadingCreator ? bet.creatorId?.substring(0, 8) : creatorName}
           </span>
         </div>
-        <span className="text-[9px] sm:text-xs font-bold text-orange-500">{countdownText}</span>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <span className="text-[9px] sm:text-xs font-bold text-orange-500">{countdownText}</span>
+          {isCreator && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="p-1 hover:bg-zinc-800 rounded transition"
+              aria-label="Delete bet"
+            >
+              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 text-red-500 hover:text-red-600" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Title */}
@@ -332,6 +369,51 @@ function ActiveBetCard({
             </>
           )}
         </>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowDeleteModal(false)}
+        >
+          <div
+            className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 max-w-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white mb-2">
+              Delete Bet?
+            </h3>
+
+            <p className="text-sm text-zinc-400 mb-4">
+              This will permanently delete "{bet.title}" and void all picks. This action cannot be undone.
+            </p>
+
+            {people > 0 && (
+              <p className="text-sm text-orange-500 mb-4">
+                ⚠️ {people} {people === 1 ? 'person has' : 'people have'} already placed bets.
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-800/50 text-white rounded-lg text-sm transition"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleDeleteBet}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 text-white rounded-lg text-sm transition"
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </li>
   );
