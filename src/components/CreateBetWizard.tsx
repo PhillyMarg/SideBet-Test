@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { toast } from "sonner";
 
 interface CreateBetWizardProps {
   isOpen: boolean;
@@ -44,19 +45,19 @@ export default function CreateBetWizard({
 
   const handleNext = () => {
     if (step === 1 && !betData.type) {
-      alert("Please select a bet type");
+      toast.error("Please select a bet type");
       return;
     }
     if (step === 2 && !betData.groupId) {
-      alert("Please select a group");
+      toast.error("Please select a group");
       return;
     }
     if (step === 3 && (!betData.title.trim() || !betData.wager || !betData.closingAt)) {
-      alert("Please fill in all required fields");
+      toast.error("Please fill in all required fields");
       return;
     }
     if (step === 3 && betData.type === "OVER_UNDER" && !betData.line) {
-      alert("Please set a line for Over/Under bets");
+      toast.error("Please set a line for Over/Under bets");
       return;
     }
     setStep(step + 1);

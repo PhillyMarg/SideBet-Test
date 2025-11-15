@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../lib/firebase/client";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,7 +18,7 @@ export default function LoginPage() {
       router.push("/home");
     } catch (err: any) {
       console.error("Login failed:", err);
-      alert("Invalid credentials or login error.");
+      toast.error("Invalid credentials or login error.");
     }
   };
 

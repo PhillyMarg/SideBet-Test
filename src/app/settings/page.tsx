@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import Footer from "../../components/Footer";
 import Header from "../../components/Header";
+import { toast } from "sonner";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -46,7 +47,7 @@ export default function SettingsPage() {
       router.push("/login");
     } catch (error) {
       console.error("Error logging out:", error);
-      alert("Failed to log out. Please try again.");
+      toast.error("Failed to log out. Please try again.");
     }
   };
 

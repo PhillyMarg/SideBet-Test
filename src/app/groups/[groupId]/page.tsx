@@ -23,6 +23,7 @@ import ArchivedBetCard from "../../../components/ArchivedBetCard";
 import FloatingCreateBetButton from "../../../components/FloatingCreateBetButton";
 import Footer from "../../../components/Footer";
 import { getTimeRemaining } from "../../../utils/timeUtils";
+import { toast } from "sonner";
 
 export default function GroupDetailPage() {
   const { groupId } = useParams();
@@ -67,19 +68,19 @@ export default function GroupDetailPage() {
       );
     } catch (err) {
       console.error("Error updating bet pick:", err);
-      alert("Failed to place bet. Please try again.");
+      toast.error("Failed to place bet. Please try again.");
     }
   };
 
   // Create Bet Handler
   const handleCreateBet = async (betData: any) => {
     if (betData.type === "OVER_UNDER" && !betData.line) {
-      alert("Please set a valid line ending in .5 for Over/Under bets.");
+      toast.error("Please set a valid line ending in .5 for Over/Under bets.");
       return;
     }
 
     if (!user || !betData.title.trim() || !betData.groupId || !betData.wager) {
-      alert("Please complete all required fields.");
+      toast.error("Please complete all required fields.");
       return;
     }
 
@@ -101,10 +102,10 @@ export default function GroupDetailPage() {
 
     try {
       await addDoc(collection(db, "bets"), betDoc);
-      alert("✅ Bet created successfully!");
+      toast.success("Bet created successfully!");
     } catch (err) {
       console.error("Error creating bet:", err);
-      alert("Failed to create bet. Please try again.");
+      toast.error("Failed to create bet. Please try again.");
     }
   };
 

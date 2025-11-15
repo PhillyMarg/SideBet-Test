@@ -26,6 +26,7 @@ import GroupCardSkeleton from "../../components/GroupCardSkeleton";
 import Footer from "../../components/Footer";
 import Header from "../../components/Header";
 import { getTimeRemaining } from "../../utils/timeUtils";
+import { toast } from "sonner";
 
 // Lazy load heavy wizard components
 const CreateBetWizard = lazy(() => import("../../components/CreateBetWizard"));
@@ -58,7 +59,7 @@ export default function HomePage() {
       router.push("/login");
     } catch (error: any) {
       console.error("❌ Logout error:", error);
-      alert(`Failed to logout: ${error.message || error}`);
+      toast.error(`Failed to logout: ${error.message || error}`);
     }
   };
 
@@ -197,12 +198,12 @@ export default function HomePage() {
 
   const handleCreateBet = async (betData: any) => {
     if (betData.type === "OVER_UNDER" && !betData.line) {
-      alert("Please set a valid line ending in .5 for Over/Under bets.");
+      toast.error("Please set a valid line ending in .5 for Over/Under bets.");
       return;
     }
 
     if (!user || !betData.title.trim() || !betData.groupId || !betData.wager) {
-      alert("Please complete all required fields.");
+      toast.error("Please complete all required fields.");
       return;
     }
 
@@ -227,7 +228,7 @@ export default function HomePage() {
       setShowCreateBet(false);
     } catch (err) {
       console.error("Error creating bet:", err);
-      alert("Failed to create bet. Please try again.");
+      toast.error("Failed to create bet. Please try again.");
     }
   };
 
@@ -263,13 +264,13 @@ export default function HomePage() {
       );
     } catch (err) {
       console.error("Error updating bet pick:", err);
-      alert("Failed to place bet. Please try again.");
+      toast.error("Failed to place bet. Please try again.");
     }
   };
 
   const handleCreateGroup = async (groupData: any) => {
     if (!user) {
-      alert("You must be signed in to create a group.");
+      toast.error("You must be signed in to create a group.");
       return;
     }
 
@@ -295,10 +296,10 @@ export default function HomePage() {
 
     try {
       await addDoc(collection(db, "groups"), groupDoc);
-      alert("✅ Group created successfully!");
+      toast.success("Group created successfully!");
     } catch (error: any) {
       console.error("Error creating group:", error);
-      alert(`Failed to create group. Error: ${error.message || JSON.stringify(error)}`);
+      toast.error(`Failed to create group. Error: ${error.message || JSON.stringify(error)}`);
     }
   };
 
@@ -525,8 +526,8 @@ export default function HomePage() {
               </button>
               <button
                 onClick={async () => {
-                  if (!joinInput) return alert("Please enter a code or link.");
-                  if (!user) return alert("You must be signed in to join a group.");
+                  if (!joinInput) return toast.error("Please enter a code or link.");
+                  if (!user) return toast.error("You must be signed in to join a group.");
 
                   try {
                     const input = joinInput.trim().toUpperCase();
@@ -553,7 +554,7 @@ export default function HomePage() {
                       : null;
 
                     if (!matchSnap) {
-                      alert("No group found. Please check the code or link.");
+                      toast.error("No group found. Please check the code or link.");
                       return;
                     }
 
@@ -561,7 +562,7 @@ export default function HomePage() {
                     const groupData = matchSnap.data();
 
                     if (groupData.memberIds?.includes(user.uid)) {
-                      alert("You're already a member of this group!");
+                      toast.error("You're already a member of this group!");
                       return;
                     }
 
@@ -569,12 +570,12 @@ export default function HomePage() {
                       memberIds: [...(groupData.memberIds || []), user.uid],
                     });
 
-                    alert(`✅ Successfully joined "${groupData.name}"`);
+                    toast.success(`Successfully joined "${groupData.name}"`);
                     setShowJoinGroup(false);
                     setJoinInput("");
                   } catch (err) {
                     console.error("Error joining group:", err);
-                    alert("Failed to join group. Please try again.");
+                    toast.error("Failed to join group. Please try again.");
                   }
                 }}
                 className="bg-orange-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-600 transition"

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { collection, addDoc } from "firebase/firestore";
 import { db, auth } from "../lib/firebase/client";
+import { toast } from "sonner";
 
 interface CreateGroupModalProps {
   isOpen: boolean;
@@ -41,9 +42,9 @@ export default function CreateGroupModal({
 
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!auth.currentUser) {
-      alert("You must be logged in to create a group");
+      toast.error("You must be logged in to create a group");
       return;
     }
 
@@ -79,7 +80,7 @@ export default function CreateGroupModal({
       onClose();
     } catch (error) {
       console.error("Error creating group:", error);
-      alert("Failed to create group. Please try again.");
+      toast.error("Failed to create group. Please try again.");
     } finally {
       setLoading(false);
     }

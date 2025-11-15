@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getTimeRemaining, getLivePercentages } from "../utils/timeUtils";
 import { fetchUserData, getUserDisplayName } from "../utils/userUtils";
+import { toast } from "sonner";
 
 interface ActiveBetCardProps {
   bet: any;
@@ -307,7 +308,7 @@ function ActiveBetCard({
                       const value = (
                         document.getElementById(`guess-${bet.id}`) as HTMLInputElement
                       )?.value;
-                      if (!value || !value.trim()) return alert("Please enter a guess.");
+                      if (!value || !value.trim()) return toast.error("Please enter a guess.");
                       
                       const numValue = parseFloat(value);
                       const finalValue = isNaN(numValue) ? value.trim() : numValue;

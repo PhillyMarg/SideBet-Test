@@ -16,6 +16,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 // Lazy load heavy wizard components
 const CreateBetWizard = lazy(() => import("./CreateBetWizard"));
@@ -54,12 +55,12 @@ export default function Header() {
   // Create Bet Handler
   const handleCreateBet = async (betData: any) => {
   if (betData.type === "OVER_UNDER" && !betData.line) {
-    alert("Please set a valid line ending in .5 for Over/Under bets.");
+    toast.error("Please set a valid line ending in .5 for Over/Under bets.");
     return;
   }
 
   if (!user || !betData.title.trim() || !betData.groupId || !betData.wager) {
-    alert("Please complete all required fields.");
+    toast.error("Please complete all required fields.");
     return;
   }
 
@@ -84,14 +85,14 @@ export default function Header() {
     setShowCreateBet(false);
   } catch (err) {
     console.error("Error creating bet:", err);
-    alert("Failed to create bet. Please try again.");
+    toast.error("Failed to create bet. Please try again.");
   }
 };
 
   // Create Group Handler
   const handleCreateGroup = async (groupData: any) => {
     if (!user) {
-      alert("You must be signed in to create a group.");
+      toast.error("You must be signed in to create a group.");
       return;
     }
 
@@ -117,22 +118,22 @@ export default function Header() {
 
     try {
       await addDoc(collection(db, "groups"), groupDoc);
-      alert("✅ Group created successfully!");
+      toast.success("Group created successfully!");
     } catch (error: any) {
       console.error("Firestore error:", error);
-      alert(`Failed to create group: ${error.message || "Unknown error"}`);
+      toast.error(`Failed to create group: ${error.message || "Unknown error"}`);
     }
   };
 
   // Join Group Handler
   const handleJoinGroup = async () => {
     if (!joinInput) {
-      alert("Please enter a code or link.");
+      toast.error("Please enter a code or link.");
       return;
     }
 
     if (!user) {
-      alert("You must be signed in to join a group.");
+      toast.error("You must be signed in to join a group.");
       return;
     }
 
@@ -155,14 +156,14 @@ export default function Header() {
         : null;
 
       if (!matchSnap) {
-        alert("No group found. Please check the code or link.");
+        toast.error("No group found. Please check the code or link.");
         return;
       }
 
       const groupData = matchSnap.data();
 
       if (groupData.memberIds?.includes(user.uid)) {
-        alert("You're already a member of this group!");
+        toast.error("You're already a member of this group!");
         return;
       }
 
@@ -170,12 +171,12 @@ export default function Header() {
         memberIds: [...(groupData.memberIds || []), user.uid],
       });
 
-      alert(`✅ Successfully joined "${groupData.name}"`);
+      toast.success(`Successfully joined "${groupData.name}"`);
       setShowJoinGroup(false);
       setJoinInput("");
     } catch (err) {
       console.error("Error joining group:", err);
-      alert("Failed to join group. Please try again.");
+      toast.error("Failed to join group. Please try again.");
     }
   };
 

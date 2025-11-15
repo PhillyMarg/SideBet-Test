@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
 import { db, auth } from "../../lib/firebase/client";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function CreateBet() {
   const router = useRouter();
@@ -30,12 +31,12 @@ export default function CreateBet() {
   const handleCreateBet = async () => {
     const user = auth.currentUser;
     if (!user) {
-      alert("You must be logged in to create a bet.");
+      toast.error("You must be logged in to create a bet.");
       return;
     }
 
     if (!selectedGroup || !title.trim()) {
-      alert("Please select a group and add a title.");
+      toast.error("Please select a group and add a title.");
       return;
     }
 
@@ -55,11 +56,11 @@ export default function CreateBet() {
         createdAt: new Date().toISOString(),
       });
 
-      alert("Bet created successfully!");
+      toast.success("Bet created successfully!");
       router.push(`/groups/${selectedGroup}`);
     } catch (error) {
       console.error("Error creating bet:", error);
-      alert("Failed to create bet. Please try again.");
+      toast.error("Failed to create bet. Please try again.");
     } finally {
       setLoading(false);
     }

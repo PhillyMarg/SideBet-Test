@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { doc, updateDoc, writeBatch, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase/client";
+import { toast } from "sonner";
 
 interface JudgeBetModalProps {
   bet: any;
@@ -31,7 +32,7 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
         // Find the closest guess(es)
         const actualNumber = parseFloat(answer as string);
         if (isNaN(actualNumber)) {
-          alert("Please enter a valid number");
+          toast.error("Please enter a valid number");
           setIsSubmitting(false);
           return;
         }
@@ -43,7 +44,7 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
         }));
 
         if (guesses.length === 0) {
-          alert("No guesses to judge!");
+          toast.error("No guesses to judge!");
           setIsSubmitting(false);
           return;
         }
@@ -104,15 +105,15 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
 
       await batch.commit();
 
-      alert(
-        `✅ Bet judged! ${winners.length} winner${
+      toast.success(
+        `Bet judged! ${winners.length} winner${
           winners.length !== 1 ? "s" : ""
         } - $${payoutPerWinner.toFixed(2)} each`
       );
       onClose();
     } catch (error) {
       console.error("Error judging bet:", error);
-      alert("Failed to judge bet. Please try again.");
+      toast.error("Failed to judge bet. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { toast } from "sonner";
 
 interface CreateGroupWizardProps {
   isOpen: boolean;
@@ -403,7 +404,7 @@ export default function CreateGroupWizard({
                       onClick={() => {
                         if (groupData.joinLink) {
                           navigator.clipboard.writeText(groupData.joinLink);
-                          alert("Join link copied!");
+                          toast.success("Join link copied!");
                         }
                       }}
                       className="px-3 sm:px-4 py-2 sm:py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-[10px] sm:text-xs font-semibold transition-colors"
@@ -425,7 +426,7 @@ export default function CreateGroupWizard({
                       onClick={() => {
                         if (groupData.accessCode) {
                           navigator.clipboard.writeText(groupData.accessCode);
-                          alert("Access code copied!");
+                          toast.success("Access code copied!");
                         }
                       }}
                       className="px-3 sm:px-4 py-2 sm:py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-[10px] sm:text-xs font-semibold transition-colors"
