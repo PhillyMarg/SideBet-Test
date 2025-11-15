@@ -54,11 +54,11 @@ function Footer() {
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className="fixed bottom-0 left-0 w-full bg-gray-950 border-t border-gray-800 z-40 h-14 sm:h-16"
         >
-          <nav className="flex items-center justify-around h-full px-4 sm:px-6">
+          <nav className="flex items-center justify-around h-full w-full px-2 sm:px-4">
             {/* Home */}
             <button
               onClick={() => router.push("/home")}
-              className={`flex flex-col items-center justify-center gap-0.5 sm:gap-1 py-2 transition-colors ${
+              className={`flex flex-col items-center justify-center gap-0.5 sm:gap-1 py-2 flex-1 max-w-[120px] transition-colors ${
                 isActive("/home") ? "text-orange-500" : "text-gray-400 hover:text-white"
               }`}
             >
@@ -69,7 +69,7 @@ function Footer() {
             {/* Groups */}
             <button
               onClick={() => router.push("/groups")}
-              className={`flex flex-col items-center justify-center gap-0.5 sm:gap-1 py-2 transition-colors ${
+              className={`flex flex-col items-center justify-center gap-0.5 sm:gap-1 py-2 flex-1 max-w-[120px] transition-colors ${
                 isActive("/groups") || pathname.startsWith("/groups/")
                   ? "text-orange-500"
                   : "text-gray-400 hover:text-white"
@@ -82,7 +82,7 @@ function Footer() {
             {/* Settings */}
             <button
               onClick={() => router.push("/settings")}
-              className={`flex flex-col items-center justify-center gap-0.5 sm:gap-1 py-2 transition-colors ${
+              className={`flex flex-col items-center justify-center gap-0.5 sm:gap-1 py-2 flex-1 max-w-[120px] transition-colors ${
                 isActive("/settings") ? "text-orange-500" : "text-gray-400 hover:text-white"
               }`}
             >
