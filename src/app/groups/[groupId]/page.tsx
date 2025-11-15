@@ -374,7 +374,7 @@ export default function GroupDetailPage() {
   const seasonEnd = group.settings?.season_end_date;
 
   return (
-    <main className="min-h-screen bg-black text-white flex flex-col items-center pb-20 relative overflow-y-auto">
+    <main className="min-h-screen bg-black text-white flex flex-col items-center pb-16 sm:pb-20 relative overflow-y-auto">
       <div className="w-full max-w-2xl px-4">
         {/* 🧩 GROUP INFO */}
         <section className="w-full mt-6 px-2">

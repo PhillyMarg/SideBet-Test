@@ -371,7 +371,7 @@ export default function GroupsPage() {
     <>
       <Header />
       <main
-        className="min-h-screen bg-black text-white pb-20 flex flex-col items-center"
+        className="min-h-screen bg-black text-white pb-16 sm:pb-20 flex flex-col items-center"
         style={{ "--content-width": "500px" } as React.CSSProperties}
       >
       <div
