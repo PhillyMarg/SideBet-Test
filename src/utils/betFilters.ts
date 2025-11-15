@@ -101,3 +101,24 @@ export function getEmptyStateMessage(activeTab: FilterTab): string {
       return "No active bets found. Create a new one!";
   }
 }
+
+/**
+ * Search/filter bets based on search query
+ */
+export function searchBets(bets: any[], searchQuery: string): any[] {
+  if (!searchQuery.trim()) return bets;
+
+  const query = searchQuery.toLowerCase();
+
+  return bets.filter((bet) => {
+    const title = bet.title?.toLowerCase() || "";
+    const description = bet.description?.toLowerCase() || "";
+    const type = bet.type?.toLowerCase().replace("_", " ") || ""; // "YES_NO" → "yes no"
+
+    return (
+      title.includes(query) ||
+      description.includes(query) ||
+      type.includes(query)
+    );
+  });
+}

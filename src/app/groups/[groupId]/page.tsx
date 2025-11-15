@@ -26,7 +26,7 @@ import FloatingCreateBetButton from "../../../components/FloatingCreateBetButton
 import Footer from "../../../components/Footer";
 import BetFilters, { FilterTab, SortOption } from "../../../components/BetFilters";
 import { getTimeRemaining } from "../../../utils/timeUtils";
-import { filterBets, sortBets, isClosingSoon, getEmptyStateMessage } from "../../../utils/betFilters";
+import { filterBets, sortBets, isClosingSoon, getEmptyStateMessage, searchBets } from "../../../utils/betFilters";
 
 export default function GroupDetailPage() {
   const { groupId } = useParams();
@@ -49,6 +49,7 @@ export default function GroupDetailPage() {
   // Filter and sort state
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [sortBy, setSortBy] = useState<SortOption>("closingSoon");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // 🎯 Handle user pick
   const handleUserPick = async (bet: any, pick: string | number) => {
@@ -317,10 +318,14 @@ export default function GroupDetailPage() {
   // Apply filters and sorting to active bets
   const filteredAndSortedBets = useMemo(() => {
     if (!user) return [];
-    const filtered = filterBets(activeBets, activeTab, user.uid);
-    const sorted = sortBets(filtered, sortBy);
+    // 1. Filter by active tab
+    const tabFiltered = filterBets(activeBets, activeTab, user.uid);
+    // 2. Apply search filter
+    const searchFiltered = searchBets(tabFiltered, searchQuery);
+    // 3. Apply sort
+    const sorted = sortBets(searchFiltered, sortBy);
     return sorted;
-  }, [activeBets, activeTab, sortBy, user]);
+  }, [activeBets, activeTab, searchQuery, sortBy, user]);
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center pb-20 relative overflow-y-auto">
@@ -441,7 +446,7 @@ export default function GroupDetailPage() {
 
           {activeBets.length > 0 ? (
             <>
-              {/* Bet Filters - Tabs and Sort (no Group sort for group details) */}
+              {/* Bet Filters - Tabs, Search, and Sort (no Group sort for group details) */}
               <BetFilters
                 bets={activeBets}
                 userId={user.uid}
@@ -450,6 +455,8 @@ export default function GroupDetailPage() {
                 onTabChange={setActiveTab}
                 onSortChange={setSortBy}
                 showGroupSort={false}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
               />
 
               {/* Filtered and Sorted Bets */}
@@ -474,9 +481,25 @@ export default function GroupDetailPage() {
                   ))}
                 </ul>
               ) : (
-                <p className="text-gray-500 text-sm text-center mt-4">
-                  {getEmptyStateMessage(activeTab)}
-                </p>
+                <div className="text-center mt-4">
+                  {searchQuery.trim() ? (
+                    <>
+                      <p className="text-zinc-400 text-sm">
+                        No bets found for "{searchQuery}"
+                      </p>
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="mt-2 text-orange-500 text-sm hover:text-orange-400 transition"
+                      >
+                        Clear search
+                      </button>
+                    </>
+                  ) : (
+                    <p className="text-gray-500 text-sm">
+                      {getEmptyStateMessage(activeTab)}
+                    </p>
+                  )}
+                </div>
               )}
             </>
           ) : (

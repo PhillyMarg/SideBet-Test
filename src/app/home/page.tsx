@@ -27,7 +27,7 @@ import Footer from "../../components/Footer";
 import Header from "../../components/Header";
 import BetFilters, { FilterTab, SortOption } from "../../components/BetFilters";
 import { getTimeRemaining } from "../../utils/timeUtils";
-import { filterBets, sortBets, isClosingSoon, getEmptyStateMessage } from "../../utils/betFilters";
+import { filterBets, sortBets, isClosingSoon, getEmptyStateMessage, searchBets } from "../../utils/betFilters";
 
 // Lazy load heavy wizard components
 const CreateBetWizard = lazy(() => import("../../components/CreateBetWizard"));
@@ -57,6 +57,7 @@ export default function HomePage() {
   // Filter and sort state
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [sortBy, setSortBy] = useState<SortOption>("closingSoon");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleLogout = async () => {
     try {
@@ -313,10 +314,14 @@ export default function HomePage() {
   // Apply filters and sorting
   const filteredAndSortedBets = useMemo(() => {
     if (!user) return [];
-    const filtered = filterBets(activeBets, activeTab, user.uid);
-    const sorted = sortBets(filtered, sortBy, groups);
+    // 1. Filter by active tab
+    const tabFiltered = filterBets(activeBets, activeTab, user.uid);
+    // 2. Apply search filter
+    const searchFiltered = searchBets(tabFiltered, searchQuery);
+    // 3. Apply sort
+    const sorted = sortBets(searchFiltered, sortBy, groups);
     return sorted;
-  }, [activeBets, activeTab, sortBy, user, groups]);
+  }, [activeBets, activeTab, searchQuery, sortBy, user, groups]);
 
   const getGroupName = (groupId: string) =>
     groups.find((g) => g.id === groupId)?.name || "Unknown Group";
@@ -352,7 +357,7 @@ export default function HomePage() {
           </ul>
         ) : activeBets.length > 0 ? (
           <>
-            {/* Bet Filters - Tabs and Sort */}
+            {/* Bet Filters - Tabs, Search, and Sort */}
             {user && (
               <BetFilters
                 bets={activeBets}
@@ -363,6 +368,8 @@ export default function HomePage() {
                 onTabChange={setActiveTab}
                 onSortChange={setSortBy}
                 showGroupSort={true}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
               />
             )}
 
@@ -402,9 +409,25 @@ export default function HomePage() {
                 )}
               </>
             ) : (
-              <p className="text-gray-500 text-sm mt-6 px-4">
-                {getEmptyStateMessage(activeTab)}
-              </p>
+              <div className="text-center mt-6 px-4">
+                {searchQuery.trim() ? (
+                  <>
+                    <p className="text-zinc-400 text-sm">
+                      No bets found for "{searchQuery}"
+                    </p>
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="mt-2 text-orange-500 text-sm hover:text-orange-400 transition"
+                    >
+                      Clear search
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-gray-500 text-sm">
+                    {getEmptyStateMessage(activeTab)}
+                  </p>
+                )}
+              </div>
             )}
           </>
         ) : (
