@@ -60,13 +60,32 @@ export default function BetFilters({
   ];
 
   return (
-    <div className="sticky top-16 z-20 bg-black border-b border-zinc-800 py-3">
-      {/* Search + Tabs Row - ALWAYS HORIZONTAL */}
-      <div className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6">
+    <div className="sticky top-16 z-20 bg-black border-b border-zinc-800 py-3 space-y-3">
+      {/* Row 1: Filter Tabs */}
+      <div className="grid grid-cols-4 gap-2 px-4 sm:px-6">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => onTabChange(tab.id)}
+            className={`px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap rounded-md transition-colors ${
+              activeTab === tab.id
+                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/50"
+                : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border border-zinc-800"
+            }`}
+          >
+            {/* Show abbreviated text on mobile, full text on desktop */}
+            <span className="sm:hidden">{tab.mobileLabel}</span>
+            <span className="hidden sm:inline">{tab.label}</span>
+            {tab.count > 0 && <span className="ml-1 text-xs">({tab.count})</span>}
+          </button>
+        ))}
+      </div>
 
-        {/* Search Bar - Left (wider on mobile) */}
+      {/* Row 2: Search + Sort */}
+      <div className="flex items-center gap-2 px-4 sm:px-6">
+        {/* Search Bar - 60% width */}
         {onSearchChange && (
-          <div className="flex-1 max-w-[60%] sm:max-w-xs">
+          <div className="flex-1 max-w-[60%]">
             <div className="relative">
               <Search className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-400" />
 
@@ -90,36 +109,12 @@ export default function BetFilters({
           </div>
         )}
 
-        {/* Tabs - Right (scrollable on mobile) */}
-        <div className="flex-shrink-0 overflow-x-auto scrollbar-hide max-w-[40%] sm:max-w-none">
-          <div className="flex gap-1 sm:gap-2 min-w-max">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => onTabChange(tab.id)}
-                className={`px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap rounded-md transition-colors ${
-                  activeTab === tab.id
-                    ? "bg-orange-500 text-white"
-                    : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800"
-                }`}
-              >
-                {/* Show abbreviated text on mobile, full text on desktop */}
-                <span className="sm:hidden">{tab.mobileLabel}</span>
-                <span className="hidden sm:inline">{tab.label}</span>
-                {tab.count > 0 && <span className="hidden sm:inline ml-1">({tab.count})</span>}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Sort Dropdown - Below (separate row) */}
-      <div className="px-4 sm:px-6 mt-2 sm:mt-3">
-        <div className="flex items-center justify-end">
+        {/* Sort Dropdown - 40% width */}
+        <div className="flex-shrink-0 max-w-[40%] w-full">
           <select
             value={sortBy}
             onChange={(e) => onSortChange(e.target.value as SortOption)}
-            className="px-3 py-2 text-xs sm:text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-orange-500"
+            className="w-full px-2 sm:px-3 py-2 text-xs sm:text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-orange-500"
           >
             <option value="closingSoon">Closing Soon</option>
             <option value="recent">Recent</option>
