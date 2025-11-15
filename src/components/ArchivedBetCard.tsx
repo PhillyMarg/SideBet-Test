@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { getTimeRemaining } from "../utils/timeUtils";
 
 interface ArchivedBetCardProps {
@@ -8,7 +8,7 @@ interface ArchivedBetCardProps {
   user: any;
 }
 
-export default function ArchivedBetCard({ bet, user }: ArchivedBetCardProps) {
+function ArchivedBetCard({ bet, user }: ArchivedBetCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const { text: countdownText } = getTimeRemaining(bet.closingAt);
@@ -91,3 +91,4 @@ export default function ArchivedBetCard({ bet, user }: ArchivedBetCardProps) {
     </div>
   );
 }
+export default React.memo(ArchivedBetCard);

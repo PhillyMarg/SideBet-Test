@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { signOut, onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "../lib/firebase/client";
@@ -13,10 +13,13 @@ import {
   updateDoc,
   doc,
   getDoc,
+  limit,
 } from "firebase/firestore";
 import { motion } from "framer-motion";
-import CreateBetWizard from "./CreateBetWizard";
-import CreateGroupWizard from "./CreateGroupWizard";
+
+// Lazy load heavy wizard components
+const CreateBetWizard = lazy(() => import("./CreateBetWizard"));
+const CreateGroupWizard = lazy(() => import("./CreateGroupWizard"));
 
 export default function Header() {
   const router = useRouter();
@@ -37,7 +40,8 @@ export default function Header() {
     const fetchGroups = async () => {
       const groupsQuery = query(
         collection(db, "groups"),
-        where("memberIds", "array-contains", user.uid)
+        where("memberIds", "array-contains", user.uid),
+        limit(50)
       );
       const snapshot = await getDocs(groupsQuery);
       const groupsData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -306,19 +310,27 @@ export default function Header() {
       </motion.header>
 
       {/* Create Bet Wizard */}
-      <CreateBetWizard
-        isOpen={showCreateBet}
-        onClose={() => setShowCreateBet(false)}
-        groups={groups}
-        onCreateBet={handleCreateBet}
-      />
+      {showCreateBet && (
+        <Suspense fallback={null}>
+          <CreateBetWizard
+            isOpen={showCreateBet}
+            onClose={() => setShowCreateBet(false)}
+            groups={groups}
+            onCreateBet={handleCreateBet}
+          />
+        </Suspense>
+      )}
 
       {/* Create Group Wizard */}
-      <CreateGroupWizard
-        isOpen={showCreateGroup}
-        onClose={() => setShowCreateGroup(false)}
-        onCreateGroup={handleCreateGroup}
-      />
+      {showCreateGroup && (
+        <Suspense fallback={null}>
+          <CreateGroupWizard
+            isOpen={showCreateGroup}
+            onClose={() => setShowCreateGroup(false)}
+            onCreateGroup={handleCreateGroup}
+          />
+        </Suspense>
+      )}
 
       {/* Join Group Modal */}
       {showJoinGroup && (

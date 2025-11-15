@@ -1,4 +1,6 @@
-export default function BetCardSkeleton() {
+import React from "react";
+
+function BetCardSkeleton() {
   return (
     <li className="rounded-xl px-2 py-2 sm:px-4 sm:py-3 bg-zinc-900 border border-zinc-800 animate-pulse">
       {/* Header */}
@@ -28,3 +30,4 @@ export default function BetCardSkeleton() {
     </li>
   );
 }
+export default React.memo(BetCardSkeleton);
