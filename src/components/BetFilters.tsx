@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import SearchBar from "./SearchBar";
+import { useMemo } from "react";
+import { Search, X } from "lucide-react";
 
 export type FilterTab = "all" | "open" | "myPicks" | "closingSoon";
 export type SortOption = "closingSoon" | "recent" | "group" | "wager";
@@ -60,54 +60,66 @@ export default function BetFilters({
   ];
 
   return (
-    <div className="sticky top-16 z-20 bg-black border-b border-zinc-800 pb-3">
-      {/* Tabs - Horizontal scroll on mobile, full width on desktop */}
-      <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-4">
-        <div className="flex gap-1.5 sm:gap-2 pt-3 min-w-max sm:min-w-0">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => onTabChange(tab.id)}
-              className={`flex-shrink-0 min-h-[44px] px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab.id
-                  ? "text-white border-orange-500"
-                  : "text-zinc-400 border-transparent hover:text-zinc-300"
-              }`}
-            >
-              {/* Show abbreviated text on mobile, full text on desktop */}
-              <span className="sm:hidden">{tab.mobileLabel}</span>
-              <span className="hidden sm:inline">{tab.label}</span>
-              {" "}
-              <span className="text-xs text-zinc-400">({tab.count})</span>
-            </button>
-          ))}
-        </div>
-      </div>
+    <div className="sticky top-16 z-20 bg-black border-b border-zinc-800 py-3">
+      {/* Search + Tabs Row - ALWAYS HORIZONTAL */}
+      <div className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6">
 
-      {/* Search Bar and Sort - Stack on mobile, side-by-side on desktop */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-center px-4 mt-3">
-        {/* Search Bar */}
+        {/* Search Bar - Left (wider on mobile) */}
         {onSearchChange && (
-          <div className="flex-1 w-full">
-            <SearchBar
-              value={searchQuery}
-              onChange={onSearchChange}
-              placeholder="Search bets..."
-            />
+          <div className="flex-1 max-w-[60%] sm:max-w-xs">
+            <div className="relative">
+              <Search className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-400" />
+
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder="Search..."
+                className="w-full pl-8 sm:pl-10 pr-8 sm:pr-10 py-2 text-xs sm:text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+              />
+
+              {searchQuery && (
+                <button
+                  onClick={() => onSearchChange("")}
+                  className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2"
+                >
+                  <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-400 hover:text-white" />
+                </button>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Sort Dropdown */}
-        <div className="flex items-center gap-2 w-full sm:w-auto sm:min-w-[160px]">
-          {/* Hide label on mobile, show on desktop */}
-          <label htmlFor="sort-select" className="hidden sm:inline text-xs text-zinc-400 whitespace-nowrap">
-            Sort:
-          </label>
+        {/* Tabs - Right (scrollable on mobile) */}
+        <div className="flex-shrink-0 overflow-x-auto scrollbar-hide max-w-[40%] sm:max-w-none">
+          <div className="flex gap-1 sm:gap-2 min-w-max">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => onTabChange(tab.id)}
+                className={`px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap rounded-md transition-colors ${
+                  activeTab === tab.id
+                    ? "bg-orange-500 text-white"
+                    : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800"
+                }`}
+              >
+                {/* Show abbreviated text on mobile, full text on desktop */}
+                <span className="sm:hidden">{tab.mobileLabel}</span>
+                <span className="hidden sm:inline">{tab.label}</span>
+                {tab.count > 0 && <span className="hidden sm:inline ml-1">({tab.count})</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Sort Dropdown - Below (separate row) */}
+      <div className="px-4 sm:px-6 mt-2 sm:mt-3">
+        <div className="flex items-center justify-end">
           <select
-            id="sort-select"
             value={sortBy}
             onChange={(e) => onSortChange(e.target.value as SortOption)}
-            className="w-full sm:flex-1 text-sm bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 text-white focus:outline-none focus:border-orange-500 transition-colors"
+            className="px-3 py-2 text-xs sm:text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-orange-500"
           >
             <option value="closingSoon">Closing Soon</option>
             <option value="recent">Recent</option>
