@@ -14,8 +14,10 @@ import {
   orderBy,
   updateDoc,
   getDoc,
+  getDocs,
   addDoc,
   limit,
+  documentId,
 } from "firebase/firestore";
 import JudgeBetModal from "../../../components/JudgeBetModal";
 import ActiveBetCard from "../../../components/ActiveBetCard";
@@ -39,6 +41,8 @@ export default function GroupDetailPage() {
   const [creatorName, setCreatorName] = useState<string>("Loading...");
   const [judgingBet, setJudgingBet] = useState<any>(null);
   const [, forceUpdate] = useState(0);
+  const [userNames, setUserNames] = useState<Record<string, string>>({});
+  const [loadingUserNames, setLoadingUserNames] = useState(false);
 
   // 🎯 Handle user pick
   const handleUserPick = async (bet: any, pick: string | number) => {
@@ -144,6 +148,73 @@ export default function GroupDetailPage() {
 
     fetchCreatorName();
   }, [group?.admin_id]);
+
+  // 👥 Batch fetch user names for leaderboard
+  useEffect(() => {
+    if (leaderboard.length === 0) return;
+
+    const fetchUserNames = async () => {
+      setLoadingUserNames(true);
+      try {
+        // Extract unique user IDs from leaderboard
+        const userIds = Array.from(
+          new Set(leaderboard.map((l) => l.user_id).filter(Boolean))
+        );
+
+        if (userIds.length === 0) {
+          setLoadingUserNames(false);
+          return;
+        }
+
+        // Firestore 'in' queries support max 30 items, so we batch if needed
+        const batchSize = 30;
+        const userDataMap: Record<string, string> = {};
+
+        for (let i = 0; i < userIds.length; i += batchSize) {
+          const batch = userIds.slice(i, i + batchSize);
+          const usersQuery = query(
+            collection(db, "users"),
+            where(documentId(), "in", batch)
+          );
+
+          const usersSnapshot = await getDocs(usersQuery);
+
+          usersSnapshot.forEach((doc) => {
+            const userData = doc.data();
+            const uid = doc.id;
+
+            // Display priority: displayName > firstName lastName > email > "Unknown User"
+            if (userData.displayName) {
+              userDataMap[uid] = userData.displayName;
+            } else if (userData.firstName || userData.lastName) {
+              const firstName = userData.firstName || "";
+              const lastName = userData.lastName || "";
+              userDataMap[uid] = `${firstName} ${lastName}`.trim();
+            } else if (userData.email) {
+              userDataMap[uid] = userData.email;
+            } else {
+              userDataMap[uid] = "Unknown User";
+            }
+          });
+        }
+
+        // For any user IDs that weren't found in the users collection
+        userIds.forEach((uid) => {
+          if (!userDataMap[uid]) {
+            userDataMap[uid] = "Unknown User";
+          }
+        });
+
+        setUserNames(userDataMap);
+      } catch (error) {
+        console.error("Error fetching user names:", error);
+      } finally {
+        setLoadingUserNames(false);
+      }
+    };
+
+    fetchUserNames();
+  }, [leaderboard]);
 
   // 👤 Auth + Firestore listeners
   useEffect(() => {
@@ -392,33 +463,41 @@ export default function GroupDetailPage() {
                 transition={{ duration: 0.35, ease: "easeInOut" }}
                 className="overflow-hidden mt-3 bg-zinc-900 border border-zinc-800 rounded-xl p-4"
               >
-                {leaderboard.length > 0 ? (
-                  leaderboard.map((leaderUser, i) => (
-                    <motion.div
-                      key={leaderUser.id}
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.25 }}
-                      className="flex justify-between items-center text-sm border-b border-zinc-800 pb-2 mb-2 last:border-none last:mb-0"
-                    >
-                      <span className="font-medium text-white">
-                        #{i + 1} {leaderUser.user_id?.substring(0, 8)}
-                      </span>
-                      <div className="flex gap-5 text-right">
-                        <span
-                          className={`font-semibold ${
-                            leaderUser.balance >= 0 ? "text-green-400" : "text-red-400"
-                          }`}
-                        >
-                          ${leaderUser.balance?.toFixed(2) || "0.00"}
+                {loadingUserNames && leaderboard.length > 0 ? (
+                  <p className="text-gray-400 text-sm text-center py-2">
+                    Loading user names...
+                  </p>
+                ) : leaderboard.length > 0 ? (
+                  leaderboard.map((leaderUser, i) => {
+                    const displayName = userNames[leaderUser.user_id] || "Loading...";
+
+                    return (
+                      <motion.div
+                        key={leaderUser.id}
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.25 }}
+                        className="flex justify-between items-center text-sm border-b border-zinc-800 pb-2 mb-2 last:border-none last:mb-0"
+                      >
+                        <span className="font-medium text-white">
+                          #{i + 1} {displayName}
                         </span>
-                        <span className="text-gray-300">
-                          {leaderUser.wins || 0}-{leaderUser.losses || 0}
-                        </span>
-                      </div>
-                    </motion.div>
-                  ))
+                        <div className="flex gap-5 text-right">
+                          <span
+                            className={`font-semibold ${
+                              leaderUser.balance >= 0 ? "text-green-400" : "text-red-400"
+                            }`}
+                          >
+                            ${leaderUser.balance?.toFixed(2) || "0.00"}
+                          </span>
+                          <span className="text-gray-300">
+                            {leaderUser.wins || 0}-{leaderUser.losses || 0}
+                          </span>
+                        </div>
+                      </motion.div>
+                    );
+                  })
                 ) : (
                   <p className="text-gray-500 text-sm text-center">
                     No leaderboard data yet.
