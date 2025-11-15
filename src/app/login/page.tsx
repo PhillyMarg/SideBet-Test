@@ -27,23 +27,38 @@ export default function LoginPage() {
       <h1 className="text-2xl font-bold mb-6">Sign In</h1>
 
       <form onSubmit={handleLogin} className="flex flex-col gap-3 w-80">
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="p-2 rounded bg-zinc-900 border border-zinc-700 text-sm text-white"
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="p-2 rounded bg-zinc-900 border border-zinc-700 text-sm text-white"
-        />
+        <div>
+          <label htmlFor="email" className="block text-sm text-gray-400 mb-1">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            inputMode="email"
+            placeholder="your@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-2 rounded bg-zinc-900 border border-zinc-700 text-base text-white"
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="password" className="block text-sm text-gray-400 mb-1">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-2 rounded bg-zinc-900 border border-zinc-700 text-base text-white"
+            required
+          />
+        </div>
         <button
           type="submit"
-          className="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 rounded"
+          className="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 rounded mt-2"
         >
           Log In
         </button>

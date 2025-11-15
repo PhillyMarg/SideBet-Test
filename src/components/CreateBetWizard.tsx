@@ -78,16 +78,20 @@ export default function CreateBetWizard({
     <div
       className="fixed inset-0 flex justify-center items-center z-50 bg-black/60 p-4"
       onClick={resetAndClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-bet-title"
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         onClick={(e) => e.stopPropagation()}
         className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto"
+        role="document"
       >
         {/* Header */}
         <div className="sticky top-0 bg-zinc-900 border-b border-zinc-800 px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between z-10">
-          <h3 className="text-base sm:text-lg font-semibold text-white">
+          <h3 id="create-bet-title" className="text-base sm:text-lg font-semibold text-white">
             Create Bet {step > 1 && `(${step}/4)`}
           </h3>
           <button
@@ -242,51 +246,56 @@ export default function CreateBetWizard({
                   Bet Details
                 </h4>
                 <div>
-                  <label className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
+                  <label htmlFor="bet-title" className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
                     Bet Title *
                   </label>
                   <input
+                    id="bet-title"
                     type="text"
+                    inputMode="text"
                     placeholder="e.g., Will it rain tomorrow?"
                     value={betData.title}
                     onChange={(e) => setBetData({ ...betData, title: e.target.value })}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
+                  <label htmlFor="bet-description" className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
                     Description (Optional)
                   </label>
                   <textarea
+                    id="bet-description"
                     rows={2}
                     placeholder="Add more details..."
                     value={betData.description}
                     onChange={(e) =>
                       setBetData({ ...betData, description: e.target.value })
                     }
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 resize-none"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 resize-none"
                   />
                 </div>
 
                 {betData.type === "OVER_UNDER" && (
                   <div>
-                    <label className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
+                    <label htmlFor="bet-line" className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
                       Line (must end in .5) *
                     </label>
                     <input
+                      id="bet-line"
                       type="number"
+                      inputMode="decimal"
                       step="0.5"
                       placeholder="e.g., 24.5"
                       value={betData.line}
                       onChange={(e) => setBetData({ ...betData, line: e.target.value })}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
                     />
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
+                  <label htmlFor="bet-wager" className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
                     Wager Amount *
                   </label>
                   <div className="relative">
@@ -294,27 +303,30 @@ export default function CreateBetWizard({
                       $
                     </span>
                     <input
+                      id="bet-wager"
                       type="number"
+                      inputMode="decimal"
                       step="0.01"
                       placeholder="10.00"
                       value={betData.wager}
                       onChange={(e) => setBetData({ ...betData, wager: e.target.value })}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-md pl-7 pr-3 py-2 sm:py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-md pl-7 pr-3 py-2 sm:py-2.5 text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
+                  <label htmlFor="bet-closing" className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
                     Betting Closes At *
                   </label>
                   <input
+                    id="bet-closing"
                     type="datetime-local"
                     value={betData.closingAt}
                     onChange={(e) =>
                       setBetData({ ...betData, closingAt: e.target.value })
                     }
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
                   />
                 </div>
               </motion.div>

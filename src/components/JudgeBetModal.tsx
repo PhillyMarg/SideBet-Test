@@ -123,12 +123,16 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
     <div
       className="fixed inset-0 flex justify-center items-center z-[200] bg-black/70"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="judge-bet-title"
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-[95%] sm:max-w-md bg-zinc-900 border border-orange-500 rounded-2xl shadow-xl px-6 py-6"
+        role="document"
       >
-        <h3 className="text-xl font-bold mb-4 text-center text-white">
+        <h3 id="judge-bet-title" className="text-xl font-bold mb-4 text-center text-white">
           Judge Bet
         </h3>
 
@@ -171,16 +175,18 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
         {/* CLOSEST GUESS */}
         {bet.type === "CLOSEST_GUESS" && (
           <div>
-            <label className="block text-sm text-gray-400 mb-2">
+            <label htmlFor="actual-number" className="block text-sm text-gray-400 mb-2">
               Enter the actual number:
             </label>
             <input
+              id="actual-number"
               type="number"
+              inputMode="decimal"
               step="any"
               placeholder="e.g. 42.5"
               value={correctAnswer}
               onChange={(e) => setCorrectAnswer(e.target.value)}
-              className="w-full bg-zinc-800 text-white p-3 rounded-lg border border-zinc-700 focus:outline-none focus:border-orange-500 mb-4"
+              className="w-full bg-zinc-800 text-white p-3 rounded-lg border border-zinc-700 focus:outline-none focus:border-orange-500 mb-4 text-base"
             />
             <button
               onClick={() => handleJudge(correctAnswer)}

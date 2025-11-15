@@ -56,16 +56,20 @@ export default function OnboardingWizard({
     <div
       className="fixed inset-0 flex justify-center items-center z-50 bg-black/60 p-4"
       onClick={handleSkip}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="onboarding-title"
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         onClick={(e) => e.stopPropagation()}
         className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto"
+        role="document"
       >
         {/* Header */}
         <div className="sticky top-0 bg-zinc-900 border-b border-zinc-800 px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between z-10">
-          <h3 className="text-base sm:text-lg font-semibold text-white">
+          <h3 id="onboarding-title" className="text-base sm:text-lg font-semibold text-white">
             Welcome to SideBet
           </h3>
           <div className="flex items-center gap-2">

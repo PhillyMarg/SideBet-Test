@@ -297,11 +297,15 @@ function ActiveBetCard({
                 </div>
               ) : bet.type === "CLOSEST_GUESS" ? (
                 <div className="flex items-center gap-1.5 sm:gap-2 mt-auto">
+                  <label htmlFor={`guess-${bet.id}`} className="sr-only">
+                    Enter your guess
+                  </label>
                   <input
                     type="text"
+                    inputMode="decimal"
                     placeholder="Enter guess..."
                     id={`guess-${bet.id}`}
-                    className="flex-1 bg-zinc-800 text-white text-[10px] sm:text-xs p-1.5 rounded-lg border border-zinc-700 focus:outline-none focus:border-orange-500 transition"
+                    className="flex-1 bg-zinc-800 text-white text-base p-1.5 rounded-lg border border-zinc-700 focus:outline-none focus:border-orange-500 transition"
                   />
                   <button
                     onClick={() => {

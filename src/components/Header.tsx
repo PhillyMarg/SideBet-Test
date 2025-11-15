@@ -338,12 +338,16 @@ export default function Header() {
         <div
           className="fixed inset-0 flex justify-center items-center z-[100] bg-black/60"
           onClick={() => setShowJoinGroup(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="header-join-group-title"
         >
           <div
             onClick={(e) => e.stopPropagation()}
             className="w-[95%] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl px-5 py-5"
+            role="document"
           >
-            <h3 className="text-lg font-semibold mb-4 text-center text-white">
+            <h3 id="header-join-group-title" className="text-lg font-semibold mb-4 text-center text-white">
               Join a Group
             </h3>
 
@@ -354,12 +358,17 @@ export default function Header() {
               group.
             </p>
 
+            <label htmlFor="header-join-input" className="sr-only">
+              Access code or join link
+            </label>
             <input
+              id="header-join-input"
               type="text"
+              inputMode="text"
               placeholder="Enter access code or join link"
               value={joinInput}
               onChange={(e) => setJoinInput(e.target.value.trim())}
-              className="w-full bg-zinc-800 text-white p-3 rounded-md text-sm border border-zinc-700 mb-4 focus:outline-none focus:border-orange-500"
+              className="w-full bg-zinc-800 text-white p-3 rounded-md text-base border border-zinc-700 mb-4 focus:outline-none focus:border-orange-500"
             />
 
             <div className="flex justify-between mt-4">

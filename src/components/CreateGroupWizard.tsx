@@ -123,16 +123,20 @@ export default function CreateGroupWizard({
     <div
       className="fixed inset-0 flex justify-center items-center z-50 bg-black/60 p-4"
       onClick={resetAndClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-group-title"
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         onClick={(e) => e.stopPropagation()}
         className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto"
+        role="document"
       >
         {/* Header */}
         <div className="sticky top-0 bg-zinc-900 border-b border-zinc-800 px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between z-10">
-          <h3 className="text-base sm:text-lg font-semibold text-white">
+          <h3 id="create-group-title" className="text-base sm:text-lg font-semibold text-white">
             Create Group {step > 1 && `(${step}/5)`}
           </h3>
           <button
@@ -176,31 +180,35 @@ export default function CreateGroupWizard({
                   Group Details
                 </h4>
                 <div>
-                  <label className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
+                  <label htmlFor="group-name" className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
                     Group Name *
                   </label>
                   <input
+                    id="group-name"
                     type="text"
+                    inputMode="text"
                     value={groupData.name}
                     onChange={(e) =>
                       setGroupData({ ...groupData, name: e.target.value })
                     }
                     placeholder="e.g., Friday Night Crew"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
+                  <label htmlFor="group-tagline" className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
                     Tagline (Optional)
                   </label>
                   <input
+                    id="group-tagline"
                     type="text"
+                    inputMode="text"
                     value={groupData.tagline}
                     onChange={(e) =>
                       setGroupData({ ...groupData, tagline: e.target.value })
                     }
                     placeholder="e.g., Where legends are made"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
                   />
                 </div>
               </motion.div>
@@ -222,11 +230,13 @@ export default function CreateGroupWizard({
                   Set the minimum and maximum bet amounts for this group.
                 </p>
                 <div>
-                  <label className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
+                  <label htmlFor="min-bet" className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
                     Minimum Bet ($) *
                   </label>
                   <input
+                    id="min-bet"
                     type="number"
+                    inputMode="decimal"
                     value={groupData.min_bet}
                     onChange={(e) =>
                       setGroupData({ ...groupData, min_bet: e.target.value })
@@ -234,15 +244,17 @@ export default function CreateGroupWizard({
                     placeholder="e.g., 1"
                     min="0"
                     step="0.01"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
+                  <label htmlFor="max-bet" className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
                     Maximum Bet ($) *
                   </label>
                   <input
+                    id="max-bet"
                     type="number"
+                    inputMode="decimal"
                     value={groupData.max_bet}
                     onChange={(e) =>
                       setGroupData({ ...groupData, max_bet: e.target.value })
@@ -250,7 +262,7 @@ export default function CreateGroupWizard({
                     placeholder="e.g., 50"
                     min="0"
                     step="0.01"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
                   />
                 </div>
                 {parseFloat(groupData.min_bet) >= parseFloat(groupData.max_bet) &&
@@ -327,10 +339,11 @@ export default function CreateGroupWizard({
 
                     {groupData.season_type === "custom" && (
                       <div>
-                        <label className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
+                        <label htmlFor="season-end-date" className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
                           Custom End Date *
                         </label>
                         <input
+                          id="season-end-date"
                           type="date"
                           min={new Date().toISOString().split("T")[0]}
                           value={groupData.season_end_date}
@@ -340,7 +353,7 @@ export default function CreateGroupWizard({
                               season_end_date: e.target.value,
                             })
                           }
-                          className="w-full bg-zinc-900 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-orange-500"
+                          className="w-full bg-zinc-900 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-base text-white focus:outline-none focus:border-orange-500"
                         />
                       </div>
                     )}
