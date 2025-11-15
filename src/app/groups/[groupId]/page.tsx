@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { db, auth } from "../../../lib/firebase/client";
@@ -24,7 +24,9 @@ import ActiveBetCard from "../../../components/ActiveBetCard";
 import ArchivedBetCard from "../../../components/ArchivedBetCard";
 import FloatingCreateBetButton from "../../../components/FloatingCreateBetButton";
 import Footer from "../../../components/Footer";
+import BetFilters, { FilterTab, SortOption } from "../../../components/BetFilters";
 import { getTimeRemaining } from "../../../utils/timeUtils";
+import { filterBets, sortBets, isClosingSoon, getEmptyStateMessage } from "../../../utils/betFilters";
 
 export default function GroupDetailPage() {
   const { groupId } = useParams();
@@ -43,6 +45,10 @@ export default function GroupDetailPage() {
   const [, forceUpdate] = useState(0);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
   const [loadingUserNames, setLoadingUserNames] = useState(false);
+
+  // Filter and sort state
+  const [activeTab, setActiveTab] = useState<FilterTab>("all");
+  const [sortBy, setSortBy] = useState<SortOption>("closingSoon");
 
   // 🎯 Handle user pick
   const handleUserPick = async (bet: any, pick: string | number) => {
@@ -304,9 +310,17 @@ export default function GroupDetailPage() {
 
   const seasonEnabled = group.settings?.season_enabled;
   const seasonEnd = group.settings?.season_end_date;
-  
+
   const activeBets = bets.filter((b) => b.status !== "JUDGED");
   const archivedBets = bets.filter((b) => b.status === "JUDGED");
+
+  // Apply filters and sorting to active bets
+  const filteredAndSortedBets = useMemo(() => {
+    if (!user) return [];
+    const filtered = filterBets(activeBets, activeTab, user.uid);
+    const sorted = sortBets(filtered, sortBy);
+    return sorted;
+  }, [activeBets, activeTab, sortBy, user]);
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center pb-20 relative overflow-y-auto">
@@ -426,17 +440,45 @@ export default function GroupDetailPage() {
           </h2>
 
           {activeBets.length > 0 ? (
-            <ul className="space-y-4 w-full">
-              {activeBets.map((bet: any) => (
-                <ActiveBetCard
-                  key={bet.id}
-                  bet={bet}
-                  user={user}
-                  onPick={handleUserPick}
-                  onJudge={setJudgingBet}
-                />
-              ))}
-            </ul>
+            <>
+              {/* Bet Filters - Tabs and Sort (no Group sort for group details) */}
+              <BetFilters
+                bets={activeBets}
+                userId={user.uid}
+                activeTab={activeTab}
+                sortBy={sortBy}
+                onTabChange={setActiveTab}
+                onSortChange={setSortBy}
+                showGroupSort={false}
+              />
+
+              {/* Filtered and Sorted Bets */}
+              {filteredAndSortedBets.length > 0 ? (
+                <ul className="space-y-4 w-full mt-4">
+                  {filteredAndSortedBets.map((bet: any) => (
+                    <li key={bet.id} className="relative">
+                      {/* Closing Soon Indicator */}
+                      {isClosingSoon(bet.closingAt) && (
+                        <div className="absolute -top-2 -right-2 z-10 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg flex items-center gap-1">
+                          <span>🔥</span>
+                          <span>Closing Soon</span>
+                        </div>
+                      )}
+                      <ActiveBetCard
+                        bet={bet}
+                        user={user}
+                        onPick={handleUserPick}
+                        onJudge={setJudgingBet}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-500 text-sm text-center mt-4">
+                  {getEmptyStateMessage(activeTab)}
+                </p>
+              )}
+            </>
           ) : (
             <p className="text-gray-500 text-sm text-center">No active bets.</p>
           )}
