@@ -4,6 +4,7 @@ import { useEffect, useState, lazy, Suspense, useCallback, useMemo } from "react
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { db, auth } from "../../lib/firebase/client";
+import type { Bet, Group, BetFormData, GroupFormData } from "../../types";
 import {
   collection,
   query,
@@ -33,7 +34,7 @@ const CreateBetWizard = lazy(() => import("../../components/CreateBetWizard"));
 const CreateGroupWizard = lazy(() => import("../../components/CreateGroupWizard"));
 const OnboardingWizard = lazy(() => import("../../components/OnboardingWizard"));
 
-function getActiveBetCount(bets: any[], groupId: string) {
+function getActiveBetCount(bets: Bet[], groupId: string): number {
   return bets.filter((b) => b.groupId === groupId && b.status !== "JUDGED").length;
 }
 
@@ -41,15 +42,15 @@ export default function HomePage() {
   const router = useRouter();
   const [, forceUpdate] = useState(0);
   const [user, setUser] = useState<User | null>(null);
-  const [bets, setBets] = useState<any[]>([]);
-  const [groups, setGroups] = useState<any[]>([]);
+  const [bets, setBets] = useState<Bet[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAllBets, setShowAllBets] = useState(false);
   const [showCreateBet, setShowCreateBet] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showJoinGroup, setShowJoinGroup] = useState(false);
   const [joinInput, setJoinInput] = useState("");
-  const [judgingBet, setJudgingBet] = useState<any>(null);
+  const [judgingBet, setJudgingBet] = useState<Bet | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true);
 
@@ -196,7 +197,7 @@ export default function HomePage() {
     );
   }, [bets]);
 
-  const handleCreateBet = useCallback(async (betData: any) => {
+  const handleCreateBet = useCallback(async (betData: BetFormData) => {
     if (betData.type === "OVER_UNDER" && !betData.line) {
       toast.error("Please set a valid line ending in .5 for Over/Under bets.");
       return;
@@ -232,7 +233,7 @@ export default function HomePage() {
     }
   }, [user]);
 
-  const handleUserPick = useCallback(async (bet: any, pick: string | number) => {
+  const handleUserPick = useCallback(async (bet: Bet, pick: string | number) => {
     if (!user) return;
 
     const uid = user.uid;
@@ -268,7 +269,7 @@ export default function HomePage() {
     }
   }, [user]);
 
-  const handleCreateGroup = useCallback(async (groupData: any) => {
+  const handleCreateGroup = useCallback(async (groupData: GroupFormData) => {
     if (!user) {
       toast.error("You must be signed in to create a group.");
       return;

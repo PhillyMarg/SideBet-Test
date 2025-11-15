@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { db, auth } from "../../../lib/firebase/client";
 import { motion, AnimatePresence } from "framer-motion";
+import type { Bet, Group, BetFormData, LeaderboardEntry } from "../../../types";
 import {
   collection,
   doc,
@@ -30,19 +31,19 @@ export default function GroupDetailPage() {
   const router = useRouter();
 
   const [user, setUser] = useState<User | null>(null);
-  const [group, setGroup] = useState<any>(null);
-  const [groups, setGroups] = useState<any[]>([]);
-  const [bets, setBets] = useState<any[]>([]);
-  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [group, setGroup] = useState<Group | null>(null);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [bets, setBets] = useState<Bet[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [creatorName, setCreatorName] = useState<string>("Loading...");
-  const [judgingBet, setJudgingBet] = useState<any>(null);
+  const [judgingBet, setJudgingBet] = useState<Bet | null>(null);
   const [, forceUpdate] = useState(0);
 
   // 🎯 Handle user pick
-  const handleUserPick = useCallback(async (bet: any, pick: string | number) => {
+  const handleUserPick = useCallback(async (bet: Bet, pick: string | number) => {
     if (!user) return;
 
     const uid = user.uid;
@@ -73,7 +74,7 @@ export default function GroupDetailPage() {
   }, [user]);
 
   // Create Bet Handler
-  const handleCreateBet = useCallback(async (betData: any) => {
+  const handleCreateBet = useCallback(async (betData: BetFormData) => {
     if (betData.type === "OVER_UNDER" && !betData.line) {
       toast.error("Please set a valid line ending in .5 for Over/Under bets.");
       return;
