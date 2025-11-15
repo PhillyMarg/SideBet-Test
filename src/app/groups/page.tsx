@@ -18,6 +18,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { motion } from "framer-motion";
+import { Search, X } from "lucide-react";
 
 export default function GroupsPage() {
   const router = useRouter();
@@ -27,6 +28,11 @@ export default function GroupsPage() {
   const [groupActiveBets, setGroupActiveBets] = useState<{ [key: string]: number }>({});
   const [loading, setLoading] = useState(true);
   const [showAllGroups, setShowAllGroups] = useState(false);
+
+  // Filter, Search & Sort State
+  const [activeTab, setActiveTab] = useState<"all" | "admin" | "member">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("alphabetical");
 
   // Aggregate stats
   const [totalGroups, setTotalGroups] = useState(0);
@@ -306,8 +312,60 @@ export default function GroupsPage() {
     );
   }
 
-  const visibleGroups = showAllGroups ? groups : groups.slice(0, 5);
-  const hasMoreGroups = groups.length > 5;
+  // Calculate counts for each tab
+  const allGroupsCount = groups.length;
+  const adminGroupsCount = groups.filter(
+    (g) => g.admin_id === user?.uid
+  ).length;
+  const memberGroupsCount = groups.filter(
+    (g) => g.memberIds.includes(user?.uid) && g.admin_id !== user?.uid
+  ).length;
+
+  // Apply filters and sort
+  let displayGroups = groups;
+
+  // 1. Filter by active tab
+  if (activeTab === "admin") {
+    displayGroups = groups.filter((g) => g.admin_id === user?.uid);
+  } else if (activeTab === "member") {
+    displayGroups = groups.filter(
+      (g) => g.memberIds.includes(user?.uid) && g.admin_id !== user?.uid
+    );
+  }
+  // "all" shows all groups (no filtering needed)
+
+  // 2. Apply search filter
+  if (searchQuery.trim()) {
+    displayGroups = displayGroups.filter((group) => {
+      const query = searchQuery.toLowerCase();
+      const name = group.name.toLowerCase();
+      const tagline = group.tagline?.toLowerCase() || "";
+      return name.includes(query) || tagline.includes(query);
+    });
+  }
+
+  // 3. Apply sort
+  const sortedGroups = [...displayGroups].sort((a, b) => {
+    switch (sortBy) {
+      case "alphabetical":
+        return a.name.localeCompare(b.name);
+      case "recentActivity":
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      case "memberCount":
+        return (b.memberIds?.length || 0) - (a.memberIds?.length || 0);
+      case "newest":
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      default:
+        return 0;
+    }
+  });
+
+  const visibleGroups = showAllGroups ? sortedGroups : sortedGroups.slice(0, 5);
+  const hasMoreGroups = sortedGroups.length > 5;
 
   return (
     <>
@@ -395,7 +453,140 @@ export default function GroupsPage() {
             </div>
           </div>
 
-          {groups.length > 0 ? (
+          {/* Filter & Search Section - 2 Row Layout */}
+          <div className="bg-black border border-zinc-800 rounded-xl py-3 space-y-3 mb-4">
+            {/* Row 1: Filter Tabs */}
+            <div className="grid grid-cols-3 gap-2 px-4 sm:px-6">
+              <button
+                onClick={() => setActiveTab("all")}
+                className={`px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap rounded-md transition-colors ${
+                  activeTab === "all"
+                    ? "bg-orange-500 text-white shadow-lg shadow-orange-500/50"
+                    : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border border-zinc-800"
+                }`}
+              >
+                All Groups
+                {allGroupsCount > 0 && (
+                  <span className="ml-1 text-xs">({allGroupsCount})</span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab("admin")}
+                className={`px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap rounded-md transition-colors ${
+                  activeTab === "admin"
+                    ? "bg-orange-500 text-white shadow-lg shadow-orange-500/50"
+                    : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border border-zinc-800"
+                }`}
+              >
+                Admin
+                {adminGroupsCount > 0 && (
+                  <span className="ml-1 text-xs">({adminGroupsCount})</span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab("member")}
+                className={`px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap rounded-md transition-colors ${
+                  activeTab === "member"
+                    ? "bg-orange-500 text-white shadow-lg shadow-orange-500/50"
+                    : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border border-zinc-800"
+                }`}
+              >
+                Member
+                {memberGroupsCount > 0 && (
+                  <span className="ml-1 text-xs">({memberGroupsCount})</span>
+                )}
+              </button>
+            </div>
+
+            {/* Row 2: Search + Sort */}
+            <div className="flex items-center gap-2 px-4 sm:px-6">
+              {/* Search Bar - 60% width */}
+              <div className="flex-1 max-w-[60%]">
+                <div className="relative">
+                  <Search className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-400" />
+
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search groups..."
+                    className="w-full pl-8 sm:pl-10 pr-8 sm:pr-10 py-2 text-xs sm:text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                  />
+
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2"
+                    >
+                      <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-400 hover:text-white" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Sort Dropdown - 40% width */}
+              <div className="flex-shrink-0 max-w-[40%] w-full">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full px-2 sm:px-3 py-2 text-xs sm:text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                >
+                  <option value="alphabetical">A-Z</option>
+                  <option value="recentActivity">Recent Activity</option>
+                  <option value="memberCount">Most Members</option>
+                  <option value="newest">Newest</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {sortedGroups.length === 0 ? (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center">
+              {searchQuery.trim() ? (
+                <>
+                  <p className="text-zinc-400 text-sm mb-2">
+                    No groups found for "{searchQuery}"
+                  </p>
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="text-orange-500 text-sm hover:text-orange-600"
+                  >
+                    Clear search
+                  </button>
+                </>
+              ) : activeTab === "admin" ? (
+                <p className="text-zinc-400 text-sm">
+                  You don't admin any groups yet. Create one to get started!
+                </p>
+              ) : activeTab === "member" ? (
+                <p className="text-zinc-400 text-sm">
+                  You're not a member of any groups. Join or create one!
+                </p>
+              ) : (
+                <>
+                  <p className="text-gray-400 mb-4">
+                    You're not in any groups yet.
+                  </p>
+                  <div className="flex justify-center gap-3">
+                    <button
+                      onClick={() => setShowCreateGroup(true)}
+                      className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-all"
+                    >
+                      Create Your First Group
+                    </button>
+                    <button
+                      onClick={() => setShowJoinGroup(true)}
+                      className="px-6 py-2 border border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white font-semibold rounded-lg transition-all"
+                    >
+                      Join a Group
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
             <>
               <div className="space-y-4">
                 {visibleGroups.map((group) => {
@@ -458,31 +649,11 @@ export default function GroupsPage() {
                   >
                     {showAllGroups
                       ? "Show Less"
-                      : `View More (${groups.length - 5} more)`}
+                      : `View More (${sortedGroups.length - 5} more)`}
                   </button>
                 </div>
               )}
             </>
-          ) : (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center">
-              <p className="text-gray-400 mb-4">
-                You're not in any groups yet.
-              </p>
-              <div className="flex justify-center gap-3">
-                <button
-                  onClick={() => setShowCreateGroup(true)}
-                  className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-all"
-                >
-                  Create Your First Group
-                </button>
-                <button
-                  onClick={() => setShowJoinGroup(true)}
-                  className="px-6 py-2 border border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white font-semibold rounded-lg transition-all"
-                >
-                  Join a Group
-                </button>
-              </div>
-            </div>
           )}
         </section>
       </div>
