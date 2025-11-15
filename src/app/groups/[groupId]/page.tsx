@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { db, auth } from "../../../lib/firebase/client";
@@ -42,7 +42,7 @@ export default function GroupDetailPage() {
   const [, forceUpdate] = useState(0);
 
   // 🎯 Handle user pick
-  const handleUserPick = async (bet: any, pick: string | number) => {
+  const handleUserPick = useCallback(async (bet: any, pick: string | number) => {
     if (!user) return;
 
     const uid = user.uid;
@@ -70,10 +70,10 @@ export default function GroupDetailPage() {
       console.error("Error updating bet pick:", err);
       toast.error("Failed to place bet. Please try again.");
     }
-  };
+  }, [user]);
 
   // Create Bet Handler
-  const handleCreateBet = async (betData: any) => {
+  const handleCreateBet = useCallback(async (betData: any) => {
     if (betData.type === "OVER_UNDER" && !betData.line) {
       toast.error("Please set a valid line ending in .5 for Over/Under bets.");
       return;
@@ -107,7 +107,7 @@ export default function GroupDetailPage() {
       console.error("Error creating bet:", err);
       toast.error("Failed to create bet. Please try again.");
     }
-  };
+  }, [user]);
 
   // ⏱️ Countdown force re-render (only if there are active bets with countdowns)
   useEffect(() => {

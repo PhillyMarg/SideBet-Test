@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, useState, lazy, Suspense, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { db, auth } from "../../lib/firebase/client";
@@ -53,7 +53,7 @@ export default function HomePage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     try {
       await signOut(auth);
       router.push("/login");
@@ -61,9 +61,9 @@ export default function HomePage() {
       console.error("❌ Logout error:", error);
       toast.error(`Failed to logout: ${error.message || error}`);
     }
-  };
+  }, [router]);
 
-  const handleOnboardingComplete = async () => {
+  const handleOnboardingComplete = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -74,7 +74,7 @@ export default function HomePage() {
     } catch (error) {
       console.error("Error updating onboarding status:", error);
     }
-  };
+  }, [user]);
 
 
   // 🔁 Countdown force re-render (only if there are active bets with countdowns)
@@ -196,7 +196,7 @@ export default function HomePage() {
     );
   }, [bets]);
 
-  const handleCreateBet = async (betData: any) => {
+  const handleCreateBet = useCallback(async (betData: any) => {
     if (betData.type === "OVER_UNDER" && !betData.line) {
       toast.error("Please set a valid line ending in .5 for Over/Under bets.");
       return;
@@ -230,9 +230,9 @@ export default function HomePage() {
       console.error("Error creating bet:", err);
       toast.error("Failed to create bet. Please try again.");
     }
-  };
+  }, [user]);
 
-  const handleUserPick = async (bet: any, pick: string | number) => {
+  const handleUserPick = useCallback(async (bet: any, pick: string | number) => {
     if (!user) return;
 
     const uid = user.uid;
@@ -266,9 +266,9 @@ export default function HomePage() {
       console.error("Error updating bet pick:", err);
       toast.error("Failed to place bet. Please try again.");
     }
-  };
+  }, [user]);
 
-  const handleCreateGroup = async (groupData: any) => {
+  const handleCreateGroup = useCallback(async (groupData: any) => {
     if (!user) {
       toast.error("You must be signed in to create a group.");
       return;
@@ -301,12 +301,12 @@ export default function HomePage() {
       console.error("Error creating group:", error);
       toast.error(`Failed to create group. Error: ${error.message || JSON.stringify(error)}`);
     }
-  };
+  }, [user]);
 
   const activeBets = bets.filter((bet) => bet.status !== "JUDGED");
 
-  const getGroupName = (groupId: string) =>
-    groups.find((g) => g.id === groupId)?.name || "Unknown Group";
+  const getGroupName = useCallback((groupId: string) =>
+    groups.find((g) => g.id === groupId)?.name || "Unknown Group", [groups]);
 
   // Only redirect if not loading and no user
   if (!loading && !user) {
