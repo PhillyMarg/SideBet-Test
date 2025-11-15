@@ -18,6 +18,7 @@ import {
   addDoc,
   limit,
   documentId,
+  arrayRemove,
 } from "firebase/firestore";
 import JudgeBetModal from "../../../components/JudgeBetModal";
 import ActiveBetCard from "../../../components/ActiveBetCard";
@@ -27,6 +28,7 @@ import Footer from "../../../components/Footer";
 import BetFilters, { FilterTab, SortOption } from "../../../components/BetFilters";
 import { getTimeRemaining } from "../../../utils/timeUtils";
 import { filterBets, sortBets, isClosingSoon, getEmptyStateMessage, searchBets } from "../../../utils/betFilters";
+import { LogOut, X } from "lucide-react";
 
 export default function GroupDetailPage() {
   const { groupId } = useParams();
@@ -50,6 +52,10 @@ export default function GroupDetailPage() {
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [sortBy, setSortBy] = useState<SortOption>("closingSoon");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Leave Group state
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   // 🎯 Handle user pick
   const handleUserPick = async (bet: any, pick: string | number) => {
@@ -116,6 +122,33 @@ export default function GroupDetailPage() {
     } catch (err) {
       console.error("Error creating bet:", err);
       alert("Failed to create bet. Please try again.");
+    }
+  };
+
+  // Leave Group Handler
+  const handleLeaveGroup = async () => {
+    if (isLeaving || !user) return;
+
+    try {
+      setIsLeaving(true);
+
+      // Remove user from group's memberIds array
+      const groupRef = doc(db, "groups", groupId as string);
+      await updateDoc(groupRef, {
+        memberIds: arrayRemove(user.uid),
+      });
+
+      // Success feedback
+      alert("✅ You've left the group");
+
+      // Redirect to home page
+      router.push("/home");
+    } catch (error: any) {
+      console.error("Error leaving group:", error);
+      alert(`Failed to leave group: ${error.message}`);
+    } finally {
+      setIsLeaving(false);
+      setShowLeaveModal(false);
     }
   };
 
@@ -222,6 +255,19 @@ export default function GroupDetailPage() {
 
     fetchUserNames();
   }, [leaderboard]);
+
+  // 🚫 Prevent body scroll when modal open
+  useEffect(() => {
+    if (showLeaveModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [showLeaveModal]);
 
   // 👤 Auth + Firestore listeners
   useEffect(() => {
@@ -332,43 +378,55 @@ export default function GroupDetailPage() {
       <div className="w-full max-w-2xl px-4">
         {/* 🧩 GROUP INFO */}
         <section className="w-full mt-6 px-2">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div className="text-left">
               <h1 className="text-2xl font-bold text-white">{group.name}</h1>
 
               {group.tagline && (
                 <p className="text-sm text-gray-400 mt-1">{group.tagline}</p>
               )}
-
-              <p className="text-sm text-gray-500 mt-2">
-                <span className="font-semibold text-gray-300">Members:</span>{" "}
-                {group.memberIds?.length || 0}
-              </p>
-
-              <p className="text-sm text-gray-500 mt-1">
-                <span className="font-semibold text-gray-300">Invite Code:</span>{" "}
-                <span className="text-orange-400 font-medium">
-                  {group.accessCode || "N/A"}
-                </span>
-              </p>
-
-              <p className="text-sm text-gray-500 mt-1">
-                <span className="font-semibold text-gray-300">Group Creator:</span>{" "}
-                <span className="text-orange-400 font-medium">
-                  {creatorName}
-                </span>
-              </p>
-
-              {seasonEnabled && seasonEnd && (
-                <p className="text-sm text-gray-500 mt-1">
-                  <span className="font-semibold text-gray-300">Season Ends In:</span>{" "}
-                  <span className="text-orange-400 font-medium">
-                    {seasonEnd}
-                  </span>
-                </p>
-              )}
             </div>
+
+            {/* Leave Group Button - Only show if member and not admin */}
+            {group.memberIds?.includes(user.uid) && group.admin_id !== user.uid && (
+              <button
+                onClick={() => setShowLeaveModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-red-500 hover:text-red-600 hover:bg-red-500/10 border border-red-500/30 rounded-lg transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Leave Group</span>
+                <span className="sm:hidden">Leave</span>
+              </button>
+            )}
           </div>
+
+          <p className="text-sm text-gray-500 mt-2">
+            <span className="font-semibold text-gray-300">Members:</span>{" "}
+            {group.memberIds?.length || 0}
+          </p>
+
+          <p className="text-sm text-gray-500 mt-1">
+            <span className="font-semibold text-gray-300">Invite Code:</span>{" "}
+            <span className="text-orange-400 font-medium">
+              {group.accessCode || "N/A"}
+            </span>
+          </p>
+
+          <p className="text-sm text-gray-500 mt-1">
+            <span className="font-semibold text-gray-300">Group Creator:</span>{" "}
+            <span className="text-orange-400 font-medium">
+              {creatorName}
+            </span>
+          </p>
+
+          {seasonEnabled && seasonEnd && (
+            <p className="text-sm text-gray-500 mt-1">
+              <span className="font-semibold text-gray-300">Season Ends In:</span>{" "}
+              <span className="text-orange-400 font-medium">
+                {seasonEnd}
+              </span>
+            </p>
+          )}
         </section>
 
        {/* 🔶 USER STATS BAR */}
@@ -630,6 +688,63 @@ export default function GroupDetailPage() {
           bet={judgingBet}
           onClose={() => setJudgingBet(null)}
         />
+      )}
+
+      {/* Leave Group Confirmation Modal */}
+      {showLeaveModal && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          onClick={() => setShowLeaveModal(false)}
+        >
+          <div
+            className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 max-w-sm w-full relative z-[61] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setShowLeaveModal(false)}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Header */}
+            <h3 className="text-lg font-semibold text-white mb-3">
+              Leave Group?
+            </h3>
+
+            {/* Content */}
+            <p className="text-sm text-zinc-400 mb-2">
+              Are you sure you want to leave "
+              <span className="text-white font-medium">{group.name}</span>"?
+            </p>
+
+            <p className="text-sm text-zinc-400 mb-4">
+              You'll lose access to all bets in this group and won't see group
+              activity. You can rejoin later using the access code.
+            </p>
+
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLeaveModal(false)}
+                disabled={isLeaving}
+                className="flex-1 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-800/50 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleLeaveGroup}
+                disabled={isLeaving}
+                className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {isLeaving ? "Leaving..." : "Leave"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <Footer />
