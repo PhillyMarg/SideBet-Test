@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import PWAHead from "../components/PWAHead";
+import Header from "../components/Header";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,7 +20,10 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <PWAHead />
-        {children}
+        <Header />
+        <main className="min-h-screen bg-black">
+          {children}
+        </main>
       </body>
     </html>
   );

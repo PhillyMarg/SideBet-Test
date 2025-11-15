@@ -24,7 +24,6 @@ import FloatingCreateBetButton from "../../components/FloatingCreateBetButton";
 import BetCardSkeleton from "../../components/BetCardSkeleton";
 import GroupCardSkeleton from "../../components/GroupCardSkeleton";
 import Footer from "../../components/Footer";
-import Header from "../../components/Header";
 import BetFilters, { FilterTab, SortOption } from "../../components/BetFilters";
 import { getTimeRemaining } from "../../utils/timeUtils";
 import { filterBets, sortBets, isClosingSoon, getEmptyStateMessage, searchBets } from "../../utils/betFilters";
@@ -337,9 +336,8 @@ export default function HomePage() {
 
   return (
     <>
-      <Header />
       <main
-        className="min-h-screen bg-black text-white flex flex-col pb-16 sm:pb-20 relative overflow-y-auto"
+        className="min-h-screen bg-black text-white flex flex-col pb-16 sm:pb-20 pt-20 relative overflow-y-auto"
         style={{ "--content-width": "500px" } as React.CSSProperties}
       >
         {/* Active Bets */}

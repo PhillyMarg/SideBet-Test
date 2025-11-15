@@ -7,7 +7,6 @@ import { auth, db } from "../../lib/firebase/client";
 import CreateGroupWizard from "../../components/CreateGroupWizard";
 import Footer from "../../components/Footer";
 import FloatingCreateBetButton from "../../components/FloatingCreateBetButton";
-import Header from "../../components/Header";
 import {
   collection,
   query,
@@ -18,7 +17,9 @@ import {
   limit,
 } from "firebase/firestore";
 import { motion } from "framer-motion";
-import { Search, X } from "lucide-react";
+import { Search, X, LogOut } from "lucide-react";
+import { removeUserFromGroupBets } from "../../utils/groupHelpers";
+import { arrayRemove, doc } from "firebase/firestore";
 
 export default function GroupsPage() {
   const router = useRouter();
@@ -46,6 +47,11 @@ export default function GroupsPage() {
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showJoinGroup, setShowJoinGroup] = useState(false);
   const [joinInput, setJoinInput] = useState("");
+
+  // Leave Group state
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [groupToLeave, setGroupToLeave] = useState<{ id: string; name: string } | null>(null);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   // Fetch groups and stats
   useEffect(() => {
@@ -237,6 +243,41 @@ export default function GroupsPage() {
     }
   };
 
+  // Leave Group Handler
+  const handleLeaveGroup = (groupId: string, groupName: string) => {
+    setGroupToLeave({ id: groupId, name: groupName });
+    setShowLeaveModal(true);
+  };
+
+  const confirmLeaveGroup = async () => {
+    if (!groupToLeave || !user || isLeaving) return;
+
+    try {
+      setIsLeaving(true);
+
+      // Step 1: Remove user's picks from all group bets
+      await removeUserFromGroupBets(groupToLeave.id, user.uid);
+
+      // Step 2: Remove user from group members
+      const groupRef = doc(db, "groups", groupToLeave.id);
+      await updateDoc(groupRef, {
+        memberIds: arrayRemove(user.uid),
+      });
+
+      alert(`✅ You've left ${groupToLeave.name}`);
+      setShowLeaveModal(false);
+      setGroupToLeave(null);
+
+      // Refresh the page to update groups list
+      window.location.reload();
+    } catch (error: any) {
+      console.error("Error leaving group:", error);
+      alert(`Failed to leave group: ${error.message}`);
+    } finally {
+      setIsLeaving(false);
+    }
+  };
+
   // Join Group Handler
   const handleJoinGroup = async () => {
     if (!joinInput) {
@@ -369,9 +410,8 @@ export default function GroupsPage() {
 
   return (
     <>
-      <Header />
       <main
-        className="min-h-screen bg-black text-white pb-16 sm:pb-20 flex flex-col items-center"
+        className="min-h-screen bg-black text-white pb-16 sm:pb-20 pt-20 flex flex-col items-center"
         style={{ "--content-width": "500px" } as React.CSSProperties}
       >
       <div
@@ -599,11 +639,10 @@ export default function GroupsPage() {
                       key={group.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      onClick={() => router.push(`/groups/${group.id}`)}
                       className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-orange-500/50 transition-all cursor-pointer"
                     >
                       <div className="flex justify-between items-start mb-3">
-                        <div>
+                        <div onClick={() => router.push(`/groups/${group.id}`)} className="flex-1">
                           <h3 className="text-xl font-bold text-white">
                             {group.name}
                           </h3>
@@ -613,18 +652,33 @@ export default function GroupsPage() {
                             </p>
                           )}
                         </div>
-                        <div className="text-right">
-                          <p
-                            className={`text-lg font-bold ${
-                              balance >= 0 ? "text-green-400" : "text-red-400"
-                            }`}
-                          >
-                            {balance >= 0 ? "+" : ""}${balance.toFixed(2)}
-                          </p>
+                        <div className="flex items-start gap-3">
+                          <div className="text-right" onClick={() => router.push(`/groups/${group.id}`)}>
+                            <p
+                              className={`text-lg font-bold ${
+                                balance >= 0 ? "text-green-400" : "text-red-400"
+                              }`}
+                            >
+                              {balance >= 0 ? "+" : ""}${balance.toFixed(2)}
+                            </p>
+                          </div>
+                          {/* Leave Button - Only show if member and not admin */}
+                          {group.memberIds?.includes(user?.uid) && group.admin_id !== user?.uid && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleLeaveGroup(group.id, group.name);
+                              }}
+                              className="flex items-center gap-1 px-2 py-1 text-xs text-red-500 hover:text-red-600 hover:bg-red-500/10 border border-red-500/30 rounded-lg transition-colors"
+                            >
+                              <LogOut className="w-3.5 h-3.5" />
+                              <span>Leave</span>
+                            </button>
+                          )}
                         </div>
                       </div>
 
-                      <div className="flex justify-between items-center text-sm">
+                      <div onClick={() => router.push(`/groups/${group.id}`)} className="flex justify-between items-center text-sm">
                         <div className="flex gap-4 text-gray-400">
                           <span>{group.memberIds?.length || 0} members</span>
                           <span>{record}</span>
@@ -712,6 +766,62 @@ export default function GroupsPage() {
           </div>
         </div>
       )}
+
+    {/* Leave Group Confirmation Modal */}
+    {showLeaveModal && groupToLeave && (
+      <div
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+        onClick={() => setShowLeaveModal(false)}
+      >
+        <div
+          className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 max-w-sm w-full relative z-[61] shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => setShowLeaveModal(false)}
+            className="absolute top-4 right-4 text-zinc-400 hover:text-white"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          <h3 className="text-lg font-semibold text-white mb-3">
+            Leave Group?
+          </h3>
+
+          <p className="text-sm text-zinc-400 mb-2">
+            Are you sure you want to leave "<span className="text-white font-medium">{groupToLeave.name}</span>"?
+          </p>
+
+          <p className="text-sm text-zinc-400 mb-4">
+            You'll be removed from all bets in this group and lose access to group activity.
+          </p>
+
+          <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3 mb-4">
+            <p className="text-sm text-orange-500">
+              ⚠️ Your picks will be removed from active bets in this group.
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowLeaveModal(false)}
+              disabled={isLeaving}
+              className="flex-1 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-800/50 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={confirmLeaveGroup}
+              disabled={isLeaving}
+              className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              {isLeaving ? "Leaving..." : "Leave"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* Footer */}
 <Footer />
