@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { deleteDoc, doc } from "firebase/firestore";
 import { db } from "../lib/firebase/client";
-import { Trash2 } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { getTimeRemaining, getLivePercentages } from "../utils/timeUtils";
 import { fetchUserData, getUserDisplayName } from "../utils/userUtils";
 
@@ -53,6 +53,19 @@ function ActiveBetCard({
 
     loadCreatorData();
   }, [bet.creatorId]);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (showDeleteModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [showDeleteModal]);
 
   const calculateEstimatedPayout = (side: "yes" | "no") => {
     const yesVotes = Object.values(bet.picks || {}).filter(
@@ -374,32 +387,43 @@ function ActiveBetCard({
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
           onClick={() => setShowDeleteModal(false)}
         >
           <div
-            className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 max-w-sm w-full"
+            className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 max-w-sm w-full relative z-[61] shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-white mb-2">
+            {/* Close button */}
+            <button
+              onClick={() => setShowDeleteModal(false)}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white transition"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-lg font-semibold text-white mb-3">
               Delete Bet?
             </h3>
 
             <p className="text-sm text-zinc-400 mb-4">
-              This will permanently delete "{bet.title}" and void all picks. This action cannot be undone.
+              This will permanently delete "<span className="text-white">{bet.title}</span>" and void all picks. This action cannot be undone.
             </p>
 
             {people > 0 && (
-              <p className="text-sm text-orange-500 mb-4">
-                ⚠️ {people} {people === 1 ? 'person has' : 'people have'} already placed bets.
-              </p>
+              <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3 mb-4">
+                <p className="text-sm text-orange-500">
+                  ⚠️ {people} {people === 1 ? 'person has' : 'people have'} already placed bets.
+                </p>
+              </div>
             )}
 
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
                 disabled={isDeleting}
-                className="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-800/50 text-white rounded-lg text-sm transition"
+                className="flex-1 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-800/50 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -407,7 +431,7 @@ function ActiveBetCard({
               <button
                 onClick={handleDeleteBet}
                 disabled={isDeleting}
-                className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 text-white rounded-lg text-sm transition"
+                className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 {isDeleting ? "Deleting..." : "Delete"}
               </button>
