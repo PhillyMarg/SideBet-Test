@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, useState, lazy, Suspense, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { db, auth } from "../../lib/firebase/client";
@@ -25,7 +25,9 @@ import BetCardSkeleton from "../../components/BetCardSkeleton";
 import GroupCardSkeleton from "../../components/GroupCardSkeleton";
 import Footer from "../../components/Footer";
 import Header from "../../components/Header";
+import BetFilters, { FilterTab, SortOption } from "../../components/BetFilters";
 import { getTimeRemaining } from "../../utils/timeUtils";
+import { filterBets, sortBets, isClosingSoon, getEmptyStateMessage } from "../../utils/betFilters";
 
 // Lazy load heavy wizard components
 const CreateBetWizard = lazy(() => import("../../components/CreateBetWizard"));
@@ -51,6 +53,10 @@ export default function HomePage() {
   const [judgingBet, setJudgingBet] = useState<any>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true);
+
+  // Filter and sort state
+  const [activeTab, setActiveTab] = useState<FilterTab>("all");
+  const [sortBy, setSortBy] = useState<SortOption>("closingSoon");
 
   const handleLogout = async () => {
     try {
@@ -304,6 +310,14 @@ export default function HomePage() {
 
   const activeBets = bets.filter((bet) => bet.status !== "JUDGED");
 
+  // Apply filters and sorting
+  const filteredAndSortedBets = useMemo(() => {
+    if (!user) return [];
+    const filtered = filterBets(activeBets, activeTab, user.uid);
+    const sorted = sortBets(filtered, sortBy, groups);
+    return sorted;
+  }, [activeBets, activeTab, sortBy, user, groups]);
+
   const getGroupName = (groupId: string) =>
     groups.find((g) => g.id === groupId)?.name || "Unknown Group";
 
@@ -324,12 +338,12 @@ export default function HomePage() {
         style={{ "--content-width": "500px" } as React.CSSProperties}
       >
         {/* Active Bets */}
-      <section className="p-4 flex flex-col items-center text-center mt-4">
-        <h2 className="text-lg font-semibold mb-3 text-white">Active Bets</h2>
+      <section className="flex flex-col items-center text-center mt-4">
+        <h2 className="text-lg font-semibold mb-3 text-white px-4">Active Bets</h2>
 
         {loading ? (
           <ul
-            className="space-y-2 sm:space-y-3 w-[95%] sm:w-[92%] mx-auto"
+            className="space-y-2 sm:space-y-3 w-[95%] sm:w-[92%] mx-auto px-4"
             style={{ maxWidth: "var(--content-width)" }}
           >
             {[...Array(3)].map((_, i) => (
@@ -338,32 +352,63 @@ export default function HomePage() {
           </ul>
         ) : activeBets.length > 0 ? (
           <>
-            <ul
-              className="space-y-2 sm:space-y-3 w-[95%] sm:w-[92%] mx-auto"
-              style={{ maxWidth: "var(--content-width)" }}
-            >
-              {(showAllBets ? activeBets : activeBets.slice(0, 5)).map((bet) => (
-                <ActiveBetCard
-                  key={bet.id}
-                  bet={bet}
-                  user={user}
-                  onPick={handleUserPick}
-                  onJudge={setJudgingBet}
-                  groupName={getGroupName(bet.groupId)}
-                />
-              ))}
-            </ul>
-            {activeBets.length > 5 && (
-              <button
-                onClick={() => setShowAllBets(!showAllBets)}
-                className="mt-5 text-sm text-orange-500 hover:text-orange-400 font-medium transition"
-              >
-                {showAllBets ? "Show Less" : `Show All (${activeBets.length})`}
-              </button>
+            {/* Bet Filters - Tabs and Sort */}
+            {user && (
+              <BetFilters
+                bets={activeBets}
+                userId={user.uid}
+                groups={groups}
+                activeTab={activeTab}
+                sortBy={sortBy}
+                onTabChange={setActiveTab}
+                onSortChange={setSortBy}
+                showGroupSort={true}
+              />
+            )}
+
+            {/* Filtered and Sorted Bets */}
+            {filteredAndSortedBets.length > 0 ? (
+              <>
+                <ul
+                  className="space-y-2 sm:space-y-3 w-[95%] sm:w-[92%] mx-auto px-4 mt-4"
+                  style={{ maxWidth: "var(--content-width)" }}
+                >
+                  {(showAllBets ? filteredAndSortedBets : filteredAndSortedBets.slice(0, 5)).map((bet) => (
+                    <li key={bet.id} className="relative">
+                      {/* Closing Soon Indicator */}
+                      {isClosingSoon(bet.closingAt) && (
+                        <div className="absolute -top-2 -right-2 z-10 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg flex items-center gap-1">
+                          <span>🔥</span>
+                          <span>Closing Soon</span>
+                        </div>
+                      )}
+                      <ActiveBetCard
+                        bet={bet}
+                        user={user}
+                        onPick={handleUserPick}
+                        onJudge={setJudgingBet}
+                        groupName={getGroupName(bet.groupId)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+                {filteredAndSortedBets.length > 5 && (
+                  <button
+                    onClick={() => setShowAllBets(!showAllBets)}
+                    className="mt-5 text-sm text-orange-500 hover:text-orange-400 font-medium transition"
+                  >
+                    {showAllBets ? "Show Less" : `Show All (${filteredAndSortedBets.length})`}
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className="text-gray-500 text-sm mt-6 px-4">
+                {getEmptyStateMessage(activeTab)}
+              </p>
             )}
           </>
         ) : (
-          <p className="text-gray-500 text-sm">
+          <p className="text-gray-500 text-sm px-4">
             No active bets found. Create a new one!
           </p>
         )}
