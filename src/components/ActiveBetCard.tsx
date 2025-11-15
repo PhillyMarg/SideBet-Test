@@ -136,6 +136,15 @@ function ActiveBetCard({
         </p>
       )}
 
+      {/* Over/Under Line Display */}
+      {bet.type === "OVER_UNDER" && bet.line !== undefined && (
+        <div className="mb-2 sm:mb-3">
+          <p className="text-xs sm:text-sm font-bold text-orange-500">
+            O/U Line: {bet.line}
+          </p>
+        </div>
+      )}
+
       {/* Stats Row - Compact on mobile */}
       <div className="flex justify-between text-[10px] sm:text-sm text-gray-400 mb-1.5 sm:mb-4">
         <span className="sm:inline">Wager: ${wager.toFixed(2)}</span>
