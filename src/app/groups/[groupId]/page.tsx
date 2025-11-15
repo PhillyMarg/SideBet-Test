@@ -28,6 +28,7 @@ import Footer from "../../../components/Footer";
 import BetFilters, { FilterTab, SortOption } from "../../../components/BetFilters";
 import { getTimeRemaining } from "../../../utils/timeUtils";
 import { filterBets, sortBets, isClosingSoon, getEmptyStateMessage, searchBets } from "../../../utils/betFilters";
+import { removeUserFromGroupBets } from "../../../utils/groupHelpers";
 import { LogOut, X } from "lucide-react";
 
 export default function GroupDetailPage() {
@@ -132,7 +133,10 @@ export default function GroupDetailPage() {
     try {
       setIsLeaving(true);
 
-      // Remove user from group's memberIds array
+      // Step 1: Remove user's picks from all group bets
+      await removeUserFromGroupBets(groupId as string, user.uid);
+
+      // Step 2: Remove user from group's memberIds array
       const groupRef = doc(db, "groups", groupId as string);
       await updateDoc(groupRef, {
         memberIds: arrayRemove(user.uid),
@@ -374,7 +378,7 @@ export default function GroupDetailPage() {
   const seasonEnd = group.settings?.season_end_date;
 
   return (
-    <main className="min-h-screen bg-black text-white flex flex-col items-center pb-16 sm:pb-20 relative overflow-y-auto">
+    <main className="min-h-screen bg-black text-white flex flex-col items-center pb-16 sm:pb-20 pt-20 relative overflow-y-auto">
       <div className="w-full max-w-2xl px-4">
         {/* 🧩 GROUP INFO */}
         <section className="w-full mt-6 px-2">
@@ -721,9 +725,15 @@ export default function GroupDetailPage() {
             </p>
 
             <p className="text-sm text-zinc-400 mb-4">
-              You'll lose access to all bets in this group and won't see group
-              activity. You can rejoin later using the access code.
+              You'll be removed from all bets in this group and lose access to group
+              activity.
             </p>
+
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3 mb-4">
+              <p className="text-sm text-orange-500">
+                ⚠️ Your picks will be removed from active bets in this group.
+              </p>
+            </div>
 
             {/* Buttons */}
             <div className="flex gap-3">

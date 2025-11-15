@@ -212,7 +212,7 @@ export default function Header() {
   return (
     <>
       <motion.header
-        className="sticky top-0 z-50 w-full backdrop-blur-lg bg-black/90 border-b border-white/10 shadow-sm"
+        className="fixed top-0 left-0 right-0 z-50 w-full backdrop-blur-lg bg-black/90 border-b border-white/10 shadow-sm"
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.3 }}
