@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, lazy, Suspense, useCallback } from "react";
+import { useEffect, useState, lazy, Suspense, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { db, auth } from "../../lib/firebase/client";
@@ -303,7 +303,9 @@ export default function HomePage() {
     }
   }, [user]);
 
-  const activeBets = bets.filter((bet) => bet.status !== "JUDGED");
+  const activeBets = useMemo(() =>
+    bets.filter((bet) => bet.status !== "JUDGED"), [bets]
+  );
 
   const getGroupName = useCallback((groupId: string) =>
     groups.find((g) => g.id === groupId)?.name || "Unknown Group", [groups]);

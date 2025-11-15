@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { db, auth } from "../../../lib/firebase/client";
@@ -234,9 +234,13 @@ export default function GroupDetailPage() {
 
   const seasonEnabled = group.settings?.season_enabled;
   const seasonEnd = group.settings?.season_end_date;
-  
-  const activeBets = bets.filter((b) => b.status !== "JUDGED");
-  const archivedBets = bets.filter((b) => b.status === "JUDGED");
+
+  const activeBets = useMemo(() => bets.filter((b) => b.status !== "JUDGED"), [bets]);
+  const archivedBets = useMemo(() => bets.filter((b) => b.status === "JUDGED"), [bets]);
+
+  const userStats = useMemo(() => {
+    return leaderboard.find((l) => l.user_id === user?.uid);
+  }, [leaderboard, user?.uid]);
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center pb-20 relative overflow-y-auto">
@@ -287,8 +291,6 @@ export default function GroupDetailPage() {
           <h2 className="text-xl font-bold mb-1 text-left text-white">Your Stats</h2>
 
           {(() => {
-            const userStats = leaderboard.find((l) => l.user_id === user?.uid);
-            
             if (!userStats) {
               return (
                 <p className="text-sm text-gray-400">
