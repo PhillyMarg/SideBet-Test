@@ -339,7 +339,7 @@ export default function HomePage() {
     <>
       <Header />
       <main
-        className="min-h-screen bg-black text-white flex flex-col pb-20 relative overflow-y-auto"
+        className="min-h-screen bg-black text-white flex flex-col pb-16 sm:pb-20 relative overflow-y-auto"
         style={{ "--content-width": "500px" } as React.CSSProperties}
       >
         {/* Active Bets */}

@@ -52,44 +52,44 @@ function Footer() {
           animate={{ y: 0 }}
           exit={{ y: 100 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="fixed bottom-0 left-0 w-full bg-gray-950 border-t border-gray-800 z-40"
+          className="fixed bottom-0 left-0 w-full bg-gray-950 border-t border-gray-800 z-40 h-14 sm:h-16"
         >
-          <div className="flex justify-evenly items-center w-full py-2 sm:py-3">
+          <nav className="flex items-center justify-around h-full px-4 sm:px-6">
             {/* Home */}
             <button
               onClick={() => router.push("/home")}
-              className={`flex flex-col items-center justify-center min-w-[64px] min-h-[56px] px-2 transition-colors ${
-                isActive("/home") ? "text-orange-500" : "text-gray-400 hover:text-orange-500"
+              className={`flex flex-col items-center justify-center gap-0.5 sm:gap-1 py-2 transition-colors ${
+                isActive("/home") ? "text-orange-500" : "text-gray-400 hover:text-white"
               }`}
             >
-              <Home size={24} className="sm:w-6 sm:h-6" strokeWidth={2} />
-              <span className="text-xs sm:text-sm mt-1.5 font-medium">Home</span>
+              <Home className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2} />
+              <span className="text-[10px] sm:text-xs font-medium">Home</span>
             </button>
 
             {/* Groups */}
             <button
               onClick={() => router.push("/groups")}
-              className={`flex flex-col items-center justify-center min-w-[64px] min-h-[56px] px-2 transition-colors ${
+              className={`flex flex-col items-center justify-center gap-0.5 sm:gap-1 py-2 transition-colors ${
                 isActive("/groups") || pathname.startsWith("/groups/")
                   ? "text-orange-500"
-                  : "text-gray-400 hover:text-orange-500"
+                  : "text-gray-400 hover:text-white"
               }`}
             >
-              <Users size={24} className="sm:w-6 sm:h-6" strokeWidth={2} />
-              <span className="text-xs sm:text-sm mt-1.5 font-medium">Groups</span>
+              <Users className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2} />
+              <span className="text-[10px] sm:text-xs font-medium">Groups</span>
             </button>
 
             {/* Settings */}
             <button
               onClick={() => router.push("/settings")}
-              className={`flex flex-col items-center justify-center min-w-[64px] min-h-[56px] px-2 transition-colors ${
-                isActive("/settings") ? "text-orange-500" : "text-gray-400 hover:text-orange-500"
+              className={`flex flex-col items-center justify-center gap-0.5 sm:gap-1 py-2 transition-colors ${
+                isActive("/settings") ? "text-orange-500" : "text-gray-400 hover:text-white"
               }`}
             >
-              <Settings size={24} className="sm:w-6 sm:h-6" strokeWidth={2} />
-              <span className="text-xs sm:text-sm mt-1.5 font-medium">Settings</span>
+              <Settings className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2} />
+              <span className="text-[10px] sm:text-xs font-medium">Settings</span>
             </button>
-          </div>
+          </nav>
         </motion.footer>
       )}
     </AnimatePresence>
