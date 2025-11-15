@@ -202,6 +202,23 @@ export default function HomePage() {
     );
   }, [bets]);
 
+  const activeBets = bets.filter((bet) => bet.status !== "JUDGED");
+
+  // Apply filters and sorting
+  const filteredAndSortedBets = useMemo(() => {
+    if (!user) return [];
+    // 1. Filter by active tab
+    const tabFiltered = filterBets(activeBets, activeTab, user.uid);
+    // 2. Apply search filter
+    const searchFiltered = searchBets(tabFiltered, searchQuery);
+    // 3. Apply sort
+    const sorted = sortBets(searchFiltered, sortBy, groups);
+    return sorted;
+  }, [activeBets, activeTab, searchQuery, sortBy, user, groups]);
+
+  const getGroupName = (groupId: string) =>
+    groups.find((g) => g.id === groupId)?.name || "Unknown Group";
+
   const handleCreateBet = async (betData: any) => {
     if (betData.type === "OVER_UNDER" && !betData.line) {
       alert("Please set a valid line ending in .5 for Over/Under bets.");
@@ -308,23 +325,6 @@ export default function HomePage() {
       alert(`Failed to create group. Error: ${error.message || JSON.stringify(error)}`);
     }
   };
-
-  const activeBets = bets.filter((bet) => bet.status !== "JUDGED");
-
-  // Apply filters and sorting
-  const filteredAndSortedBets = useMemo(() => {
-    if (!user) return [];
-    // 1. Filter by active tab
-    const tabFiltered = filterBets(activeBets, activeTab, user.uid);
-    // 2. Apply search filter
-    const searchFiltered = searchBets(tabFiltered, searchQuery);
-    // 3. Apply sort
-    const sorted = sortBets(searchFiltered, sortBy, groups);
-    return sorted;
-  }, [activeBets, activeTab, searchQuery, sortBy, user, groups]);
-
-  const getGroupName = (groupId: string) =>
-    groups.find((g) => g.id === groupId)?.name || "Unknown Group";
 
   // Only redirect if not loading and no user
   if (!loading && !user) {

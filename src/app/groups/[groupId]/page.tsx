@@ -287,6 +287,21 @@ export default function GroupDetailPage() {
     return () => unsubAuth();
   }, [groupId, router]);
 
+  const activeBets = bets.filter((b) => b.status !== "JUDGED");
+  const archivedBets = bets.filter((b) => b.status === "JUDGED");
+
+  // Apply filters and sorting to active bets
+  const filteredAndSortedBets = useMemo(() => {
+    if (!user) return [];
+    // 1. Filter by active tab
+    const tabFiltered = filterBets(activeBets, activeTab, user.uid);
+    // 2. Apply search filter
+    const searchFiltered = searchBets(tabFiltered, searchQuery);
+    // 3. Apply sort
+    const sorted = sortBets(searchFiltered, sortBy);
+    return sorted;
+  }, [activeBets, activeTab, searchQuery, sortBy, user]);
+
   if (loading)
     return (
       <main className="flex items-center justify-center min-h-screen bg-black text-white">
@@ -311,21 +326,6 @@ export default function GroupDetailPage() {
 
   const seasonEnabled = group.settings?.season_enabled;
   const seasonEnd = group.settings?.season_end_date;
-
-  const activeBets = bets.filter((b) => b.status !== "JUDGED");
-  const archivedBets = bets.filter((b) => b.status === "JUDGED");
-
-  // Apply filters and sorting to active bets
-  const filteredAndSortedBets = useMemo(() => {
-    if (!user) return [];
-    // 1. Filter by active tab
-    const tabFiltered = filterBets(activeBets, activeTab, user.uid);
-    // 2. Apply search filter
-    const searchFiltered = searchBets(tabFiltered, searchQuery);
-    // 3. Apply sort
-    const sorted = sortBets(searchFiltered, sortBy);
-    return sorted;
-  }, [activeBets, activeTab, searchQuery, sortBy, user]);
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center pb-20 relative overflow-y-auto">
