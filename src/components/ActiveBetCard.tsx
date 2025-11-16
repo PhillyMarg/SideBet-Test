@@ -1,17 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
 
 interface ActiveBetCardProps {
   bet: any;
   user: any;
-  onPick?: (bet: any, pick: string | number) => Promise<void>;
-  onJudge?: (bet: any) => void;
-  groupName?: string;
+  onPickMade?: () => void;
 }
 
-export default function ActiveBetCard({ bet, user, onPick, onJudge, groupName }: ActiveBetCardProps) {
+export default function ActiveBetCard({ bet, user, onPickMade }: ActiveBetCardProps) {
   const router = useRouter();
   const isH2H = bet.isH2H === true;
 
@@ -28,25 +25,54 @@ export default function ActiveBetCard({ bet, user, onPick, onJudge, groupName }:
   const userHasPicked = bet.participants?.includes(user?.uid);
   const userPick = bet.picks?.[user?.uid];
 
-  // Calculate potential winnings for H2H
-  const calculateH2HWinnings = () => {
-    if (!isH2H || !bet.h2hOdds || !bet.betAmount || !userHasPicked) return null;
+  // Calculate potential winnings
+  const calculateWinnings = () => {
+    if (!userHasPicked || !user?.uid) return null;
 
-    const isChallenger = bet.challengerId === user?.uid;
-    const baseAmount = bet.betAmount;
+    // H2H bets with odds
+    if (isH2H && bet.h2hOdds && bet.betAmount) {
+      const isChallenger = bet.challengerId === user.uid;
+      const baseAmount = bet.betAmount;
 
-    if (isChallenger) {
-      const wager = baseAmount * bet.h2hOdds.challenger;
-      const potentialWin = baseAmount * bet.h2hOdds.challengee;
-      return { wager: Math.round(wager), potentialWin: Math.round(potentialWin) };
-    } else {
-      const wager = baseAmount * bet.h2hOdds.challengee;
-      const potentialWin = baseAmount * bet.h2hOdds.challenger;
-      return { wager: Math.round(wager), potentialWin: Math.round(potentialWin) };
+      if (isChallenger) {
+        const wager = baseAmount * bet.h2hOdds.challenger;
+        const potentialWin = baseAmount * bet.h2hOdds.challengee;
+        return {
+          wager: Math.round(wager),
+          potentialWin: Math.round(potentialWin)
+        };
+      } else {
+        const wager = baseAmount * bet.h2hOdds.challengee;
+        const potentialWin = baseAmount * bet.h2hOdds.challenger;
+        return {
+          wager: Math.round(wager),
+          potentialWin: Math.round(potentialWin)
+        };
+      }
     }
+
+    // Regular group bets
+    if (!bet.settings?.min_bet) return null;
+
+    const wager = bet.settings.min_bet;
+    const totalParticipants = bet.participants?.length || 1;
+    const totalPot = wager * totalParticipants;
+
+    const userPickValue = bet.picks?.[user.uid];
+    if (!userPickValue) return null;
+
+    const picksArray = Object.values(bet.picks || {});
+    const winnersWithSamePick = picksArray.filter(
+      pick => pick === userPickValue
+    ).length;
+
+    const potentialWinners = Math.max(1, winnersWithSamePick);
+    const potentialWin = Math.floor(totalPot / potentialWinners);
+
+    return { wager, potentialWin };
   };
 
-  const winnings = calculateH2HWinnings();
+  const winnings = calculateWinnings();
 
   // Format closing time
   const getClosingTimeDisplay = () => {
@@ -76,16 +102,11 @@ export default function ActiveBetCard({ bet, user, onPick, onJudge, groupName }:
 
   return (
     <div
-      onClick={() => {
-        // Don't navigate if this is used without onPick/onJudge (simple display mode)
-        if (bet.id) {
-          router.push(`/bets/${bet.id}`);
-        }
-      }}
+      onClick={() => router.push(`/bets/${bet.id}`)}
       className={`
         bg-zinc-900 rounded-2xl p-4 cursor-pointer transition-all
         ${isUrgent
-          ? `border-2 border-${themeColor}-500 glow-${themeColor}`
+          ? `border-2 ${isH2H ? 'border-purple-500 glow-purple' : 'border-orange-500 glow-orange'}`
           : 'border border-zinc-800 hover:border-zinc-700'
         }
       `}
@@ -124,7 +145,7 @@ export default function ActiveBetCard({ bet, user, onPick, onJudge, groupName }:
             {bet.h2hOdds && (
               <div className="bg-purple-500/20 border border-purple-500/40 rounded-full px-2 py-0.5">
                 <span className="text-[10px] text-purple-400 font-medium">
-                  {bet.h2hOdds?.challenger}:{bet.h2hOdds?.challengee}
+                  {bet.h2hOdds.challenger}:{bet.h2hOdds.challengee}
                 </span>
               </div>
             )}
@@ -132,11 +153,9 @@ export default function ActiveBetCard({ bet, user, onPick, onJudge, groupName }:
         </div>
       ) : (
         /* Regular Group Header - Orange */
-        groupName && (
-          <p className="text-xs text-orange-500 font-semibold mb-2">
-            {groupName}
-          </p>
-        )
+        <p className="text-xs text-orange-500 font-semibold mb-2">
+          {bet.groupName || "Group"}
+        </p>
       )}
 
       {/* Bet Title */}
@@ -144,24 +163,28 @@ export default function ActiveBetCard({ bet, user, onPick, onJudge, groupName }:
         {bet.title}
       </h3>
 
-      {/* Wager → Winnings Display (H2H with odds) */}
-      {winnings && (bet.type === "YES_NO" || bet.type === "OVER_UNDER") && (
+      {/* Wager → Winnings Display */}
+      {winnings && (bet.type === "binary" || bet.type === "over_under") && (
         <div className="flex items-center gap-2 mb-2 text-sm">
-          <span className="font-semibold text-purple-400">${winnings.wager}</span>
+          <span className={`font-semibold ${isH2H ? 'text-purple-400' : 'text-orange-400'}`}>
+            ${winnings.wager}
+          </span>
           <svg className="w-3 h-3 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
           </svg>
-          <span className="font-semibold text-green-500">${winnings.potentialWin}</span>
-          <span className="text-xs text-zinc-500">({userPick})</span>
+          <span className="font-semibold text-green-500">
+            ${winnings.potentialWin}
+          </span>
+          <span className="text-xs text-zinc-500">
+            ({userPick})
+          </span>
         </div>
       )}
 
       {/* H2H Wager Display (if haven't picked yet) */}
       {isH2H && !userHasPicked && bet.betAmount && (
-        <div className="flex items-center gap-2 mb-2">
-          <div className="text-xs text-purple-400 font-semibold">
-            ${bet.betAmount} wager
-          </div>
+        <div className="text-xs text-purple-400 font-semibold mb-2">
+          ${bet.betAmount} wager
         </div>
       )}
 
