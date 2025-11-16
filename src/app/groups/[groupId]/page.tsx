@@ -547,76 +547,8 @@ export default function GroupDetailPage() {
           )}
         </section>
 
-        {/* 🔶 USER STATS & ACTIVITY FEED */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-          {/* Your Stats */}
-          <section className="bg-zinc-900 border-2 border-orange-500/80 rounded-2xl p-5 shadow-lg">
-            <h2 className="text-xl font-bold mb-1 text-left text-white">Your Stats</h2>
-
-            {(() => {
-              const userStats = leaderboard.find((l) => l.user_id === user?.uid);
-
-              if (!userStats) {
-                return (
-                  <p className="text-sm text-gray-400">
-                    No stats yet. Place your first bet to get started!
-                  </p>
-                );
-              }
-
-              const balance = userStats.balance || 0;
-              const wins = userStats.wins || 0;
-              const losses = userStats.losses || 0;
-              const ties = userStats.ties || 0;
-              const totalGames = wins + losses + ties;
-              const winPercentage = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
-              const currentStreak = userStats.current_streak || 0;
-              const streakType = userStats.streak_type || "W";
-
-              return (
-                <>
-                  <p
-                    className={`text-sm mb-4 ${
-                      balance >= 0 ? "text-green-400" : "text-red-400"
-                    }`}
-                  >
-                    Total Balance: {balance >= 0 ? "+" : ""}${balance.toFixed(2)}
-                  </p>
-
-                  <div className="grid grid-cols-3 gap-3 text-center text-sm font-semibold">
-                    <div className="bg-zinc-800 rounded-xl py-3 flex flex-col justify-center">
-                      <p className="text-xs text-gray-400 mb-1">Record</p>
-                      <p className="text-lg font-bold text-white">
-                        {wins}-{losses}-{ties}
-                      </p>
-                    </div>
-
-                    <div className="bg-zinc-800 rounded-xl py-3 flex flex-col justify-center">
-                      <p className="text-xs text-gray-400 mb-1">Win %</p>
-                      <p className="text-lg font-bold text-white">{winPercentage}%</p>
-                    </div>
-
-                    <div className="bg-zinc-800 rounded-xl py-3 flex flex-col justify-center">
-                      <p className="text-xs text-gray-400 mb-1">Current Streak</p>
-                      <p
-                        className={`text-lg font-bold ${
-                          streakType === "W" && currentStreak > 0
-                            ? "text-green-400"
-                            : streakType === "L" && currentStreak > 0
-                            ? "text-red-400"
-                            : "text-gray-400"
-                        }`}
-                      >
-                        {currentStreak > 0 ? `${currentStreak}${streakType}` : "-"}
-                      </p>
-                    </div>
-                  </div>
-                </>
-              );
-            })()}
-          </section>
-
-          {/* Activity Feed */}
+        {/* 🔶 ACTIVITY FEED */}
+        <div className="mt-6">
           <ActivityFeed groupId={group.id} groupName={group.name} />
         </div>
 
