@@ -2,7 +2,7 @@
 
 import { useEffect, useState, lazy, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import { signOut, onAuthStateChanged, User } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "../lib/firebase/client";
 import {
   collection,
@@ -204,11 +204,6 @@ export default function Header() {
     return () => unsubscribe();
   }, [router]);
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    router.push("/login");
-  };
-
   return (
     <>
       <motion.header
@@ -250,25 +245,19 @@ export default function Header() {
               </button>
             </div>
 
-            {/* User & Logout */}
+            {/* User Name */}
             <div className="flex items-center gap-2">
               {user && userName && (
                 <span className="text-sm text-gray-300 truncate max-w-[120px] lg:max-w-[160px]">
                   {userName}
                 </span>
               )}
-              <button
-                onClick={handleLogout}
-                className="px-5 py-2 text-sm font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200 whitespace-nowrap"
-              >
-                Logout
-              </button>
             </div>
           </div>
 
           {/* Mobile: Two Row Layout */}
           <div className="md:hidden">
-            {/* Row 1: Logo + Logout */}
+            {/* Row 1: Logo */}
             <div className="flex items-center justify-between py-2">
               <div
                 onClick={() => router.push("/home")}
@@ -276,12 +265,6 @@ export default function Header() {
               >
                 Side Bet
               </div>
-              <button
-                onClick={handleLogout}
-                className="px-3 py-1.5 text-xs font-semibold border border-orange-500 text-orange-400 rounded-lg hover:bg-orange-500 hover:text-white transition-all duration-200 whitespace-nowrap"
-              >
-                Logout
-              </button>
             </div>
 
             {/* Row 2: Action Buttons */}
