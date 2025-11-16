@@ -21,6 +21,9 @@ import { motion } from "framer-motion";
 const CreateBetWizard = lazy(() => import("./CreateBetWizard"));
 const CreateGroupWizard = lazy(() => import("./CreateGroupWizard"));
 
+// Import NotificationBell
+import NotificationBell from "./NotificationBell";
+
 export default function Header() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -245,8 +248,9 @@ export default function Header() {
               </button>
             </div>
 
-            {/* User Name */}
+            {/* User Name & Notification Bell */}
             <div className="flex items-center gap-2">
+              {user && <NotificationBell userId={user.uid} />}
               {user && userName && (
                 <span className="text-sm text-gray-300 truncate max-w-[120px] lg:max-w-[160px]">
                   {userName}
@@ -257,7 +261,7 @@ export default function Header() {
 
           {/* Mobile: Two Row Layout */}
           <div className="md:hidden">
-            {/* Row 1: Logo */}
+            {/* Row 1: Logo & Notification Bell */}
             <div className="flex items-center justify-between py-2">
               <div
                 onClick={() => router.push("/home")}
@@ -265,6 +269,7 @@ export default function Header() {
               >
                 Side Bet
               </div>
+              {user && <NotificationBell userId={user.uid} />}
             </div>
 
             {/* Row 2: Action Buttons */}

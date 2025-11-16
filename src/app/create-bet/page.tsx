@@ -3,11 +3,12 @@
 import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, where, getDoc, doc } from "firebase/firestore";
 import { db, auth } from "../../lib/firebase/client";
 import Footer from "../../components/Footer";
 import Header from "../../components/Header";
 import CreateBetWizard from "../../components/CreateBetWizard";
+import { notifyH2HChallenge } from "../../lib/notifications";
 
 // Component that uses useSearchParams - must be wrapped in Suspense
 function CreateBetContent() {
@@ -18,8 +19,10 @@ function CreateBetContent() {
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
 
-  // Get groupId from URL search params if provided
+  // Get parameters from URL search params if provided
   const preselectedGroupId = searchParams.get("groupId");
+  const isH2H = searchParams.get("h2h") === "true";
+  const friendId = searchParams.get("friendId");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -65,9 +68,25 @@ function CreateBetContent() {
         participants: [],
         wager: parseFloat(betData.wager),
         line: betData.line ? parseFloat(betData.line) : null,
+        isH2H: isH2H || false,
+        challengeeId: isH2H && friendId ? friendId : null,
       };
 
-      await addDoc(collection(db, "bets"), betDoc);
+      const betRef = await addDoc(collection(db, "bets"), betDoc);
+
+      // If this is an H2H challenge, send notification to the challengee
+      if (isH2H && friendId) {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        const userData = userDoc.data();
+        const userName = userData?.displayName || `${userData?.firstName || ""} ${userData?.lastName || ""}`.trim();
+
+        await notifyH2HChallenge(
+          friendId,
+          userName || "Someone",
+          betRef.id,
+          betData.title
+        );
+      }
 
       // Navigate back to the group or home
       if (betData.groupId) {

@@ -25,6 +25,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import Footer from "@/components/Footer";
+import { notifyFriendRequest, notifyFriendRequestAccepted } from "@/lib/notifications";
 
 interface User {
   uid: string;
@@ -321,13 +322,25 @@ export default function FriendsPage() {
       }
 
       // Create friendship
-      await addDoc(collection(db, "friendships"), {
+      const friendshipRef = await addDoc(collection(db, "friendships"), {
         user1Id: user.uid,
         user2Id: friendId,
         status: "pending",
         requestedBy: user.uid,
         createdAt: new Date().toISOString()
       });
+
+      // Get sender's name for notification
+      const senderDoc = await getDoc(doc(db, "users", user.uid));
+      const senderData = senderDoc.data();
+      const senderName = senderData?.displayName || `${senderData?.firstName || ""} ${senderData?.lastName || ""}`.trim();
+
+      // CREATE NOTIFICATION
+      await notifyFriendRequest(
+        friendId,
+        senderName || "Someone",
+        friendshipRef.id
+      );
 
       alert("✅ Friend request sent!");
       setSearchQuery("");
@@ -373,6 +386,19 @@ export default function FriendsPage() {
         status: "accepted",
         acceptedAt: new Date().toISOString()
       });
+
+      // Get accepter's name and send notification to the original requester
+      const accepterDoc = await getDoc(doc(db, "users", user.uid));
+      const accepterData = accepterDoc.data();
+      const accepterName = accepterData?.displayName || `${accepterData?.firstName || ""} ${accepterData?.lastName || ""}`.trim();
+
+      // Notify the person who sent the friend request
+      const friendshipData = friendshipDoc.data();
+      const requesterId = friendshipData.requestedBy;
+      await notifyFriendRequestAccepted(
+        requesterId,
+        accepterName || "Someone"
+      );
 
       alert("✅ Friend request accepted!");
 
