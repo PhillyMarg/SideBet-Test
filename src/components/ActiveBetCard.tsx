@@ -52,14 +52,14 @@ function ActiveBetCard({
     const timeUntilClose = closingTime - now;
     const oneWeek = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
-    // If closes in more than 7 days, show date format
+    // If closes in more than 7 days, show date format (MM/DD/YY)
     if (timeUntilClose > oneWeek) {
       const closingDate = new Date(bet.closingAt);
-      const day = String(closingDate.getDate()).padStart(2, '0');
-      const month = String(closingDate.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
-      const year = String(closingDate.getFullYear()).slice(-2); // Last 2 digits
+      const month = String(closingDate.getMonth() + 1).padStart(2, '0'); // Month first
+      const day = String(closingDate.getDate()).padStart(2, '0');        // Day second
+      const year = String(closingDate.getFullYear()).slice(-2);          // 2-digit year
 
-      return `Closes ${day}/${month}/${year}`;
+      return `Closes ${month}/${day}/${year}`;
     }
 
     // If closes in 7 days or less, show countdown
