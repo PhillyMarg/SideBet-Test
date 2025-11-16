@@ -30,6 +30,7 @@ function ActiveBetCard({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const isH2H = bet.isH2H === true;
   const { isClosed } = getTimeRemaining(bet.closingAt);
   const wager = bet.perUserWager ?? 0;
   const people = bet.participants?.length ?? 0;
@@ -144,7 +145,31 @@ function ActiveBetCard({
     const userPick = bet.picks?.[user.uid];
     if (!userPick) return null;
 
-    // Wager is the per-user bet amount
+    // H2H bets with odds
+    if (isH2H && bet.h2hOdds && bet.betAmount) {
+      const isChallenger = bet.challengerId === user.uid;
+      const baseAmount = bet.betAmount;
+
+      if (isChallenger) {
+        const userWager = baseAmount * bet.h2hOdds.challenger;
+        const potentialWin = baseAmount * bet.h2hOdds.challengee;
+        return {
+          wager: Math.round(userWager),
+          potentialWin: Math.round(potentialWin),
+          pick: userPick
+        };
+      } else {
+        const userWager = baseAmount * bet.h2hOdds.challengee;
+        const potentialWin = baseAmount * bet.h2hOdds.challenger;
+        return {
+          wager: Math.round(userWager),
+          potentialWin: Math.round(potentialWin),
+          pick: userPick
+        };
+      }
+    }
+
+    // Regular group bets - calculate pot split
     const userWager = wager;
 
     // Count how many people picked the same as user
@@ -199,36 +224,46 @@ function ActiveBetCard({
   return (
     <li
       className={`
-        rounded-xl px-2 py-2 sm:px-4 sm:py-3 
-        flex flex-col text-left shadow-md 
-        hover:scale-[1.01] sm:hover:scale-[1.02] 
-        transition-transform duration-200 
-        text-xs sm:text-sm 
+        rounded-xl px-2 py-2 sm:px-4 sm:py-3
+        flex flex-col text-left shadow-md
+        hover:scale-[1.01] sm:hover:scale-[1.02]
+        transition-transform duration-200
+        text-xs sm:text-sm
         w-full
         ${
           needsJudging
-            ? "bg-orange-500/10 border-2 border-orange-500/50 hover:border-orange-500"
-            : "bg-zinc-900 border border-zinc-800 hover:border-orange-500"
+            ? `bg-${isH2H ? 'purple' : 'orange'}-500/10 border-2 border-${isH2H ? 'purple' : 'orange'}-500/50 hover:border-${isH2H ? 'purple' : 'orange'}-500`
+            : `bg-zinc-900 border border-zinc-800 hover:border-${isH2H ? 'purple' : 'orange'}-500`
         }
       `}
     >
       {/* Header Row */}
       <div className="flex items-center justify-between mb-1 sm:mb-2">
         <div className="flex items-center gap-1 sm:gap-2">
-          {groupName && (
-            <button
-              onClick={() => router.push(`/groups/${bet.groupId}`)}
-              className="text-[9px] sm:text-xs font-medium border border-orange-500 text-orange-400 rounded-full px-1.5 py-0.5 sm:px-2 sm:py-[2px] hover:bg-orange-500 hover:text-white transition"
-            >
-              {groupName}
-            </button>
+          {isH2H ? (
+            <span className="text-[9px] sm:text-xs font-semibold text-purple-500">
+              {bet.challengerName} v {bet.challengeeName}
+            </span>
+          ) : (
+            <>
+              {groupName && (
+                <button
+                  onClick={() => router.push(`/groups/${bet.groupId}`)}
+                  className="text-[9px] sm:text-xs font-medium border border-orange-500 text-orange-400 rounded-full px-1.5 py-0.5 sm:px-2 sm:py-[2px] hover:bg-orange-500 hover:text-white transition"
+                >
+                  {groupName}
+                </button>
+              )}
+              <span className="text-[9px] sm:text-xs text-gray-400">
+                by {loadingCreator ? bet.creatorId?.substring(0, 8) : creatorName}
+              </span>
+            </>
           )}
-          <span className="text-[9px] sm:text-xs text-gray-400">
-            by {loadingCreator ? bet.creatorId?.substring(0, 8) : creatorName}
-          </span>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
-          <span className="text-[9px] sm:text-xs font-bold text-orange-500">{getClosingTimeDisplay()}</span>
+          <span className={`text-[9px] sm:text-xs font-bold ${isH2H ? 'text-purple-500' : 'text-orange-500'}`}>
+            {getClosingTimeDisplay()}
+          </span>
           {isCreator && (
             <button
               onClick={() => setShowDeleteModal(true)}
@@ -289,7 +324,7 @@ function ActiveBetCard({
                   {/* Wager → Winnings Display */}
                   {winnings && (
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[10px] sm:text-xs font-semibold text-orange-400">
+                      <span className={`text-[10px] sm:text-xs font-semibold ${isH2H ? 'text-purple-400' : 'text-orange-400'}`}>
                         ${winnings.wager.toFixed(2)}
                       </span>
                       <span className="text-[10px] sm:text-xs text-zinc-500">→</span>
@@ -305,7 +340,7 @@ function ActiveBetCard({
                   {/* Progress Bar - Smaller on mobile */}
                   <div className="bg-zinc-800 rounded-lg overflow-hidden h-4 sm:h-5 flex items-center relative">
                     <div
-                      className="bg-orange-500 h-full flex items-center justify-start px-1 sm:px-2 transition-all duration-500"
+                      className={`${isH2H ? 'bg-purple-500' : 'bg-orange-500'} h-full flex items-center justify-start px-1 sm:px-2 transition-all duration-500`}
                       style={{ width: `${yes}%` }}
                     >
                       <span className="text-white text-[9px] sm:text-[10px] font-bold">
@@ -391,7 +426,11 @@ function ActiveBetCard({
                     onClick={() =>
                       onPick(bet, bet.type === "YES_NO" ? "YES" : "OVER")
                     }
-                    className="flex-1 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-semibold flex flex-col items-center justify-center shadow transition-all bg-orange-500 hover:bg-orange-600 text-white"
+                    className={`flex-1 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-semibold flex flex-col items-center justify-center shadow transition-all ${
+                      isH2H
+                        ? 'bg-purple-500 hover:bg-purple-600'
+                        : 'bg-orange-500 hover:bg-orange-600'
+                    } text-white`}
                   >
                     <span className="leading-none">{bet.type === "YES_NO" ? "Yes" : "Over"}</span>
                     <span className="text-[9px] sm:text-[10px] text-white/80 mt-0.5">
