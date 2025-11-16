@@ -28,7 +28,7 @@ import BetFilters, { FilterTab, SortOption } from "../../components/BetFilters";
 import { getTimeRemaining } from "../../utils/timeUtils";
 import { filterBets, sortBets, getEmptyStateMessage, searchBets } from "../../utils/betFilters";
 import { createActivity } from "../../lib/activityHelpers";
-import { Search, Users, Dices } from "lucide-react";
+import { Search, Users, Dices, Swords } from "lucide-react";
 
 // Lazy load heavy wizard components
 const CreateBetWizard = lazy(() => import("../../components/CreateBetWizard"));
@@ -498,6 +498,24 @@ export default function HomePage() {
                       Clear search
                     </button>
                   </>
+                ) : activeTab === "h2h" ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-purple-500/20 rounded-full flex items-center justify-center">
+                      <Swords className="w-8 h-8 text-purple-500" />
+                    </div>
+                    <p className="text-zinc-400 text-sm mb-2">
+                      No head-to-head bets yet
+                    </p>
+                    <p className="text-zinc-500 text-xs mb-4">
+                      Challenge your friends to 1v1 bets!
+                    </p>
+                    <button
+                      onClick={() => router.push("/friends")}
+                      className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      View Friends
+                    </button>
+                  </div>
                 ) : (
                   <p className="text-gray-500 text-sm">
                     {getEmptyStateMessage(activeTab)}
