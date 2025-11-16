@@ -196,6 +196,20 @@ export default function HomePage() {
     checkOnboarding();
   }, [user]);
 
+  // Check for H2H challenge query params and open create bet wizard
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const isH2H = params.get("h2h") === "true";
+
+      if (isH2H) {
+        setShowCreateBet(true);
+        // Clear the query params after opening
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    }
+  }, []);
+
   // 🔁 Real-time active bet count per group
   useEffect(() => {
     if (!bets.length || !groups.length) return;
@@ -351,11 +365,19 @@ export default function HomePage() {
       );
 
       const betRef = doc(db, "bets", bet.id);
-      await updateDoc(betRef, {
+      const updateData: any = {
         picks: updatedPicks,
         participants: updatedParticipants,
         updatedAt: new Date().toISOString(),
-      });
+      };
+
+      // If this is an H2H bet and the challengee is making their first pick, accept the challenge
+      if (bet.isH2H && bet.challengeeId === uid && bet.h2hStatus === "pending") {
+        updateData.h2hStatus = "accepted";
+        updateData.h2hAcceptedAt = new Date().toISOString();
+      }
+
+      await updateDoc(betRef, updateData);
 
       setBets((prev) =>
         prev.map((b) =>
@@ -365,6 +387,8 @@ export default function HomePage() {
                 picks: updatedPicks,
                 participants: updatedParticipants,
                 userPick: pick,
+                h2hStatus: updateData.h2hStatus || b.h2hStatus,
+                h2hAcceptedAt: updateData.h2hAcceptedAt || b.h2hAcceptedAt,
               }
             : b
         )

@@ -402,10 +402,13 @@ export default function FriendsPage() {
                     </div>
                   </div>
 
-                  {/* Challenge Button - Save for Phase 2 */}
+                  {/* Challenge Button */}
                   <button
-                    disabled
-                    className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-lg text-xs font-medium opacity-50 cursor-not-allowed"
+                    onClick={() => {
+                      // Navigate to create bet wizard with friend pre-selected
+                      router.push(`/?h2h=true&friendId=${friend.uid}`);
+                    }}
+                    className="px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-xs font-medium transition-colors"
                   >
                     Challenge
                   </button>

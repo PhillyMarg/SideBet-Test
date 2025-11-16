@@ -19,11 +19,30 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
     setIsSubmitting(true);
 
     try {
+      // Check if this is an H2H bet
+      const isH2H = bet.isH2H === true;
+
       // Calculate winners based on bet type
       let winners: string[] = [];
       let correctValue = answer;
+      let payoutPerWinner = 0;
 
-      if (bet.type === "YES_NO" || bet.type === "OVER_UNDER") {
+      if (isH2H) {
+        // H2H bet: Only challenger and challengee can win
+        const challengerPick = bet.picks[bet.challengerId];
+        const challengeePick = bet.picks[bet.challengeeId];
+
+        if (challengerPick === answer) {
+          // Challenger wins
+          winners = [bet.challengerId];
+          payoutPerWinner = bet.betAmount * bet.h2hOdds.challengee;
+        } else if (challengeePick === answer) {
+          // Challengee wins
+          winners = [bet.challengeeId];
+          payoutPerWinner = bet.betAmount * bet.h2hOdds.challenger;
+        }
+        // If neither picked correctly, no winners (push)
+      } else if (bet.type === "YES_NO" || bet.type === "OVER_UNDER") {
         // Winners are those who picked the correct answer
         winners = Object.entries(bet.picks || {})
           .filter(([_, pick]) => pick === answer)
@@ -55,9 +74,11 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
         correctValue = actualNumber;
       }
 
-      // Calculate payout per winner
-      const totalPot = bet.perUserWager * (bet.participants?.length || 0);
-      const payoutPerWinner = winners.length > 0 ? totalPot / winners.length : 0;
+      // Calculate payout per winner (if not already calculated for H2H)
+      if (!isH2H) {
+        const totalPot = bet.perUserWager * (bet.participants?.length || 0);
+        payoutPerWinner = winners.length > 0 ? totalPot / winners.length : 0;
+      }
 
       // Use batch to update multiple documents
       const batch = writeBatch(db);
@@ -72,58 +93,72 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
         payoutPerWinner: payoutPerWinner,
       });
 
-      // Update leaderboard for all participants
-      for (const userId of bet.participants || []) {
-        const isWinner = winners.includes(userId);
-        const leaderboardRef = doc(db, "leaderboards", `${bet.groupId}_${userId}`);
+      // Update leaderboard for all participants (only if there's a group)
+      if (bet.groupId) {
+        for (const userId of bet.participants || []) {
+          const isWinner = winners.includes(userId);
+          const leaderboardRef = doc(db, "leaderboards", `${bet.groupId}_${userId}`);
 
-        // Check if leaderboard entry exists
-        const leaderboardSnap = await getDoc(leaderboardRef);
+          // Check if leaderboard entry exists
+          const leaderboardSnap = await getDoc(leaderboardRef);
 
-        if (leaderboardSnap.exists()) {
-          const currentData = leaderboardSnap.data();
-          batch.update(leaderboardRef, {
-            balance:
-              (currentData.balance || 0) +
-              (isWinner ? payoutPerWinner : -bet.perUserWager),
-            wins: (currentData.wins || 0) + (isWinner ? 1 : 0),
-            losses: (currentData.losses || 0) + (isWinner ? 0 : 1),
-            total_bets: (currentData.total_bets || 0) + 1,
-          });
-        } else {
-          // Create new leaderboard entry
-          batch.set(leaderboardRef, {
-            user_id: userId,
-            group_id: bet.groupId,
-            balance: isWinner ? payoutPerWinner : -bet.perUserWager,
-            wins: isWinner ? 1 : 0,
-            losses: isWinner ? 0 : 1,
-            total_bets: 1,
-          });
+          // For H2H, calculate individual loss amounts based on odds
+          let lossAmount = bet.perUserWager;
+          if (isH2H && !isWinner) {
+            if (userId === bet.challengerId) {
+              lossAmount = bet.betAmount * bet.h2hOdds.challenger;
+            } else if (userId === bet.challengeeId) {
+              lossAmount = bet.betAmount * bet.h2hOdds.challengee;
+            }
+          }
+
+          if (leaderboardSnap.exists()) {
+            const currentData = leaderboardSnap.data();
+            batch.update(leaderboardRef, {
+              balance:
+                (currentData.balance || 0) +
+                (isWinner ? payoutPerWinner : -lossAmount),
+              wins: (currentData.wins || 0) + (isWinner ? 1 : 0),
+              losses: (currentData.losses || 0) + (isWinner ? 0 : 1),
+              total_bets: (currentData.total_bets || 0) + 1,
+            });
+          } else {
+            // Create new leaderboard entry
+            batch.set(leaderboardRef, {
+              user_id: userId,
+              group_id: bet.groupId,
+              balance: isWinner ? payoutPerWinner : -lossAmount,
+              wins: isWinner ? 1 : 0,
+              losses: isWinner ? 0 : 1,
+              total_bets: 1,
+            });
+          }
         }
       }
 
       await batch.commit();
 
-      // Create activity for each winner
-      for (const winnerId of winners) {
-        // Get winner's name from users collection
-        const userDoc = await getDoc(doc(db, "users", winnerId));
-        const userData = userDoc.data();
-        const winnerName = userData?.displayName ||
-                          `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() ||
-                          userData?.email ||
-                          "Unknown User";
+      // Create activity for each winner (only if there's a group)
+      if (bet.groupId) {
+        for (const winnerId of winners) {
+          // Get winner's name from users collection
+          const userDoc = await getDoc(doc(db, "users", winnerId));
+          const userData = userDoc.data();
+          const winnerName = userData?.displayName ||
+                            `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() ||
+                            userData?.email ||
+                            "Unknown User";
 
-        await createActivity({
-          groupId: bet.groupId,
-          type: "bet_judged",
-          userId: winnerId,
-          userName: winnerName,
-          betId: bet.id,
-          betTitle: bet.title,
-          winAmount: payoutPerWinner
-        });
+          await createActivity({
+            groupId: bet.groupId,
+            type: "bet_judged",
+            userId: winnerId,
+            userName: winnerName,
+            betId: bet.id,
+            betTitle: bet.title,
+            winAmount: payoutPerWinner
+          });
+        }
       }
 
       alert(
