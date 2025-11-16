@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { Plus } from "lucide-react";
 import CreateBetWizard from "./CreateBetWizard";
 
@@ -20,7 +20,7 @@ interface FloatingCreateBetButtonProps {
  * - Tooltips: z-10
  */
 
-export default function FloatingCreateBetButton({
+const FloatingCreateBetButton = React.memo(function FloatingCreateBetButton({
   groups,
   onCreateBet,
 }: FloatingCreateBetButtonProps) {
@@ -71,4 +71,6 @@ export default function FloatingCreateBetButton({
       />
     </>
   );
-}
+});
+
+export default FloatingCreateBetButton;

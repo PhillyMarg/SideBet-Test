@@ -5,6 +5,7 @@ import { useState } from "react";
 import { doc, updateDoc, writeBatch, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase/client";
 import { createActivity } from "../lib/activityHelpers";
+import { useLockBodyScroll } from "../hooks";
 
 interface JudgeBetModalProps {
   bet: any;
@@ -14,6 +15,9 @@ interface JudgeBetModalProps {
 export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
   const [correctAnswer, setCorrectAnswer] = useState<string | number>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Lock body scroll when modal is open
+  useLockBodyScroll(true);
 
   const handleJudge = async (answer: string | number) => {
     setIsSubmitting(true);

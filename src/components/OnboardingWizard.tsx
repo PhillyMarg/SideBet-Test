@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, Trophy, Users, Zap } from "lucide-react";
+import { useLockBodyScroll } from "../hooks";
 
 interface OnboardingWizardProps {
   isOpen: boolean;
@@ -19,6 +20,9 @@ export default function OnboardingWizard({
   onCreateGroup,
   onJoinGroup,
 }: OnboardingWizardProps) {
+  // Lock body scroll when modal is open
+  useLockBodyScroll(isOpen);
+
   const [step, setStep] = useState(1);
 
   const handleSkip = () => {

@@ -29,6 +29,7 @@ import { getTimeRemaining } from "../../utils/timeUtils";
 import { filterBets, sortBets, getEmptyStateMessage, searchBets } from "../../utils/betFilters";
 import { createActivity } from "../../lib/activityHelpers";
 import { Search, Users, Dices, Swords } from "lucide-react";
+import { useDebounce, usePresence } from "../../hooks";
 
 // Lazy load heavy wizard components
 const CreateBetWizard = lazy(() => import("../../components/CreateBetWizard"));
@@ -64,6 +65,13 @@ export default function HomePage() {
   const [groupSearchQuery, setGroupSearchQuery] = useState("");
   const [groupView, setGroupView] = useState("all"); // "all" | "recent"
   const [groupBetsMap, setGroupBetsMap] = useState<{ [groupId: string]: any[] }>({});
+
+  // Debounced search queries for better performance
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const debouncedGroupSearchQuery = useDebounce(groupSearchQuery, 300);
+
+  // Optimized presence tracking
+  usePresence(user?.uid || null);
 
   const handleLogout = async () => {
     try {
@@ -222,17 +230,17 @@ export default function HomePage() {
 
   const activeBets = bets.filter((bet) => bet.status !== "JUDGED");
 
-  // Apply filters and sorting
+  // Apply filters and sorting (using debounced search for better performance)
   const filteredAndSortedBets = useMemo(() => {
     if (!user) return [];
     // 1. Filter by active tab
     const tabFiltered = filterBets(activeBets, activeTab, user.uid);
-    // 2. Apply search filter
-    const searchFiltered = searchBets(tabFiltered, searchQuery);
+    // 2. Apply search filter (debounced)
+    const searchFiltered = searchBets(tabFiltered, debouncedSearchQuery);
     // 3. Apply sort
     const sorted = sortBets(searchFiltered, sortBy, groups);
     return sorted;
-  }, [activeBets, activeTab, searchQuery, sortBy, user, groups]);
+  }, [activeBets, activeTab, debouncedSearchQuery, sortBy, user, groups]);
 
   // Track last active bet time per group
   const getLastBetTime = (groupId: string): number => {
@@ -249,14 +257,14 @@ export default function HomePage() {
     return Math.max(...times);
   };
 
-  // Filter and sort groups
+  // Filter and sort groups (using debounced search for better performance)
   const filteredAndSortedGroups = useMemo(() => {
     let displayGroups = groups;
 
-    // 1. Apply search
-    if (groupSearchQuery.trim()) {
+    // 1. Apply search (debounced)
+    if (debouncedGroupSearchQuery.trim()) {
       displayGroups = displayGroups.filter(group => {
-        const query = groupSearchQuery.toLowerCase();
+        const query = debouncedGroupSearchQuery.toLowerCase();
         const name = group.name.toLowerCase();
         const tagline = group.tagline?.toLowerCase() || "";
         return name.includes(query) || tagline.includes(query);
@@ -279,7 +287,7 @@ export default function HomePage() {
     }
 
     return displayGroups;
-  }, [groups, groupSearchQuery, groupView, groupBetsMap]);
+  }, [groups, debouncedGroupSearchQuery, groupView, groupBetsMap]);
 
   const getGroupName = (groupId: string) =>
     groups.find((g) => g.id === groupId)?.name || "Unknown Group";

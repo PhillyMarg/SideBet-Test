@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { useLockBodyScroll } from "../hooks";
 
 interface CreateGroupWizardProps {
   isOpen: boolean;
@@ -15,6 +16,9 @@ export default function CreateGroupWizard({
   onClose,
   onCreateGroup,
 }: CreateGroupWizardProps) {
+  // Lock body scroll when modal is open
+  useLockBodyScroll(isOpen);
+
   const [step, setStep] = useState(1);
   const [groupData, setGroupData] = useState({
     name: "",

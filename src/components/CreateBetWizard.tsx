@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { useLockBodyScroll } from "../hooks";
 
 interface CreateBetWizardProps {
   isOpen: boolean;
@@ -17,6 +18,9 @@ export default function CreateBetWizard({
   groups,
   onCreateBet,
 }: CreateBetWizardProps) {
+  // Lock body scroll when modal is open
+  useLockBodyScroll(isOpen);
+
   const [step, setStep] = useState(1);
   const [betData, setBetData] = useState({
     type: "",

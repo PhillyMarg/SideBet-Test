@@ -25,6 +25,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import Footer from "@/components/Footer";
+import { usePresence } from "@/hooks";
 
 interface User {
   uid: string;
@@ -70,12 +71,14 @@ export default function FriendsPage() {
   const [showIncoming, setShowIncoming] = useState(true);
   const [showSent, setShowSent] = useState(true);
 
+  // Use optimized presence tracking hook
+  usePresence(user?.uid || null);
+
   // Auth listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        updateUserPresence(currentUser.uid);
       } else {
         router.push("/login");
       }
@@ -84,33 +87,6 @@ export default function FriendsPage() {
 
     return () => unsubscribe();
   }, [router]);
-
-  // Update user's online status
-  const updateUserPresence = async (userId: string) => {
-    try {
-      const userRef = doc(db, "users", userId);
-      await updateDoc(userRef, {
-        lastActive: new Date().toISOString(),
-        isOnline: true
-      });
-
-      // Update presence every 2 minutes
-      const interval = setInterval(async () => {
-        await updateDoc(userRef, {
-          lastActive: new Date().toISOString(),
-          isOnline: true
-        });
-      }, 2 * 60 * 1000);
-
-      // Cleanup on unmount
-      return () => {
-        clearInterval(interval);
-        updateDoc(userRef, { isOnline: false });
-      };
-    } catch (error) {
-      console.error("Error updating presence:", error);
-    }
-  };
 
   // Listen to friendships
   useEffect(() => {

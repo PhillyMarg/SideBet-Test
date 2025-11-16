@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { Search, X } from "lucide-react";
 
 export type FilterTab = "all" | "open" | "myPicks" | "closingSoon" | "pending" | "h2h";
@@ -19,7 +19,7 @@ interface BetFiltersProps {
   onSearchChange?: (query: string) => void;
 }
 
-export default function BetFilters({
+const BetFilters = React.memo(function BetFilters({
   bets,
   userId,
   groups = [],
@@ -152,4 +152,6 @@ export default function BetFilters({
       </div>
     </div>
   );
-}
+});
+
+export default BetFilters;

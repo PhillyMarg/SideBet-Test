@@ -2,12 +2,91 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==== Mobile Performance Optimizations ==== */
 /* PWA Safe Areas for iPhone Notch */
 body {
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
   overscroll-behavior-y: none;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Safe Area Utilities */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-right {
+  padding-right: env(safe-area-inset-right);
+}
+
+/* GPU-Accelerated Smooth Scrolling */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+.smooth-scroll {
+  scroll-behavior: smooth;
+}
+
+/* Optimize scrollable containers */
+.scrollable {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  will-change: scroll-position;
+}
+
+/* Modal Scroll Lock Utilities */
+.modal-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
+/* Touch-friendly tap highlights */
+button,
+a {
+  -webkit-tap-highlight-color: rgba(249, 115, 22, 0.2);
+}
+
+/* Prevent text selection on buttons */
+button {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Snap Scrolling for Tabs */
+.snap-x {
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+}
+
+.snap-start {
+  scroll-snap-align: start;
+}
+
+.snap-center {
+  scroll-snap-align: center;
+}
+
+/* Performance: Use CSS containment */
+.contain-layout {
+  contain: layout style paint;
+}
+
+/* Optimize animations - prefer transform and opacity */
+.animate-optimized {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 /* ==== Base Styles ==== */
 html,
@@ -32,14 +111,30 @@ h4 {
 
 /* ==== Input & Form Styles ==== */
 /* Remove default browser focus outlines and standardize focus states */
+/* Minimum 16px font size on mobile to prevent zoom */
 input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="number"],
 input[type="date"],
+input[type="search"],
 textarea,
 select {
   @apply focus:outline-none focus:ring-0;
+  font-size: 16px; /* Prevents zoom on iOS */
+}
+
+@media (min-width: 640px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="date"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 14px; /* Smaller on desktop */
+  }
 }
 
 /* Consistent focus style across all inputs */
