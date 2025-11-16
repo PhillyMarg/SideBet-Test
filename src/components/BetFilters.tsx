@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Search, X } from "lucide-react";
 
-export type FilterTab = "all" | "open" | "myPicks" | "closingSoon";
+export type FilterTab = "all" | "open" | "myPicks" | "closingSoon" | "pending";
 export type SortOption = "closingSoon" | "recent" | "group" | "wager";
 
 interface BetFiltersProps {
@@ -49,6 +49,7 @@ export default function BetFilters({
         const timeUntilClose = new Date(bet.closingAt).getTime() - now;
         return timeUntilClose > 0 && timeUntilClose <= twentyFourHours;
       }).length,
+      pending: bets.filter((bet) => bet.status === "CLOSED").length,
     };
   }, [bets, userId]);
 
@@ -57,28 +58,31 @@ export default function BetFilters({
     { id: "open", label: "Open", mobileLabel: "Open", count: counts.open },
     { id: "myPicks", label: "My Picks", mobileLabel: "Picks", count: counts.myPicks },
     { id: "closingSoon", label: "Closing Soon", mobileLabel: "Soon", count: counts.closingSoon },
+    { id: "pending", label: "Pending", mobileLabel: "Pending", count: counts.pending },
   ];
 
   return (
     <div className="sticky top-16 z-20 bg-black border-b border-zinc-800 py-3 space-y-3">
-      {/* Row 1: Filter Tabs */}
-      <div className="grid grid-cols-4 gap-2 px-4 sm:px-6">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={`px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap rounded-md transition-colors ${
-              activeTab === tab.id
-                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/50"
-                : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border border-zinc-800"
-            }`}
-          >
-            {/* Show abbreviated text on mobile, full text on desktop */}
-            <span className="sm:hidden">{tab.mobileLabel}</span>
-            <span className="hidden sm:inline">{tab.label}</span>
-            {tab.count > 0 && <span className="ml-1 text-xs">({tab.count})</span>}
-          </button>
-        ))}
+      {/* Row 1: Filter Tabs - Horizontally Scrollable */}
+      <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:-mx-6 sm:px-6">
+        <div className="flex gap-2 min-w-max pb-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={`px-3 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap rounded-md transition-colors ${
+                activeTab === tab.id
+                  ? "bg-orange-500 text-white shadow-lg shadow-orange-500/50"
+                  : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border border-zinc-800"
+              }`}
+            >
+              {/* Show abbreviated text on mobile, full text on desktop */}
+              <span className="sm:hidden">{tab.mobileLabel}</span>
+              <span className="hidden sm:inline">{tab.label}</span>
+              {tab.count > 0 && <span className="ml-1 text-xs">({tab.count})</span>}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Row 2: Search + Sort */}

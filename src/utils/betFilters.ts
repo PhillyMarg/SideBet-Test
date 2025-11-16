@@ -29,6 +29,9 @@ export function filterBets(
         return timeUntilClose > 0 && timeUntilClose <= twentyFourHours;
       });
 
+    case "pending":
+      return bets.filter((bet) => bet.status === "CLOSED");
+
     case "all":
     default:
       return bets;
@@ -96,6 +99,8 @@ export function getEmptyStateMessage(activeTab: FilterTab): string {
       return "Join a bet to get started!";
     case "closingSoon":
       return "No urgent bets right now.";
+    case "pending":
+      return "No bets awaiting results";
     case "all":
     default:
       return "No active bets found. Create a new one!";
