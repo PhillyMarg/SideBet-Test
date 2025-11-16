@@ -39,6 +39,12 @@ function ActiveBetCard({
   const isCreator = bet.creatorId === user?.uid;
   const needsJudging = isClosed && bet.status !== "JUDGED" && isCreator;
 
+  // H2H bet detection
+  const isH2H = bet.isH2H === true;
+  const isChallenger = isH2H && bet.challengerId === user?.uid;
+  const isChallengee = isH2H && bet.challengeeId === user?.uid;
+  const h2hPending = isH2H && bet.h2hStatus === "pending" && isChallengee;
+
   // Helper function to format closing time
   const getClosingTimeDisplay = () => {
     if (!bet.closingAt) return "No close time";
@@ -154,39 +160,69 @@ function ActiveBetCard({
     }
   };
 
+  // Determine if urgent (uses purple or orange glow)
+  const now = Date.now();
+  const closingTime = new Date(bet.closingAt).getTime();
+  const timeUntilClose = closingTime - now;
+  const isUrgent = timeUntilClose > 0 && timeUntilClose <= 60 * 60 * 1000; // 1 hour
+
+  // Use purple theme for H2H bets, orange for regular bets
+  const themeColor = isH2H ? "purple" : "orange";
+
   return (
     <li
       className={`
-        rounded-xl px-2 py-2 sm:px-4 sm:py-3 
-        flex flex-col text-left shadow-md 
-        hover:scale-[1.01] sm:hover:scale-[1.02] 
-        transition-transform duration-200 
-        text-xs sm:text-sm 
+        rounded-xl px-2 py-2 sm:px-4 sm:py-3
+        flex flex-col text-left shadow-md
+        hover:scale-[1.01] sm:hover:scale-[1.02]
+        transition-transform duration-200
+        text-xs sm:text-sm
         w-full
         ${
           needsJudging
-            ? "bg-orange-500/10 border-2 border-orange-500/50 hover:border-orange-500"
-            : "bg-zinc-900 border border-zinc-800 hover:border-orange-500"
+            ? isH2H
+              ? "bg-purple-500/10 border-2 border-purple-500/50 hover:border-purple-500"
+              : "bg-orange-500/10 border-2 border-orange-500/50 hover:border-orange-500"
+            : isH2H
+            ? `bg-zinc-900 border ${isUrgent ? 'border-2 border-purple-500 glow-purple' : 'border-purple-800 hover:border-purple-500'}`
+            : `bg-zinc-900 border ${isUrgent ? 'border-2 border-orange-500 glow-orange' : 'border-zinc-800 hover:border-orange-500'}`
         }
       `}
     >
       {/* Header Row */}
       <div className="flex items-center justify-between mb-1 sm:mb-2">
         <div className="flex items-center gap-1 sm:gap-2">
-          {groupName && (
-            <button
-              onClick={() => router.push(`/groups/${bet.groupId}`)}
-              className="text-[9px] sm:text-xs font-medium border border-orange-500 text-orange-400 rounded-full px-1.5 py-0.5 sm:px-2 sm:py-[2px] hover:bg-orange-500 hover:text-white transition"
-            >
-              {groupName}
-            </button>
+          {isH2H ? (
+            <>
+              <div className={`flex items-center gap-1 text-[9px] sm:text-xs font-semibold ${isH2H ? 'text-purple-500' : 'text-orange-500'}`}>
+                <span>{bet.challengerName || "Unknown"} v {bet.challengeeName || "Unknown"}</span>
+              </div>
+              {h2hPending && (
+                <div className="bg-purple-500/20 border border-purple-500/40 rounded-full px-1.5 py-0.5 sm:px-2 sm:py-[2px]">
+                  <span className="text-[9px] sm:text-[10px] text-purple-500 font-medium">Challenge!</span>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {groupName && (
+                <button
+                  onClick={() => router.push(`/groups/${bet.groupId}`)}
+                  className="text-[9px] sm:text-xs font-medium border border-orange-500 text-orange-400 rounded-full px-1.5 py-0.5 sm:px-2 sm:py-[2px] hover:bg-orange-500 hover:text-white transition"
+                >
+                  {groupName}
+                </button>
+              )}
+              <span className="text-[9px] sm:text-xs text-gray-400">
+                by {loadingCreator ? bet.creatorId?.substring(0, 8) : creatorName}
+              </span>
+            </>
           )}
-          <span className="text-[9px] sm:text-xs text-gray-400">
-            by {loadingCreator ? bet.creatorId?.substring(0, 8) : creatorName}
-          </span>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
-          <span className="text-[9px] sm:text-xs font-bold text-orange-500">{getClosingTimeDisplay()}</span>
+          <span className={`text-[9px] sm:text-xs font-bold ${isH2H ? 'text-purple-500' : 'text-orange-500'}`}>
+            {getClosingTimeDisplay()}
+          </span>
           {isCreator && (
             <button
               onClick={() => setShowDeleteModal(true)}
@@ -214,26 +250,64 @@ function ActiveBetCard({
       {/* Over/Under Line Display */}
       {bet.type === "OVER_UNDER" && bet.line !== undefined && (
         <div className="mb-2 sm:mb-3">
-          <p className="text-xs sm:text-sm font-bold text-orange-500">
+          <p className={`text-xs sm:text-sm font-bold ${isH2H ? 'text-purple-500' : 'text-orange-500'}`}>
             O/U Line: {bet.line}
           </p>
         </div>
       )}
 
+      {/* H2H Odds Display */}
+      {isH2H && bet.h2hOdds && (
+        <div className="flex items-center gap-2 mb-2 sm:mb-3">
+          <div className="text-[10px] sm:text-xs text-zinc-400">
+            Odds: {bet.h2hOdds.challenger}:{bet.h2hOdds.challengee}
+          </div>
+          <div className="text-[10px] sm:text-xs text-purple-500 font-semibold">
+            ${bet.betAmount || wager}
+          </div>
+        </div>
+      )}
+
       {/* Stats Row - Compact on mobile */}
       <div className="flex justify-between text-[10px] sm:text-sm text-gray-400 mb-1.5 sm:mb-4">
-        <span className="sm:inline">Wager: ${wager.toFixed(2)}</span>
-        <span className="hidden sm:inline">Players: {people}</span>
-        <span className="font-semibold text-orange-400">Pot: ${pot.toFixed(2)}</span>
+        {!isH2H && (
+          <>
+            <span className="sm:inline">Wager: ${wager.toFixed(2)}</span>
+            <span className="hidden sm:inline">Players: {people}</span>
+            <span className={`font-semibold ${isH2H ? 'text-purple-400' : 'text-orange-400'}`}>Pot: ${pot.toFixed(2)}</span>
+          </>
+        )}
+        {isH2H && (
+          <span className="text-purple-400 text-xs">
+            {bet.h2hStatus === "pending" ? "Pending Challenge" : bet.h2hStatus === "accepted" ? "Challenge Accepted" : ""}
+          </span>
+        )}
       </div>
 
       {/* Judge Button */}
       {needsJudging && (
         <button
           onClick={() => onJudge(bet)}
-          className="w-full py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-sm font-bold bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white mb-1.5 sm:mb-3 shadow-lg transition"
+          className={`w-full py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-sm font-bold ${
+            isH2H
+              ? "bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800"
+              : "bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+          } text-white mb-1.5 sm:mb-3 shadow-lg transition`}
         >
           ⚖️ Judge This Bet
+        </button>
+      )}
+
+      {/* Action Button for Challengee */}
+      {h2hPending && !userHasPicked && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            // User needs to make a pick to accept the challenge
+          }}
+          className="w-full py-2 sm:py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors mb-1.5 sm:mb-3"
+        >
+          View Challenge - Pick to Accept
         </button>
       )}
 
@@ -305,7 +379,11 @@ function ActiveBetCard({
 
                   <button
                     onClick={() => setShowResults(!showResults)}
-                    className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] sm:text-[11px] font-semibold px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg transition"
+                    className={`${
+                      isH2H
+                        ? "bg-purple-500 hover:bg-purple-600"
+                        : "bg-orange-500 hover:bg-orange-600"
+                    } text-white text-[10px] sm:text-[11px] font-semibold px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg transition`}
                   >
                     {showResults ? "Hide Results" : "View Results"}
                   </button>
@@ -357,7 +435,11 @@ function ActiveBetCard({
                     onClick={() =>
                       onPick(bet, bet.type === "YES_NO" ? "YES" : "OVER")
                     }
-                    className="flex-1 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-semibold flex flex-col items-center justify-center shadow transition-all bg-orange-500 hover:bg-orange-600 text-white"
+                    className={`flex-1 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-semibold flex flex-col items-center justify-center shadow transition-all ${
+                      isH2H
+                        ? "bg-purple-500 hover:bg-purple-600"
+                        : "bg-orange-500 hover:bg-orange-600"
+                    } text-white`}
                   >
                     <span className="leading-none">{bet.type === "YES_NO" ? "Yes" : "Over"}</span>
                     <span className="text-[9px] sm:text-[10px] text-white/80 mt-0.5">
@@ -384,7 +466,9 @@ function ActiveBetCard({
                     type="text"
                     placeholder="Enter guess..."
                     id={`guess-${bet.id}`}
-                    className="flex-1 bg-zinc-800 text-white text-[10px] sm:text-xs p-1.5 rounded-lg border border-zinc-700 focus:outline-none focus:border-orange-500 transition"
+                    className={`flex-1 bg-zinc-800 text-white text-[10px] sm:text-xs p-1.5 rounded-lg border border-zinc-700 focus:outline-none ${
+                      isH2H ? "focus:border-purple-500" : "focus:border-orange-500"
+                    } transition`}
                   />
                   <button
                     onClick={() => {
@@ -392,13 +476,17 @@ function ActiveBetCard({
                         document.getElementById(`guess-${bet.id}`) as HTMLInputElement
                       )?.value;
                       if (!value || !value.trim()) return alert("Please enter a guess.");
-                      
+
                       const numValue = parseFloat(value);
                       const finalValue = isNaN(numValue) ? value.trim() : numValue;
-                      
+
                       onPick(bet, finalValue);
                     }}
-                    className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] sm:text-xs font-semibold px-2 py-1.5 sm:px-3 rounded-lg shadow transition-all"
+                    className={`${
+                      isH2H
+                        ? "bg-purple-500 hover:bg-purple-600"
+                        : "bg-orange-500 hover:bg-orange-600"
+                    } text-white text-[10px] sm:text-xs font-semibold px-2 py-1.5 sm:px-3 rounded-lg shadow transition-all`}
                   >
                     Submit
                   </button>

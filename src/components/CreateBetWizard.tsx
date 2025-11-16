@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Check, Users, Swords } from "lucide-react";
+import { db, auth } from "../lib/firebase/client";
+import { collection, query, where, getDocs, or } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 interface CreateBetWizardProps {
   isOpen: boolean;
@@ -28,6 +31,77 @@ export default function CreateBetWizard({
     closingAt: "",
   });
 
+  // H2H specific state
+  const [betDestination, setBetDestination] = useState<"group" | "h2h">("group");
+  const [friends, setFriends] = useState<any[]>([]);
+  const [selectedFriend, setSelectedFriend] = useState<any>(null);
+  const [h2hOdds, setH2hOdds] = useState({ challenger: 1, challengee: 1 });
+  const [h2hInGroup, setH2hInGroup] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  // Fetch friends for H2H
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+
+        // Fetch friends
+        const friendshipsQuery = query(
+          collection(db, "friendships"),
+          or(
+            where("user1Id", "==", currentUser.uid),
+            where("user2Id", "==", currentUser.uid)
+          )
+        );
+
+        const friendshipsSnap = await getDocs(friendshipsQuery);
+        const friendshipDocs = friendshipsSnap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(f => f.status === "accepted");
+
+        const friendIds = friendshipDocs.map(f =>
+          f.user1Id === currentUser.uid ? f.user2Id : f.user1Id
+        );
+
+        // Fetch friend user data
+        const friendsData = await Promise.all(
+          friendIds.map(async (id) => {
+            const userDocSnap = await getDocs(query(collection(db, "users"), where("__name__", "==", id)));
+            if (!userDocSnap.empty) {
+              const doc = userDocSnap.docs[0];
+              return { uid: id, ...doc.data() };
+            }
+            return null;
+          })
+        );
+
+        setFriends(friendsData.filter(f => f !== null));
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Check for query params (when coming from friends page)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const isH2H = params.get("h2h") === "true";
+      const friendId = params.get("friendId");
+
+      if (isH2H) {
+        setBetDestination("h2h");
+
+        if (friendId) {
+          const friend = friends.find(f => f.uid === friendId);
+          if (friend) {
+            setSelectedFriend(friend);
+          }
+        }
+      }
+    }
+  }, [friends]);
+
   const resetAndClose = () => {
     setStep(1);
     setBetData({
@@ -39,6 +113,10 @@ export default function CreateBetWizard({
       line: "",
       closingAt: "",
     });
+    setBetDestination("group");
+    setSelectedFriend(null);
+    setH2hOdds({ challenger: 1, challengee: 1 });
+    setH2hInGroup(false);
     onClose();
   };
 
@@ -47,15 +125,20 @@ export default function CreateBetWizard({
       alert("Please select a bet type");
       return;
     }
-    if (step === 2 && !betData.groupId) {
+    // Step 2: Destination selection (no validation needed, default is "group")
+    if (step === 3 && betDestination === "group" && !betData.groupId) {
       alert("Please select a group");
       return;
     }
-    if (step === 3 && (!betData.title.trim() || !betData.wager || !betData.closingAt)) {
+    if (step === 3 && betDestination === "h2h" && !selectedFriend) {
+      alert("Please select a friend to challenge");
+      return;
+    }
+    if (step === 4 && (!betData.title.trim() || !betData.wager || !betData.closingAt)) {
       alert("Please fill in all required fields");
       return;
     }
-    if (step === 3 && betData.type === "OVER_UNDER" && !betData.line) {
+    if (step === 4 && betData.type === "OVER_UNDER" && !betData.line) {
       alert("Please set a line for Over/Under bets");
       return;
     }
@@ -67,7 +150,24 @@ export default function CreateBetWizard({
   };
 
   const handleSubmit = async () => {
-    await onCreateBet(betData);
+    if (betDestination === "h2h") {
+      // Create H2H bet with additional fields
+      const h2hBetData = {
+        ...betData,
+        isH2H: true,
+        challengerId: user.uid,
+        challengeeId: selectedFriend?.uid,
+        challengerName: user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+        challengeeName: selectedFriend?.displayName || `${selectedFriend?.firstName || ''} ${selectedFriend?.lastName || ''}`.trim(),
+        h2hOdds: h2hOdds,
+        h2hStatus: "pending",
+        betAmount: parseFloat(betData.wager),
+        groupId: h2hInGroup ? betData.groupId : null,
+      };
+      await onCreateBet(h2hBetData);
+    } else {
+      await onCreateBet(betData);
+    }
     resetAndClose();
   };
 
@@ -87,7 +187,7 @@ export default function CreateBetWizard({
         {/* Header */}
         <div className="sticky top-0 bg-zinc-900 border-b border-zinc-800 px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between z-10">
           <h3 className="text-base sm:text-lg font-semibold text-white">
-            Create Bet {step > 1 && `(${step}/4)`}
+            Create Bet {step > 1 && `(${step}/5)`}
           </h3>
           <button
             onClick={resetAndClose}
@@ -100,17 +200,17 @@ export default function CreateBetWizard({
         {/* Progress Bar */}
         <div className="px-4 sm:px-5 pt-3 sm:pt-4">
           <div className="flex items-center gap-1.5 sm:gap-2">
-            {[1, 2, 3, 4].map((s) => (
+            {[1, 2, 3, 4, 5].map((s) => (
               <div
                 key={s}
                 className={`h-1 flex-1 rounded-full transition-all ${
-                  s <= step ? "bg-orange-500" : "bg-zinc-800"
+                  s <= step ? (betDestination === "h2h" ? "bg-purple-500" : "bg-orange-500") : "bg-zinc-800"
                 }`}
               />
             ))}
           </div>
           <p className="text-zinc-400 text-[10px] sm:text-xs mt-1.5 sm:mt-2">
-            Step {step} of 4
+            Step {step} of 5
           </p>
         </div>
 
@@ -183,10 +283,67 @@ export default function CreateBetWizard({
               </motion.div>
             )}
 
-            {/* Step 2: Select Group */}
+            {/* Step 2: Choose Destination */}
             {step === 2 && (
               <motion.div
                 key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-3 sm:space-y-4"
+              >
+                <h4 className="text-sm sm:text-base font-semibold text-white mb-3 sm:mb-4">
+                  Where do you want to post this bet?
+                </h4>
+
+                <button
+                  onClick={() => setBetDestination("group")}
+                  className={`w-full p-3 sm:p-4 rounded-xl border-2 transition-all ${
+                    betDestination === "group"
+                      ? "border-orange-500 bg-orange-500/10"
+                      : "border-zinc-700 hover:border-zinc-600"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Users className={`w-5 h-5 ${betDestination === "group" ? "text-orange-500" : "text-zinc-400"}`} />
+                    <div className="text-left">
+                      <p className={`font-semibold text-sm sm:text-base ${betDestination === "group" ? "text-orange-500" : "text-white"}`}>
+                        Post to Group
+                      </p>
+                      <p className="text-xs sm:text-sm text-zinc-400">
+                        Share with your group members
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setBetDestination("h2h")}
+                  className={`w-full p-3 sm:p-4 rounded-xl border-2 transition-all ${
+                    betDestination === "h2h"
+                      ? "border-purple-500 bg-purple-500/10"
+                      : "border-zinc-700 hover:border-zinc-600"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Swords className={`w-5 h-5 ${betDestination === "h2h" ? "text-purple-500" : "text-zinc-400"}`} />
+                    <div className="text-left">
+                      <p className={`font-semibold text-sm sm:text-base ${betDestination === "h2h" ? "text-purple-500" : "text-white"}`}>
+                        Challenge Friend to H2H
+                      </p>
+                      <p className="text-xs sm:text-sm text-zinc-400">
+                        One-on-one bet with a friend
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </motion.div>
+            )}
+
+            {/* Step 3: Select Group or Friend */}
+            {step === 3 && betDestination === "group" && (
+              <motion.div
+                key="step3-group"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -228,10 +385,137 @@ export default function CreateBetWizard({
               </motion.div>
             )}
 
-            {/* Step 3: Bet Details */}
-            {step === 3 && (
+            {/* Step 3: H2H Friend & Odds Selection */}
+            {step === 3 && betDestination === "h2h" && (
               <motion.div
-                key="step3"
+                key="step3-h2h"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-4 sm:space-y-5"
+              >
+                <div>
+                  <h4 className="text-sm sm:text-base font-semibold text-white mb-3 sm:mb-4">
+                    Choose Your Opponent
+                  </h4>
+
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {friends.length > 0 ? (
+                      friends.map(friend => (
+                        <button
+                          key={friend.uid}
+                          onClick={() => setSelectedFriend(friend)}
+                          className={`w-full p-3 rounded-lg border transition-all ${
+                            selectedFriend?.uid === friend.uid
+                              ? "border-purple-500 bg-purple-500/10"
+                              : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${
+                                friend.isOnline ? "bg-green-500" : "bg-red-500"
+                              }`} />
+                              <span className="text-white text-sm">
+                                {friend.displayName || `${friend.firstName} ${friend.lastName}`}
+                              </span>
+                            </div>
+                            {selectedFriend?.uid === friend.uid && (
+                              <Check className="w-4 h-4 text-purple-500" />
+                            )}
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="text-zinc-400 text-sm text-center py-4">
+                        No friends yet. Add friends to challenge them!
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Odds Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">
+                    Set Odds
+                  </label>
+
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {[
+                      { challenger: 1, challengee: 1, label: "1:1", desc: "Even" },
+                      { challenger: 2, challengee: 1, label: "2:1", desc: "You favor" },
+                      { challenger: 1, challengee: 2, label: "1:2", desc: "They favor" },
+                      { challenger: 3, challengee: 1, label: "3:1", desc: "Heavy favor" },
+                      { challenger: 4, challengee: 1, label: "4:1", desc: "Long odds" },
+                      { challenger: 1, challengee: 4, label: "1:4", desc: "Underdog" },
+                    ].map((odd) => (
+                      <button
+                        key={`${odd.challenger}-${odd.challengee}`}
+                        onClick={() => setH2hOdds({ challenger: odd.challenger, challengee: odd.challengee })}
+                        className={`p-3 rounded-lg border transition-all ${
+                          h2hOdds.challenger === odd.challenger && h2hOdds.challengee === odd.challengee
+                            ? "border-purple-500 bg-purple-500/10"
+                            : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                        }`}
+                      >
+                        <p className="text-white text-sm font-semibold">{odd.label}</p>
+                        <p className="text-zinc-500 text-xs">{odd.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                    <p className="text-xs text-purple-400">
+                      {h2hOdds.challenger === h2hOdds.challengee ? (
+                        <>Even odds: Both risk ${betData.wager || "X"} to win ${betData.wager || "X"}</>
+                      ) : h2hOdds.challenger > h2hOdds.challengee ? (
+                        <>You risk ${(parseFloat(betData.wager || "0") * h2hOdds.challenger).toFixed(2)} to win ${(parseFloat(betData.wager || "0") * h2hOdds.challengee).toFixed(2)}</>
+                      ) : (
+                        <>They risk ${(parseFloat(betData.wager || "0") * h2hOdds.challengee).toFixed(2)} to win ${(parseFloat(betData.wager || "0") * h2hOdds.challenger).toFixed(2)}</>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Optional: Post to Group */}
+                <div>
+                  <label className="flex items-center gap-2 cursor-pointer mb-2">
+                    <input
+                      type="checkbox"
+                      checked={h2hInGroup}
+                      onChange={(e) => setH2hInGroup(e.target.checked)}
+                      className="w-4 h-4 rounded border-zinc-700 text-purple-500 focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-white">
+                      Post to a group (others can see but not join)
+                    </span>
+                  </label>
+
+                  {h2hInGroup && (
+                    <div className="space-y-2 mt-3">
+                      {groups.map(group => (
+                        <button
+                          key={group.id}
+                          onClick={() => setBetData({ ...betData, groupId: group.id })}
+                          className={`w-full p-3 rounded-lg border transition-all ${
+                            betData.groupId === group.id
+                              ? "border-purple-500 bg-purple-500/10"
+                              : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                          }`}
+                        >
+                          <span className="text-white text-sm">{group.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 4: Bet Details */}
+            {step === 4 && (
+              <motion.div
+                key="step4"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -319,10 +603,10 @@ export default function CreateBetWizard({
               </motion.div>
             )}
 
-            {/* Step 4: Review & Confirm */}
-            {step === 4 && (
+            {/* Step 5: Review & Confirm */}
+            {step === 5 && (
               <motion.div
-                key="step4"
+                key="step5"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -408,16 +692,18 @@ export default function CreateBetWizard({
             Back
           </button>
 
-          {step < 4 ? (
+          {step < 5 ? (
             <button
               onClick={handleNext}
               disabled={
                 (step === 1 && !betData.type) ||
-                (step === 2 && !betData.groupId) ||
-                (step === 3 &&
-                  (!betData.title.trim() || !betData.wager || !betData.closingAt))
+                (step === 3 && betDestination === "group" && !betData.groupId) ||
+                (step === 3 && betDestination === "h2h" && !selectedFriend) ||
+                (step === 4 && (!betData.title.trim() || !betData.wager || !betData.closingAt))
               }
-              className="flex items-center gap-1 sm:gap-2 px-4 sm:px-5 py-1.5 sm:py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-xs sm:text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`flex items-center gap-1 sm:gap-2 px-4 sm:px-5 py-1.5 sm:py-2 ${
+                betDestination === "h2h" ? "bg-purple-500 hover:bg-purple-600" : "bg-orange-500 hover:bg-orange-600"
+              } text-white rounded-md text-xs sm:text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               Next
               <ChevronRight size={16} className="sm:w-5 sm:h-5" />
@@ -425,10 +711,12 @@ export default function CreateBetWizard({
           ) : (
             <button
               onClick={handleSubmit}
-              className="flex items-center gap-1 sm:gap-2 px-4 sm:px-5 py-1.5 sm:py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-xs sm:text-sm font-semibold transition-colors"
+              className={`flex items-center gap-1 sm:gap-2 px-4 sm:px-5 py-1.5 sm:py-2 ${
+                betDestination === "h2h" ? "bg-purple-500 hover:bg-purple-600" : "bg-orange-500 hover:bg-orange-600"
+              } text-white rounded-md text-xs sm:text-sm font-semibold transition-colors`}
             >
               <Check size={16} className="sm:w-5 sm:h-5" />
-              Create Bet
+              {betDestination === "h2h" ? "Send Challenge" : "Create Bet"}
             </button>
           )}
         </div>

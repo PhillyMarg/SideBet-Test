@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Search, X } from "lucide-react";
 
-export type FilterTab = "all" | "open" | "myPicks" | "closingSoon" | "pending";
+export type FilterTab = "all" | "open" | "myPicks" | "closingSoon" | "pending" | "h2h";
 export type SortOption = "closingSoon" | "recent" | "group" | "wager";
 
 interface BetFiltersProps {
@@ -50,6 +50,9 @@ export default function BetFilters({
         return timeUntilClose > 0 && timeUntilClose <= twentyFourHours;
       }).length,
       pending: bets.filter((bet) => bet.status === "CLOSED").length,
+      h2h: bets.filter((bet) =>
+        bet.isH2H && (bet.challengerId === userId || bet.challengeeId === userId)
+      ).length,
     };
   }, [bets, userId]);
 
@@ -59,6 +62,7 @@ export default function BetFilters({
     { id: "myPicks", label: "My Picks", mobileLabel: "Picks", count: counts.myPicks },
     { id: "closingSoon", label: "Closing Soon", mobileLabel: "Soon", count: counts.closingSoon },
     { id: "pending", label: "Pending", mobileLabel: "Pending", count: counts.pending },
+    { id: "h2h", label: "H2H", mobileLabel: "H2H", count: counts.h2h },
   ];
 
   return (
@@ -72,7 +76,9 @@ export default function BetFilters({
               onClick={() => onTabChange(tab.id)}
               className={`px-3 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap rounded-md transition-colors ${
                 activeTab === tab.id
-                  ? "bg-orange-500 text-white shadow-lg shadow-orange-500/50"
+                  ? tab.id === "h2h"
+                    ? "bg-purple-500 text-white shadow-lg shadow-purple-500/50"
+                    : "bg-orange-500 text-white shadow-lg shadow-orange-500/50"
                   : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border border-zinc-800"
               }`}
             >
