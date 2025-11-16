@@ -208,15 +208,32 @@ export default function ActivityFeed({ groupId, groupName }: ActivityFeedProps) 
   }
 
   if (error) {
+    // Check if it's an index error
+    const isIndexError = error.toLowerCase().includes("index") || error.toLowerCase().includes("requires an index");
+
     return (
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-6">
         <h3 className="text-lg font-bold text-white mb-4">Activity Feed</h3>
         <div className="text-center py-8">
-          <p className="text-red-500 text-sm mb-2">Error loading activities</p>
-          <p className="text-zinc-500 text-xs">{error}</p>
-          <p className="text-zinc-500 text-xs mt-2">
-            Check console for more details
-          </p>
+          {isIndexError ? (
+            <>
+              <p className="text-amber-500 text-sm mb-2">⚠️ Setting up Activity Feed...</p>
+              <p className="text-zinc-400 text-xs mb-4">
+                A database index is being created. This usually takes 1-5 minutes.
+              </p>
+              <p className="text-zinc-500 text-xs">
+                Refresh the page in a few minutes to see activities.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-red-500 text-sm mb-2">Error loading activities</p>
+              <p className="text-zinc-500 text-xs">{error}</p>
+              <p className="text-zinc-500 text-xs mt-2">
+                Check console for more details
+              </p>
+            </>
+          )}
         </div>
       </div>
     );
