@@ -1,440 +1,752 @@
 "use client";
 
-import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { collection, addDoc, getDocs, query, where, getDoc, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
+import { Users, Swords, Check, ChevronDown } from "lucide-react";
 
 interface CreateBetWizardProps {
-  isOpen: boolean;
-  onClose: () => void;
-  groups: any[];
-  onCreateBet: (betData: any) => Promise<void>;
+  user: any;
+  onClose?: () => void;
+  preSelectedFriend?: any;
 }
 
-const CreateBetWizard: React.FC<CreateBetWizardProps> = ({
-  isOpen,
-  onClose,
-  groups,
-  onCreateBet,
-}) => {
-  const [step, setStep] = useState(1);
-  const [betData, setBetData] = useState({
-    type: "",
-    groupId: "",
-    title: "",
-    description: "",
-    wager: "",
-    line: "",
-    closingAt: "",
-  });
+export default function CreateBetWizard({ user, onClose, preSelectedFriend }: CreateBetWizardProps) {
+  const router = useRouter();
 
-  const resetAndClose = () => {
-    setStep(1);
-    setBetData({
-      type: "",
-      groupId: "",
-      title: "",
-      description: "",
-      wager: "",
-      line: "",
-      closingAt: "",
-    });
-    onClose();
-  };
+  // STEP CONTROL - 3 steps
+  const [currentStep, setCurrentStep] = useState(1);
 
-  const handleNext = () => {
-    if (step === 1 && !betData.type) {
-      alert("Please select a bet type");
+  // STEP 1: Destination (H2H vs Group) - NOW FIRST
+  const [betDestination, setBetDestination] = useState<"group" | "h2h" | null>(null);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<any>(null);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [selectedFriend, setSelectedFriend] = useState<any>(preSelectedFriend || null);
+
+  // H2H specific
+  const [h2hOdds, setH2hOdds] = useState({ challenger: 1, challengee: 1 });
+  const [h2hInGroup, setH2hInGroup] = useState(false);
+  const [h2hGroupSelection, setH2hGroupSelection] = useState<any>(null);
+
+  // STEP 2: Bet Type - NOW SECOND
+  const [betType, setBetType] = useState<"binary" | "multiple_choice" | "over_under">("binary");
+
+  // STEP 3: Bet Details - NOW THIRD
+  const [betTitle, setBetTitle] = useState("");
+  const [betDescription, setBetDescription] = useState("");
+  const [betAmount, setBetAmount] = useState(10);
+  const [closingDate, setClosingDate] = useState("");
+  const [closingTime, setClosingTime] = useState("");
+  const [multipleChoiceOptions, setMultipleChoiceOptions] = useState(["", ""]);
+  const [overUnderLine, setOverUnderLine] = useState(0);
+
+  const [isCreating, setIsCreating] = useState(false);
+
+  // Theme color - PURPLE for H2H, ORANGE for Group
+  const themeColor = betDestination === "h2h" ? "purple" : "orange";
+
+  // Load groups
+  useEffect(() => {
+    if (!user) return;
+
+    const loadGroups = async () => {
+      try {
+        const groupsQuery = query(
+          collection(db, "groups"),
+          where("memberIds", "array-contains", user.uid)
+        );
+        const snapshot = await getDocs(groupsQuery);
+        const groupsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setGroups(groupsData);
+      } catch (error) {
+        console.error("Error loading groups:", error);
+      }
+    };
+
+    loadGroups();
+  }, [user]);
+
+  // Load friends
+  useEffect(() => {
+    if (!user) return;
+
+    const loadFriends = async () => {
+      try {
+        const friendshipsQuery = query(
+          collection(db, "friendships"),
+          where("status", "==", "accepted")
+        );
+        const snapshot = await getDocs(friendshipsQuery);
+
+        const friendIds: string[] = [];
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.user1Id === user.uid) {
+            friendIds.push(data.user2Id);
+          } else if (data.user2Id === user.uid) {
+            friendIds.push(data.user1Id);
+          }
+        });
+
+        const friendsData = await Promise.all(
+          friendIds.map(async (id) => {
+            const userDoc = await getDoc(doc(db, "users", id));
+            return { uid: id, ...userDoc.data() };
+          })
+        );
+
+        setFriends(friendsData);
+      } catch (error) {
+        console.error("Error loading friends:", error);
+      }
+    };
+
+    loadFriends();
+  }, [user]);
+
+  // If pre-selected friend, auto-select H2H
+  useEffect(() => {
+    if (preSelectedFriend) {
+      setBetDestination("h2h");
+      setSelectedFriend(preSelectedFriend);
+    }
+  }, [preSelectedFriend]);
+
+  const createH2HBet = async () => {
+    if (!user || !selectedFriend) {
+      alert("Please select a friend to challenge");
       return;
     }
-    if (step === 2 && !betData.groupId) {
+
+    if (!betTitle.trim()) {
+      alert("Please enter a bet title");
+      return;
+    }
+
+    if (!closingDate || !closingTime) {
+      alert("Please set a closing date and time");
+      return;
+    }
+
+    setIsCreating(true);
+
+    try {
+      const closingDateTime = new Date(`${closingDate}T${closingTime}`);
+
+      const betData: any = {
+        title: betTitle,
+        description: betDescription,
+        type: betType,
+        creatorId: user.uid,
+        createdAt: new Date().toISOString(),
+        closingAt: closingDateTime.toISOString(),
+        status: "OPEN",
+
+        isH2H: true,
+        challengerId: user.uid,
+        challengeeId: selectedFriend.uid,
+        challengerName: user.displayName || `${user.firstName} ${user.lastName}`,
+        challengeeName: selectedFriend.displayName || `${selectedFriend.firstName} ${selectedFriend.lastName}`,
+        h2hOdds: h2hOdds,
+        h2hStatus: "pending",
+        betAmount: betAmount,
+
+        groupId: h2hInGroup && h2hGroupSelection ? h2hGroupSelection.id : null,
+
+        picks: {},
+        participants: [],
+        winners: []
+      };
+
+      if (betType === "binary") {
+        betData.options = ["YES", "NO"];
+      } else if (betType === "multiple_choice") {
+        betData.options = multipleChoiceOptions.filter(opt => opt.trim());
+      } else if (betType === "over_under") {
+        betData.line = overUnderLine;
+        betData.options = ["OVER", "UNDER"];
+      }
+
+      await addDoc(collection(db, "bets"), betData);
+
+      alert(`✅ Challenge sent to ${selectedFriend.displayName || selectedFriend.firstName}!`);
+      if (onClose) onClose();
+      router.push("/home");
+
+    } catch (error: any) {
+      console.error("Error creating H2H bet:", error);
+      alert(`Failed to create challenge: ${error.message}`);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const createGroupBet = async () => {
+    if (!selectedGroup) {
       alert("Please select a group");
       return;
     }
-    if (step === 3 && (!betData.title.trim() || !betData.wager || !betData.closingAt)) {
-      alert("Please fill in all required fields");
+
+    if (!betTitle.trim()) {
+      alert("Please enter a bet title");
       return;
     }
-    if (step === 3 && betData.type === "OVER_UNDER" && !betData.line) {
-      alert("Please set a line for Over/Under bets");
+
+    if (!closingDate || !closingTime) {
+      alert("Please set a closing date and time");
       return;
     }
-    setStep(step + 1);
+
+    setIsCreating(true);
+
+    try {
+      const closingDateTime = new Date(`${closingDate}T${closingTime}`);
+
+      const betData: any = {
+        title: betTitle,
+        description: betDescription,
+        type: betType,
+        creatorId: user.uid,
+        groupId: selectedGroup.id,
+        createdAt: new Date().toISOString(),
+        closingAt: closingDateTime.toISOString(),
+        status: "OPEN",
+        isH2H: false,
+        picks: {},
+        participants: [],
+        winners: [],
+        settings: selectedGroup.settings
+      };
+
+      if (betType === "binary") {
+        betData.options = ["YES", "NO"];
+      } else if (betType === "multiple_choice") {
+        betData.options = multipleChoiceOptions.filter(opt => opt.trim());
+      } else if (betType === "over_under") {
+        betData.line = overUnderLine;
+        betData.options = ["OVER", "UNDER"];
+      }
+
+      await addDoc(collection(db, "bets"), betData);
+
+      alert("✅ Bet created!");
+      if (onClose) onClose();
+      router.push("/home");
+
+    } catch (error: any) {
+      console.error("Error creating bet:", error);
+      alert(`Failed to create bet: ${error.message}`);
+    } finally {
+      setIsCreating(false);
+    }
   };
 
-  const handleBack = () => {
-    setStep(step - 1);
+  const handleSubmit = () => {
+    if (betDestination === "h2h") {
+      createH2HBet();
+    } else {
+      createGroupBet();
+    }
   };
-
-  const handleSubmit = async () => {
-    await onCreateBet(betData);
-    resetAndClose();
-  };
-
-  if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 flex justify-center items-center z-50 bg-black/60 p-4"
-      onClick={resetAndClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto"
-      >
-        {/* Header */}
-        <div className="sticky top-0 bg-zinc-900 border-b border-zinc-800 px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between z-10">
-          <h3 className="text-base sm:text-lg font-semibold text-white">
-            Create Bet {step > 1 && `(${step}/4)`}
-          </h3>
-          <button
-            onClick={resetAndClose}
-            className="text-gray-400 hover:text-white transition"
-          >
-            <X size={18} className="sm:w-5 sm:h-5" />
-          </button>
+    <div className="w-full">
+      {/* Progress Bar */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2">
+          {[1, 2, 3].map((step) => (
+            <div
+              key={step}
+              className={`flex-1 h-1 rounded-full transition-colors ${
+                step <= currentStep
+                  ? betDestination === "h2h"
+                    ? 'bg-purple-500'
+                    : 'bg-orange-500'
+                  : 'bg-zinc-800'
+              }`}
+            />
+          ))}
         </div>
+        <p className="text-xs text-zinc-500 mt-2">
+          Step {currentStep} of 3
+        </p>
+      </div>
 
-        {/* Progress Bar */}
-        <div className="px-4 sm:px-5 pt-3 sm:pt-4">
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {[1, 2, 3, 4].map((s) => (
-              <div
-                key={s}
-                className={`h-1 flex-1 rounded-full transition-all ${
-                  s <= step ? "bg-orange-500" : "bg-zinc-800"
-                }`}
-              />
-            ))}
-          </div>
-          <p className="text-zinc-400 text-[10px] sm:text-xs mt-1.5 sm:mt-2">
-            Step {step} of 4
-          </p>
-        </div>
+      {/* ===== STEP 1: DESTINATION (H2H vs GROUP) ===== */}
+      {currentStep === 1 && (
+        <div>
+          <h2 className="text-lg font-semibold text-white mb-4">
+            Who's this bet for?
+          </h2>
 
-        {/* Content */}
-        <div className="px-4 sm:px-5 py-4 sm:py-5">
-          <AnimatePresence mode="wait">
-            {/* Step 1: Bet Type */}
-            {step === 1 && (
-              <motion.div
-                key="step1"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-3 sm:space-y-4"
-              >
-                <h4 className="text-sm sm:text-base font-semibold text-white mb-3 sm:mb-4">
-                  Bet Type Selection
-                </h4>
-                <p className="text-zinc-400 text-[10px] sm:text-xs mb-3 sm:mb-4">
-                  Choose the type of bet you want to create
-                </p>
-
-              <button
-                onClick={() => setBetData({ ...betData, type: "YES_NO" })}
-                className={`w-full p-3 sm:p-4 rounded-lg border-2 text-left transition ${
-                  betData.type === "YES_NO"
-                    ? "border-orange-500 bg-orange-500/10"
-                    : "border-zinc-700 hover:border-zinc-600"
-                }`}
-              >
-                <div className="font-semibold text-white text-sm sm:text-base mb-1">
-                  Yes/No
-                </div>
-                <div className="text-xs sm:text-sm text-gray-400">
-                  Simple binary bet with two outcomes
-                </div>
-              </button>
-
-              <button
-                onClick={() => setBetData({ ...betData, type: "OVER_UNDER" })}
-                className={`w-full p-3 sm:p-4 rounded-lg border-2 text-left transition ${
-                  betData.type === "OVER_UNDER"
-                    ? "border-orange-500 bg-orange-500/10"
-                    : "border-zinc-700 hover:border-zinc-600"
-                }`}
-              >
-                <div className="font-semibold text-white text-sm sm:text-base mb-1">
-                  Over/Under
-                </div>
-                <div className="text-xs sm:text-sm text-gray-400">
-                  Bet on whether a value is over or under a line
-                </div>
-              </button>
-
-              <button
-                onClick={() => setBetData({ ...betData, type: "CLOSEST_GUESS" })}
-                className={`w-full p-3 sm:p-4 rounded-lg border-2 text-left transition ${
-                  betData.type === "CLOSEST_GUESS"
-                    ? "border-orange-500 bg-orange-500/10"
-                    : "border-zinc-700 hover:border-zinc-600"
-                }`}
-              >
-                <div className="font-semibold text-white text-sm sm:text-base mb-1">
-                  Closest Guess
-                </div>
-                <div className="text-xs sm:text-sm text-gray-400">
-                  Winner is whoever guesses closest to the actual value
-                </div>
-              </button>
-              </motion.div>
-            )}
-
-            {/* Step 2: Select Group */}
-            {step === 2 && (
-              <motion.div
-                key="step2"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-3 sm:space-y-4"
-              >
-                <h4 className="text-sm sm:text-base font-semibold text-white mb-2 sm:mb-3">
-                  Select Group
-                </h4>
-                <p className="text-zinc-400 text-[10px] sm:text-xs mb-3 sm:mb-4">
-                  Which group is this bet for?
-                </p>
-
-              {groups.length > 0 ? (
-                groups.map((group) => (
-                  <button
-                    key={group.id}
-                    onClick={() => setBetData({ ...betData, groupId: group.id })}
-                    className={`w-full p-3 sm:p-4 rounded-lg border-2 text-left transition ${
-                      betData.groupId === group.id
-                        ? "border-orange-500 bg-orange-500/10"
-                        : "border-zinc-700 hover:border-zinc-600"
-                    }`}
-                  >
-                    <div className="font-semibold text-white text-sm sm:text-base mb-1">
-                      {group.name}
-                    </div>
-                    <div className="text-xs sm:text-sm text-gray-400">
-                      {group.memberIds?.length || 0} members
-                    </div>
-                  </button>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-zinc-400 text-xs sm:text-sm mb-3">
-                    You need to join or create a group first
+          {/* Destination Selection */}
+          <div className="space-y-3 mb-6">
+            {/* Post to Group */}
+            <button
+              onClick={() => {
+                setBetDestination("group");
+                setSelectedFriend(null);
+              }}
+              className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
+                betDestination === "group"
+                  ? "border-orange-500 bg-orange-500/10"
+                  : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Users className={`w-5 h-5 ${betDestination === "group" ? "text-orange-500" : "text-zinc-400"}`} />
+                <div className="flex-1">
+                  <p className={`font-semibold ${betDestination === "group" ? "text-orange-500" : "text-white"}`}>
+                    Post to Group
+                  </p>
+                  <p className="text-xs text-zinc-400">
+                    Share with group members
                   </p>
                 </div>
+              </div>
+            </button>
+
+            {/* Challenge Friend */}
+            <button
+              onClick={() => {
+                setBetDestination("h2h");
+                setSelectedGroup(null);
+              }}
+              className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
+                betDestination === "h2h"
+                  ? "border-purple-500 bg-purple-500/10"
+                  : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Swords className={`w-5 h-5 ${betDestination === "h2h" ? "text-purple-500" : "text-zinc-400"}`} />
+                <div className="flex-1">
+                  <p className={`font-semibold ${betDestination === "h2h" ? "text-purple-500" : "text-white"}`}>
+                    Challenge Friend
+                  </p>
+                  <p className="text-xs text-zinc-400">
+                    Head-to-head with a friend
+                  </p>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* Group Dropdown */}
+          {betDestination === "group" && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-white mb-2">
+                Select Group
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedGroup?.id || ""}
+                  onChange={(e) => {
+                    const group = groups.find(g => g.id === e.target.value);
+                    setSelectedGroup(group);
+                  }}
+                  className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white appearance-none cursor-pointer focus:outline-none focus:border-orange-500"
+                >
+                  <option value="">Choose a group...</option>
+                  {groups.map(group => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 pointer-events-none" />
+              </div>
+              {groups.length === 0 && (
+                <p className="text-xs text-zinc-500 mt-2">
+                  You're not in any groups yet. Join or create one first.
+                </p>
               )}
-              </motion.div>
-            )}
+            </div>
+          )}
 
-            {/* Step 3: Bet Details */}
-            {step === 3 && (
-              <motion.div
-                key="step3"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-3 sm:space-y-4"
-              >
-                <h4 className="text-sm sm:text-base font-semibold text-white mb-2 sm:mb-3">
-                  Bet Details
-                </h4>
-                <div>
-                  <label className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
-                    Bet Title *
-                  </label>
+          {/* Friend Selection */}
+          {betDestination === "h2h" && (
+            <>
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-white mb-2">
+                  Choose Your Opponent
+                </label>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {friends.length === 0 ? (
+                    <p className="text-zinc-400 text-sm py-4 text-center">
+                      No friends yet. Add friends to challenge them!
+                    </p>
+                  ) : (
+                    friends.map(friend => (
+                      <button
+                        key={friend.uid}
+                        onClick={() => setSelectedFriend(friend)}
+                        className={`w-full p-3 rounded-lg border transition-all text-left ${
+                          selectedFriend?.uid === friend.uid
+                            ? "border-purple-500 bg-purple-500/10"
+                            : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${
+                              friend.isOnline ? "bg-green-500" : "bg-red-500"
+                            }`} />
+                            <span className="text-white text-sm">
+                              {friend.displayName || `${friend.firstName} ${friend.lastName}`}
+                            </span>
+                          </div>
+                          {selectedFriend?.uid === friend.uid && (
+                            <Check className="w-4 h-4 text-purple-500" />
+                          )}
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Wager Amount */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-white mb-2">
+                  Wager Amount ($)
+                </label>
+                <input
+                  type="number"
+                  value={betAmount}
+                  onChange={(e) => setBetAmount(Number(e.target.value))}
+                  min="1"
+                  className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              {/* Odds Selection */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-white mb-2">
+                  Set Odds
+                </label>
+
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  {[
+                    { challenger: 1, challengee: 1, label: "1:1", desc: "Even" },
+                    { challenger: 2, challengee: 1, label: "2:1", desc: "You favor" },
+                    { challenger: 1, challengee: 2, label: "1:2", desc: "They favor" },
+                    { challenger: 3, challengee: 1, label: "3:1", desc: "Long" },
+                    { challenger: 4, challengee: 1, label: "4:1", desc: "Very long" },
+                    { challenger: 1, challengee: 4, label: "1:4", desc: "Underdog" }
+                  ].map((odds) => (
+                    <button
+                      key={`${odds.challenger}:${odds.challengee}`}
+                      onClick={() => setH2hOdds({ challenger: odds.challenger, challengee: odds.challengee })}
+                      className={`p-3 rounded-lg border transition-all ${
+                        h2hOdds.challenger === odds.challenger && h2hOdds.challengee === odds.challengee
+                          ? "border-purple-500 bg-purple-500/10"
+                          : "border-zinc-800 bg-zinc-900"
+                      }`}
+                    >
+                      <p className={`text-sm font-semibold ${
+                        h2hOdds.challenger === odds.challenger && h2hOdds.challengee === odds.challengee
+                          ? "text-purple-500" : "text-white"
+                      }`}>
+                        {odds.label}
+                      </p>
+                      <p className="text-xs text-zinc-500">{odds.desc}</p>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Odds Explanation */}
+                <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                  <p className="text-xs text-purple-400">
+                    {h2hOdds.challenger === h2hOdds.challengee ? (
+                      <>Even odds: Both risk ${betAmount} to win ${betAmount}</>
+                    ) : h2hOdds.challenger > h2hOdds.challengee ? (
+                      <>You risk ${betAmount * h2hOdds.challenger} to win ${betAmount * h2hOdds.challengee}</>
+                    ) : (
+                      <>They risk ${betAmount * h2hOdds.challengee} to win ${betAmount * h2hOdds.challenger}</>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Optional: Post to Group */}
+              <div className="mb-6">
+                <label className="flex items-center gap-2 cursor-pointer mb-3">
                   <input
-                    type="text"
-                    placeholder="e.g., Will it rain tomorrow?"
-                    value={betData.title}
-                    onChange={(e) => setBetData({ ...betData, title: e.target.value })}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                    type="checkbox"
+                    checked={h2hInGroup}
+                    onChange={(e) => setH2hInGroup(e.target.checked)}
+                    className="w-4 h-4 rounded border-zinc-700 text-purple-500 focus:ring-purple-500"
                   />
-                </div>
+                  <span className="text-sm text-white">
+                    Post to a group (others can see but not join)
+                  </span>
+                </label>
 
-                <div>
-                  <label className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
-                    Description (Optional)
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder="Add more details..."
-                    value={betData.description}
-                    onChange={(e) =>
-                      setBetData({ ...betData, description: e.target.value })
-                    }
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 resize-none"
-                  />
-                </div>
-
-                {betData.type === "OVER_UNDER" && (
-                  <div>
-                    <label className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
-                      Line (must end in .5) *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      placeholder="e.g., 24.5"
-                      value={betData.line}
-                      onChange={(e) => setBetData({ ...betData, line: e.target.value })}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
-                    />
+                {h2hInGroup && (
+                  <div className="relative">
+                    <select
+                      value={h2hGroupSelection?.id || ""}
+                      onChange={(e) => {
+                        const group = groups.find(g => g.id === e.target.value);
+                        setH2hGroupSelection(group);
+                      }}
+                      className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white appearance-none cursor-pointer focus:outline-none focus:border-purple-500"
+                    >
+                      <option value="">Choose a group...</option>
+                      {groups.map(group => (
+                        <option key={group.id} value={group.id}>
+                          {group.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 pointer-events-none" />
                   </div>
                 )}
+              </div>
+            </>
+          )}
 
-                <div>
-                  <label className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
-                    Wager Amount *
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs sm:text-sm">
-                      $
-                    </span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="10.00"
-                      value={betData.wager}
-                      onChange={(e) => setBetData({ ...betData, wager: e.target.value })}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-md pl-7 pr-3 py-2 sm:py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-zinc-400 text-xs sm:text-sm mb-1.5 sm:mb-2">
-                    Betting Closes At *
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={betData.closingAt}
-                    onChange={(e) =>
-                      setBetData({ ...betData, closingAt: e.target.value })
-                    }
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
-                  />
-                </div>
-              </motion.div>
-            )}
-
-            {/* Step 4: Review & Confirm */}
-            {step === 4 && (
-              <motion.div
-                key="step4"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-              >
-                <h4 className="text-sm sm:text-base font-semibold text-white mb-3 sm:mb-4">
-                  Review & Confirm
-                </h4>
-                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 sm:p-4 space-y-2.5 sm:space-y-3">
-                  <div>
-                    <div className="text-zinc-400 text-[10px] sm:text-xs mb-1">Type</div>
-                    <div className="text-white text-xs sm:text-sm font-semibold">
-                      {betData.type === "YES_NO"
-                        ? "Yes/No"
-                        : betData.type === "OVER_UNDER"
-                        ? "Over/Under"
-                        : "Closest Guess"}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-zinc-400 text-[10px] sm:text-xs mb-1">Group</div>
-                    <div className="text-white text-xs sm:text-sm font-semibold">
-                      {groups.find((g) => g.id === betData.groupId)?.name}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-zinc-400 text-[10px] sm:text-xs mb-1">Title</div>
-                    <div className="text-white text-xs sm:text-sm font-semibold">
-                      {betData.title}
-                    </div>
-                  </div>
-
-                  {betData.description && (
-                    <div>
-                      <div className="text-zinc-400 text-[10px] sm:text-xs mb-1">
-                        Description
-                      </div>
-                      <div className="text-white text-xs sm:text-sm">
-                        {betData.description}
-                      </div>
-                    </div>
-                  )}
-
-                  {betData.type === "OVER_UNDER" && betData.line && (
-                    <div>
-                      <div className="text-zinc-400 text-[10px] sm:text-xs mb-1">Line</div>
-                      <div className="text-white text-xs sm:text-sm font-semibold">
-                        {betData.line}
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <div className="text-zinc-400 text-[10px] sm:text-xs mb-1">Wager</div>
-                    <div className="text-white text-xs sm:text-sm font-semibold">
-                      ${parseFloat(betData.wager || "0").toFixed(2)}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-zinc-400 text-[10px] sm:text-xs mb-1">
-                      Closes At
-                    </div>
-                    <div className="text-white text-xs sm:text-sm font-semibold">
-                      {new Date(betData.closingAt).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Footer */}
-        <div className="sticky bottom-0 bg-zinc-900 border-t border-zinc-800 px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between z-10">
+          {/* Next Button */}
           <button
-            onClick={handleBack}
-            disabled={step === 1}
-            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-zinc-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronLeft size={16} className="sm:w-5 sm:h-5" />
-            Back
-          </button>
-
-          {step < 4 ? (
-            <button
-              onClick={handleNext}
-              disabled={
-                (step === 1 && !betData.type) ||
-                (step === 2 && !betData.groupId) ||
-                (step === 3 &&
-                  (!betData.title.trim() || !betData.wager || !betData.closingAt))
+            onClick={() => {
+              if (!betDestination) {
+                alert("Please select where to post this bet");
+                return;
               }
-              className="flex items-center gap-1 sm:gap-2 px-4 sm:px-5 py-1.5 sm:py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-xs sm:text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              if (betDestination === "group" && !selectedGroup) {
+                alert("Please select a group");
+                return;
+              }
+              if (betDestination === "h2h" && !selectedFriend) {
+                alert("Please select a friend to challenge");
+                return;
+              }
+              setCurrentStep(2);
+            }}
+            disabled={
+              !betDestination ||
+              (betDestination === "group" && !selectedGroup) ||
+              (betDestination === "h2h" && !selectedFriend)
+            }
+            className={`w-full py-3 ${themeColor === 'purple' ? 'bg-purple-500 hover:bg-purple-600' : 'bg-orange-500 hover:bg-orange-600'} disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-lg font-semibold transition-colors`}
+          >
+            Next
+          </button>
+        </div>
+      )}
+
+      {/* ===== STEP 2: BET TYPE ===== */}
+      {currentStep === 2 && (
+        <div>
+          <h2 className="text-lg font-semibold text-white mb-4">
+            What type of bet?
+          </h2>
+
+          <div className="grid grid-cols-3 gap-3 mb-8">
+            <button
+              onClick={() => setBetType("binary")}
+              className={`p-4 rounded-xl border-2 transition-all ${
+                betType === "binary"
+                  ? `border-${themeColor}-500 bg-${themeColor}-500/10`
+                  : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+              }`}
+            >
+              <p className={`text-sm font-semibold mb-1 ${betType === "binary" ? `text-${themeColor}-500` : "text-white"}`}>
+                Yes/No
+              </p>
+              <p className="text-xs text-zinc-500">Binary choice</p>
+            </button>
+
+            <button
+              onClick={() => setBetType("multiple_choice")}
+              className={`p-4 rounded-xl border-2 transition-all ${
+                betType === "multiple_choice"
+                  ? `border-${themeColor}-500 bg-${themeColor}-500/10`
+                  : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+              }`}
+            >
+              <p className={`text-sm font-semibold mb-1 ${betType === "multiple_choice" ? `text-${themeColor}-500` : "text-white"}`}>
+                Multiple
+              </p>
+              <p className="text-xs text-zinc-500">Many options</p>
+            </button>
+
+            <button
+              onClick={() => setBetType("over_under")}
+              className={`p-4 rounded-xl border-2 transition-all ${
+                betType === "over_under"
+                  ? `border-${themeColor}-500 bg-${themeColor}-500/10`
+                  : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+              }`}
+            >
+              <p className={`text-sm font-semibold mb-1 ${betType === "over_under" ? `text-${themeColor}-500` : "text-white"}`}>
+                Over/Under
+              </p>
+              <p className="text-xs text-zinc-500">Set a line</p>
+            </button>
+          </div>
+
+          {/* Navigation */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setCurrentStep(1)}
+              className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-semibold transition-colors"
+            >
+              Back
+            </button>
+
+            <button
+              onClick={() => setCurrentStep(3)}
+              className={`flex-1 py-3 ${themeColor === 'purple' ? 'bg-purple-500 hover:bg-purple-600' : 'bg-orange-500 hover:bg-orange-600'} text-white rounded-lg font-semibold transition-colors`}
             >
               Next
-              <ChevronRight size={16} className="sm:w-5 sm:h-5" />
             </button>
-          ) : (
+          </div>
+        </div>
+      )}
+
+      {/* ===== STEP 3: BET DETAILS ===== */}
+      {currentStep === 3 && (
+        <div>
+          <h2 className="text-lg font-semibold text-white mb-4">
+            Bet Details
+          </h2>
+
+          {/* Bet Title */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-white mb-2">
+              Bet Title *
+            </label>
+            <input
+              type="text"
+              value={betTitle}
+              onChange={(e) => setBetTitle(e.target.value)}
+              placeholder="e.g., Will it rain tomorrow?"
+              className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none ${
+                themeColor === 'purple' ? 'focus:border-purple-500' : 'focus:border-orange-500'
+              }`}
+            />
+          </div>
+
+          {/* Bet Description */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-white mb-2">
+              Description (optional)
+            </label>
+            <textarea
+              value={betDescription}
+              onChange={(e) => setBetDescription(e.target.value)}
+              placeholder="Add more details..."
+              rows={3}
+              className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none ${
+                themeColor === 'purple' ? 'focus:border-purple-500' : 'focus:border-orange-500'
+              }`}
+            />
+          </div>
+
+          {/* Multiple Choice Options */}
+          {betType === "multiple_choice" && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-white mb-2">
+                Options
+              </label>
+              {multipleChoiceOptions.map((option, index) => (
+                <div key={index} className="mb-2">
+                  <input
+                    type="text"
+                    value={option}
+                    onChange={(e) => {
+                      const newOptions = [...multipleChoiceOptions];
+                      newOptions[index] = e.target.value;
+                      setMultipleChoiceOptions(newOptions);
+                    }}
+                    placeholder={`Option ${index + 1}`}
+                    className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none ${
+                      themeColor === 'purple' ? 'focus:border-purple-500' : 'focus:border-orange-500'
+                    }`}
+                  />
+                </div>
+              ))}
+              <button
+                onClick={() => setMultipleChoiceOptions([...multipleChoiceOptions, ""])}
+                className={`${themeColor === 'purple' ? 'text-purple-500 hover:text-purple-600' : 'text-orange-500 hover:text-orange-600'} text-sm`}
+              >
+                + Add Option
+              </button>
+            </div>
+          )}
+
+          {/* Over/Under Line */}
+          {betType === "over_under" && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-white mb-2">
+                Line
+              </label>
+              <input
+                type="number"
+                value={overUnderLine}
+                onChange={(e) => setOverUnderLine(Number(e.target.value))}
+                placeholder="e.g., 50.5"
+                step="0.5"
+                className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none ${
+                  themeColor === 'purple' ? 'focus:border-purple-500' : 'focus:border-orange-500'
+                }`}
+              />
+            </div>
+          )}
+
+          {/* Closing Date */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-white mb-2">
+              Closing Date *
+            </label>
+            <input
+              type="date"
+              value={closingDate}
+              onChange={(e) => setClosingDate(e.target.value)}
+              className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none ${
+                themeColor === 'purple' ? 'focus:border-purple-500' : 'focus:border-orange-500'
+              }`}
+            />
+          </div>
+
+          {/* Closing Time */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-white mb-2">
+              Closing Time *
+            </label>
+            <input
+              type="time"
+              value={closingTime}
+              onChange={(e) => setClosingTime(e.target.value)}
+              className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none ${
+                themeColor === 'purple' ? 'focus:border-purple-500' : 'focus:border-orange-500'
+              }`}
+            />
+          </div>
+
+          {/* Navigation */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setCurrentStep(2)}
+              className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-semibold transition-colors"
+            >
+              Back
+            </button>
+
             <button
               onClick={handleSubmit}
-              className="flex items-center gap-1 sm:gap-2 px-4 sm:px-5 py-1.5 sm:py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-xs sm:text-sm font-semibold transition-colors"
+              disabled={isCreating || !betTitle || !closingDate || !closingTime}
+              className={`flex-1 py-3 ${themeColor === 'purple' ? 'bg-purple-500 hover:bg-purple-600' : 'bg-orange-500 hover:bg-orange-600'} disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-lg font-semibold transition-colors`}
             >
-              <Check size={16} className="sm:w-5 sm:h-5" />
-              Create Bet
+              {isCreating ? "Creating..." : "Create Bet"}
             </button>
-          )}
+          </div>
         </div>
-      </motion.div>
+      )}
     </div>
   );
-};
-
-export default CreateBetWizard;
+}
