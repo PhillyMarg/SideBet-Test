@@ -428,6 +428,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
                   Set Odds
                 </label>
 
+                {/* Preset Odds Tiles */}
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   {[
                     { challenger: 1, challengee: 1, label: "1:1", desc: "Even" },
@@ -457,7 +458,51 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
                   ))}
                 </div>
 
-                {/* Odds Explanation */}
+                {/* Custom Odds Input */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-zinc-400 mb-2">
+                    Or enter custom odds:
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g., 5:2"
+                      value={`${h2hOdds.challenger}:${h2hOdds.challengee}`}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow only numbers and colon
+                        const cleanValue = value.replace(/[^0-9:]/g, '');
+
+                        // Check format X:X
+                        const match = cleanValue.match(/^(\d+):(\d+)$/);
+                        if (match) {
+                          const challenger = parseInt(match[1]);
+                          const challengee = parseInt(match[2]);
+
+                          // Validate numbers are positive and reasonable (1-99)
+                          if (challenger > 0 && challenger < 100 && challengee > 0 && challengee < 100) {
+                            setH2hOdds({ challenger, challengee });
+                          }
+                        } else if (cleanValue === '' || cleanValue.match(/^\d*:?\d*$/)) {
+                          // Allow partial input while typing (e.g., "5" or "5:")
+                          // But don't update h2hOdds yet
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-purple-500"
+                    />
+                    <button
+                      onClick={() => setH2hOdds({ challenger: 1, challengee: 1 })}
+                      className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg text-xs transition-colors"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    Format: YourOdds:TheirOdds (e.g., 5:2 or 3:1)
+                  </p>
+                </div>
+
+                {/* Odds Explanation - Updates with custom odds */}
                 <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
                   <p className="text-xs text-purple-400">
                     {h2hOdds.challenger === h2hOdds.challengee ? (
