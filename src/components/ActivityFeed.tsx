@@ -51,25 +51,33 @@ export default function ActivityFeed({ groupId, groupName }: ActivityFeedProps) 
       })) as Activity[];
 
       // Detect new activities for fade-in animation
-      const currentIds = new Set(activities.map(a => a.id));
-      const newIds = new Set<string>();
+      setActivities(prevActivities => {
+        const currentIds = new Set(prevActivities.map(a => a.id));
+        const newIds = new Set<string>();
 
-      activitiesData.forEach(activity => {
-        if (!currentIds.has(activity.id)) {
-          newIds.add(activity.id);
+        activitiesData.forEach(activity => {
+          if (!currentIds.has(activity.id)) {
+            newIds.add(activity.id);
+          }
+        });
+
+        if (newIds.size > 0) {
+          setNewActivityIds(newIds);
+
+          // Clear new activity IDs after animation
+          setTimeout(() => {
+            setNewActivityIds(new Set());
+          }, 1000);
         }
+
+        return activitiesData;
       });
 
-      setNewActivityIds(newIds);
-
-      // Clear new activity IDs after animation
-      setTimeout(() => {
-        setNewActivityIds(new Set());
-      }, 1000);
-
-      setActivities(activitiesData);
       setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
       setHasMore(snapshot.docs.length === ACTIVITIES_PER_PAGE);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching activities:", error);
       setLoading(false);
     });
 
