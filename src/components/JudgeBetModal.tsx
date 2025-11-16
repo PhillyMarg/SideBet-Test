@@ -5,6 +5,7 @@ import { useState } from "react";
 import { doc, updateDoc, writeBatch, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase/client";
 import { createActivity } from "../lib/activityHelpers";
+import { notifyBetResult } from "../lib/notifications";
 
 interface JudgeBetModalProps {
   bet: any;
@@ -124,6 +125,18 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
           betTitle: bet.title,
           winAmount: payoutPerWinner
         });
+      }
+
+      // Send notifications to all participants
+      for (const userId of bet.participants || []) {
+        const isWinner = winners.includes(userId);
+        await notifyBetResult(
+          userId,
+          bet.id,
+          bet.title,
+          isWinner,
+          isWinner ? payoutPerWinner : undefined
+        );
       }
 
       alert(
