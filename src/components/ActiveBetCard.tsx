@@ -154,19 +154,25 @@ function ActiveBetCard({
     }
   };
 
+  const isH2H = bet.isH2H;
+
   return (
     <li
       className={`
-        rounded-xl px-2 py-2 sm:px-4 sm:py-3 
-        flex flex-col text-left shadow-md 
-        hover:scale-[1.01] sm:hover:scale-[1.02] 
-        transition-transform duration-200 
-        text-xs sm:text-sm 
+        rounded-xl px-2 py-2 sm:px-4 sm:py-3
+        flex flex-col text-left shadow-md
+        hover:scale-[1.01] sm:hover:scale-[1.02]
+        transition-transform duration-200
+        text-xs sm:text-sm
         w-full
         ${
           needsJudging
-            ? "bg-orange-500/10 border-2 border-orange-500/50 hover:border-orange-500"
-            : "bg-zinc-900 border border-zinc-800 hover:border-orange-500"
+            ? isH2H
+              ? "bg-purple-500/10 border-2 border-purple-500/50 hover:border-purple-500"
+              : "bg-orange-500/10 border-2 border-orange-500/50 hover:border-orange-500"
+            : isH2H
+              ? "bg-zinc-900 border border-purple-500 hover:border-purple-400"
+              : "bg-zinc-900 border border-zinc-800 hover:border-orange-500"
         }
       `}
     >
@@ -176,7 +182,7 @@ function ActiveBetCard({
           {groupName && (
             <button
               onClick={() => router.push(`/groups/${bet.groupId}`)}
-              className="text-[9px] sm:text-xs font-medium border border-orange-500 text-orange-400 rounded-full px-1.5 py-0.5 sm:px-2 sm:py-[2px] hover:bg-orange-500 hover:text-white transition"
+              className={`text-[9px] sm:text-xs font-medium border ${isH2H ? 'border-purple-500 text-purple-400 hover:bg-purple-500' : 'border-orange-500 text-orange-400 hover:bg-orange-500'} rounded-full px-1.5 py-0.5 sm:px-2 sm:py-[2px] hover:text-white transition`}
             >
               {groupName}
             </button>
@@ -186,7 +192,7 @@ function ActiveBetCard({
           </span>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
-          <span className="text-[9px] sm:text-xs font-bold text-orange-500">{getClosingTimeDisplay()}</span>
+          <span className={`text-[9px] sm:text-xs font-bold ${isH2H ? 'text-purple-500' : 'text-orange-500'}`}>{getClosingTimeDisplay()}</span>
           {isCreator && (
             <button
               onClick={() => setShowDeleteModal(true)}
@@ -198,6 +204,34 @@ function ActiveBetCard({
           )}
         </div>
       </div>
+
+      {/* H2H Status Badge */}
+      {isH2H && (
+        <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-1 text-purple-500 text-xs font-semibold">
+            <span>{bet.challengerName} v {bet.challengeeName}</span>
+          </div>
+
+          {/* Status badges */}
+          {bet.h2hStatus === "pending" && bet.challengeeId === user?.uid && (
+            <div className="bg-red-500/20 border border-red-500/40 rounded-full px-2 py-0.5 animate-pulse">
+              <span className="text-[10px] text-red-500 font-medium">WAITING FOR YOU</span>
+            </div>
+          )}
+
+          {bet.h2hStatus === "pending" && bet.challengerId === user?.uid && (
+            <div className="bg-yellow-500/20 border border-yellow-500/40 rounded-full px-2 py-0.5">
+              <span className="text-[10px] text-yellow-500 font-medium">PENDING</span>
+            </div>
+          )}
+
+          {bet.h2hStatus === "accepted" && (
+            <div className="bg-green-500/20 border border-green-500/40 rounded-full px-2 py-0.5">
+              <span className="text-[10px] text-green-500 font-medium">ACCEPTED</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Title */}
       <p className="font-semibold text-white mb-0.5 sm:mb-1 text-xs sm:text-sm leading-tight line-clamp-1 sm:line-clamp-2">
@@ -231,7 +265,7 @@ function ActiveBetCard({
       {needsJudging && (
         <button
           onClick={() => onJudge(bet)}
-          className="w-full py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-sm font-bold bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white mb-1.5 sm:mb-3 shadow-lg transition"
+          className={`w-full py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-sm font-bold ${isH2H ? 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700' : 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600'} text-white mb-1.5 sm:mb-3 shadow-lg transition`}
         >
           ⚖️ Judge This Bet
         </button>
@@ -246,7 +280,7 @@ function ActiveBetCard({
                 <div className="mt-1">
                   {/* Mobile: Compact info */}
                   <p className="text-[9px] sm:hidden text-gray-400 mb-1">
-                    Pick: <span className="font-bold text-orange-400">{bet.picks[user.uid]}</span>
+                    Pick: <span className={`font-bold ${isH2H ? 'text-purple-400' : 'text-orange-400'}`}>{bet.picks[user.uid]}</span>
                     {" • "}
                     Payout: <span className="font-bold text-green-400">${getEstimatedPayoutAfterPick().toFixed(2)}</span>
                   </p>
@@ -255,7 +289,7 @@ function ActiveBetCard({
                   <div className="hidden sm:block">
                     <p className="text-xs text-gray-400 mb-2">
                       Your Pick:{" "}
-                      <span className="font-bold text-orange-400">
+                      <span className={`font-bold ${isH2H ? 'text-purple-400' : 'text-orange-400'}`}>
                         {bet.picks[user.uid]}
                       </span>
                     </p>
@@ -271,7 +305,7 @@ function ActiveBetCard({
                   {/* Progress Bar - Smaller on mobile */}
                   <div className="bg-zinc-800 rounded-lg overflow-hidden h-4 sm:h-5 flex items-center relative">
                     <div
-                      className="bg-orange-500 h-full flex items-center justify-start px-1 sm:px-2 transition-all duration-500"
+                      className={`${isH2H ? 'bg-purple-500' : 'bg-orange-500'} h-full flex items-center justify-start px-1 sm:px-2 transition-all duration-500`}
                       style={{ width: `${yes}%` }}
                     >
                       <span className="text-white text-[9px] sm:text-[10px] font-bold">
@@ -293,7 +327,7 @@ function ActiveBetCard({
                 <div className="mt-1 flex flex-col items-center">
                   <p className="text-[9px] sm:text-[10px] text-gray-400 mb-1 sm:mb-1.5">
                     Your Guess:{" "}
-                    <span className="font-bold text-orange-400">
+                    <span className={`font-bold ${isH2H ? 'text-purple-400' : 'text-orange-400'}`}>
                       {bet.picks[user.uid]}
                     </span>
                     {" • "}
@@ -305,7 +339,7 @@ function ActiveBetCard({
 
                   <button
                     onClick={() => setShowResults(!showResults)}
-                    className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] sm:text-[11px] font-semibold px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg transition"
+                    className={`${isH2H ? 'bg-purple-500 hover:bg-purple-600' : 'bg-orange-500 hover:bg-orange-600'} text-white text-[10px] sm:text-[11px] font-semibold px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg transition`}
                   >
                     {showResults ? "Hide Results" : "View Results"}
                   </button>
@@ -331,7 +365,7 @@ function ActiveBetCard({
                                 <span
                                   className={
                                     userId === user.uid
-                                      ? "text-orange-400 font-semibold"
+                                      ? `${isH2H ? 'text-purple-400' : 'text-orange-400'} font-semibold`
                                       : ""
                                   }
                                 >
@@ -357,7 +391,7 @@ function ActiveBetCard({
                     onClick={() =>
                       onPick(bet, bet.type === "YES_NO" ? "YES" : "OVER")
                     }
-                    className="flex-1 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-semibold flex flex-col items-center justify-center shadow transition-all bg-orange-500 hover:bg-orange-600 text-white"
+                    className={`flex-1 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-semibold flex flex-col items-center justify-center shadow transition-all ${isH2H ? 'bg-purple-500 hover:bg-purple-600' : 'bg-orange-500 hover:bg-orange-600'} text-white`}
                   >
                     <span className="leading-none">{bet.type === "YES_NO" ? "Yes" : "Over"}</span>
                     <span className="text-[9px] sm:text-[10px] text-white/80 mt-0.5">
@@ -384,7 +418,7 @@ function ActiveBetCard({
                     type="text"
                     placeholder="Enter guess..."
                     id={`guess-${bet.id}`}
-                    className="flex-1 bg-zinc-800 text-white text-[10px] sm:text-xs p-1.5 rounded-lg border border-zinc-700 focus:outline-none focus:border-orange-500 transition"
+                    className={`flex-1 bg-zinc-800 text-white text-[10px] sm:text-xs p-1.5 rounded-lg border border-zinc-700 focus:outline-none ${isH2H ? 'focus:border-purple-500' : 'focus:border-orange-500'} transition`}
                   />
                   <button
                     onClick={() => {
@@ -392,13 +426,13 @@ function ActiveBetCard({
                         document.getElementById(`guess-${bet.id}`) as HTMLInputElement
                       )?.value;
                       if (!value || !value.trim()) return alert("Please enter a guess.");
-                      
+
                       const numValue = parseFloat(value);
                       const finalValue = isNaN(numValue) ? value.trim() : numValue;
-                      
+
                       onPick(bet, finalValue);
                     }}
-                    className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] sm:text-xs font-semibold px-2 py-1.5 sm:px-3 rounded-lg shadow transition-all"
+                    className={`${isH2H ? 'bg-purple-500 hover:bg-purple-600' : 'bg-orange-500 hover:bg-orange-600'} text-white text-[10px] sm:text-xs font-semibold px-2 py-1.5 sm:px-3 rounded-lg shadow transition-all`}
                   >
                     Submit
                   </button>

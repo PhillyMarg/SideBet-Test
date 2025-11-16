@@ -222,6 +222,16 @@ export default function HomePage() {
 
   const activeBets = bets.filter((bet) => bet.status !== "JUDGED");
 
+  // Count pending H2H challenges
+  const pendingH2HChallenges = useMemo(() => {
+    if (!user) return 0;
+    return bets.filter(bet =>
+      bet.isH2H &&
+      bet.h2hStatus === "pending" &&
+      bet.challengeeId === user.uid
+    ).length;
+  }, [bets, user]);
+
   // Apply filters and sorting
   const filteredAndSortedBets = useMemo(() => {
     if (!user) return [];
@@ -453,6 +463,7 @@ export default function HomePage() {
                 showGroupSort={true}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
+                pendingH2HChallenges={pendingH2HChallenges}
               />
             )}
 
