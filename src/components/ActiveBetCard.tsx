@@ -302,24 +302,30 @@ function ActiveBetCard({
                     </div>
                   )}
 
-                  {/* Progress Bar - Smaller on mobile */}
+                  {/* Progress Bar - FIXED */}
                   <div className="bg-zinc-800 rounded-lg overflow-hidden h-4 sm:h-5 flex items-center relative">
+                    {/* YES/OVER Side */}
                     <div
-                      className="bg-orange-500 h-full flex items-center justify-start px-1 sm:px-2 transition-all duration-500"
+                      className="bg-orange-500 h-full flex items-center justify-start px-1 sm:px-2 transition-all duration-500 min-w-0"
                       style={{ width: `${yes}%` }}
                     >
-                      <span className="text-white text-[9px] sm:text-[10px] font-bold">
-                        {bet.type === "YES_NO" ? "Yes" : "Over"} {yes}%
-                      </span>
+                      {yes >= 10 && (
+                        <span className="text-white text-[9px] sm:text-[10px] font-bold whitespace-nowrap">
+                          {bet.type === "YES_NO" ? "Yes" : "Over"} {yes}%
+                        </span>
+                      )}
                     </div>
 
+                    {/* NO/UNDER Side */}
                     <div
-                      className="bg-white h-full flex items-center justify-end px-1 sm:px-2 transition-all duration-500"
+                      className="bg-white h-full flex items-center justify-end px-1 sm:px-2 transition-all duration-500 min-w-0"
                       style={{ width: `${no}%` }}
                     >
-                      <span className="text-black text-[9px] sm:text-[10px] font-bold">
-                        {bet.type === "YES_NO" ? "No" : "Under"} {no}%
-                      </span>
+                      {no >= 10 && (
+                        <span className="text-black text-[9px] sm:text-[10px] font-bold whitespace-nowrap">
+                          {bet.type === "YES_NO" ? "No" : "Under"} {no}%
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
