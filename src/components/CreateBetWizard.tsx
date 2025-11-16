@@ -516,7 +516,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
                 </div>
               </div>
 
-              {/* Optional: Post to Group */}
+              {/* Optional: Post to Group - ONLY MUTUAL GROUPS */}
               <div className="mb-6">
                 <label className="flex items-center gap-2 cursor-pointer mb-3">
                   <input
@@ -531,24 +531,39 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
                 </label>
 
                 {h2hInGroup && (
-                  <div className="relative">
-                    <select
-                      value={h2hGroupSelection?.id || ""}
-                      onChange={(e) => {
-                        const group = groups.find(g => g.id === e.target.value);
-                        setH2hGroupSelection(group);
-                      }}
-                      className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white appearance-none cursor-pointer focus:outline-none focus:border-purple-500"
-                    >
-                      <option value="">Choose a group...</option>
-                      {groups.map(group => (
-                        <option key={group.id} value={group.id}>
-                          {group.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 pointer-events-none" />
-                  </div>
+                  <>
+                    {(() => {
+                      // Filter to only groups where BOTH users are members
+                      const mutualGroups = groups.filter(group =>
+                        group.memberIds?.includes(selectedFriend.uid)
+                      );
+
+                      return mutualGroups.length > 0 ? (
+                        <div className="relative">
+                          <select
+                            value={h2hGroupSelection?.id || ""}
+                            onChange={(e) => {
+                              const group = mutualGroups.find(g => g.id === e.target.value);
+                              setH2hGroupSelection(group);
+                            }}
+                            className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white appearance-none cursor-pointer focus:outline-none focus:border-purple-500"
+                          >
+                            <option value="">Choose a mutual group...</option>
+                            {mutualGroups.map(group => (
+                              <option key={group.id} value={group.id}>
+                                {group.name}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 pointer-events-none" />
+                        </div>
+                      ) : (
+                        <p className="text-xs text-zinc-500 mt-2 p-3 bg-zinc-800 rounded-lg">
+                          You and {selectedFriend.displayName || selectedFriend.firstName} have no mutual groups
+                        </p>
+                      );
+                    })()}
+                  </>
                 )}
               </div>
             </>
