@@ -548,7 +548,7 @@ export default function GroupDetailPage() {
         </section>
 
         {/* 🔶 ACTIVITY FEED */}
-        <section className="mt-6">
+        <div className="mt-6">
           <ActivityFeed groupId={group.id} groupName={group.name} />
         </section>
 

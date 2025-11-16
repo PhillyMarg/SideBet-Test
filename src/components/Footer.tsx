@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, Users, Settings } from "lucide-react";
+import { Home, Users, UserPlus, Settings } from "lucide-react";
 
 function Footer() {
   const router = useRouter();
@@ -77,6 +77,17 @@ function Footer() {
             >
               <Users className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2} />
               <span className="text-[10px] sm:text-xs font-medium">Groups</span>
+            </button>
+
+            {/* Friends */}
+            <button
+              onClick={() => router.push("/friends")}
+              className={`flex flex-col items-center justify-center gap-0.5 sm:gap-1 py-2 flex-1 max-w-[120px] transition-colors ${
+                isActive("/friends") ? "text-orange-500" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <UserPlus className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2} />
+              <span className="text-[10px] sm:text-xs font-medium">Friends</span>
             </button>
 
             {/* Settings */}

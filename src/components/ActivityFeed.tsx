@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { collection, query, where, orderBy, limit, onSnapshot, startAfter, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase/client";
-import { Clock, Users, TrendingUp, Trophy, Star } from "lucide-react";
 
 interface Activity {
   id: string;
@@ -30,12 +29,20 @@ export default function ActivityFeed({ groupId, groupName }: ActivityFeedProps) 
   const [hasMore, setHasMore] = useState(true);
   const [lastVisible, setLastVisible] = useState<any>(null);
   const [newActivityIds, setNewActivityIds] = useState<Set<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
 
   const ACTIVITIES_PER_PAGE = 20;
 
   // Real-time listener for new activities
   useEffect(() => {
-    if (!groupId) return;
+    if (!groupId) {
+      console.error("ActivityFeed: No groupId provided");
+      setError("No group ID provided");
+      setLoading(false);
+      return;
+    }
+
+    console.log("ActivityFeed: Starting listener for group:", groupId);
 
     const activitiesQuery = query(
       collection(db, "activities"),
@@ -44,15 +51,22 @@ export default function ActivityFeed({ groupId, groupName }: ActivityFeedProps) 
       limit(ACTIVITIES_PER_PAGE)
     );
 
-    const unsubscribe = onSnapshot(activitiesQuery, (snapshot) => {
-      const activitiesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Activity[];
+    const unsubscribe = onSnapshot(
+      activitiesQuery,
+      (snapshot) => {
+        console.log(`ActivityFeed: Received ${snapshot.docs.length} activities`);
 
-      // Detect new activities for fade-in animation
-      setActivities(prevActivities => {
-        const currentIds = new Set(prevActivities.map(a => a.id));
+        const activitiesData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          console.log("ActivityFeed: Activity doc:", doc.id, data);
+          return {
+            id: doc.id,
+            ...data
+          } as Activity;
+        });
+
+        // Detect new activities for fade-in animation
+        const currentIds = new Set(activities.map(a => a.id));
         const newIds = new Set<string>();
 
         activitiesData.forEach(activity => {
@@ -61,27 +75,32 @@ export default function ActivityFeed({ groupId, groupName }: ActivityFeedProps) 
           }
         });
 
-        if (newIds.size > 0) {
-          setNewActivityIds(newIds);
+        setNewActivityIds(newIds);
 
-          // Clear new activity IDs after animation
-          setTimeout(() => {
-            setNewActivityIds(new Set());
-          }, 1000);
-        }
+        // Clear new activity IDs after animation
+        setTimeout(() => {
+          setNewActivityIds(new Set());
+        }, 1000);
 
-        return activitiesData;
-      });
+        setActivities(activitiesData);
+        setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+        setHasMore(snapshot.docs.length === ACTIVITIES_PER_PAGE);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error("ActivityFeed: Error fetching activities:", err);
+        console.error("ActivityFeed: Error code:", err.code);
+        console.error("ActivityFeed: Error message:", err.message);
+        setError(err.message);
+        setLoading(false);
+      }
+    );
 
-      setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
-      setHasMore(snapshot.docs.length === ACTIVITIES_PER_PAGE);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching activities:", error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    return () => {
+      console.log("ActivityFeed: Cleaning up listener");
+      unsubscribe();
+    };
   }, [groupId]);
 
   // Load more activities
@@ -117,44 +136,56 @@ export default function ActivityFeed({ groupId, groupName }: ActivityFeedProps) 
     }
   };
 
-  // Format activity message
+  // Format activity message with orange user names
   const getActivityMessage = (activity: Activity) => {
     switch (activity.type) {
       case "user_joined":
-        return `${activity.userName} joined ${groupName || 'the group'}`;
+        return (
+          <>
+            <span className="text-orange-500 font-semibold">{activity.userName}</span>
+            <span className="text-white"> joined {groupName || 'the group'}</span>
+          </>
+        );
 
       case "user_left":
-        return `${activity.userName} left ${groupName || 'the group'}`;
+        return (
+          <>
+            <span className="text-orange-500 font-semibold">{activity.userName}</span>
+            <span className="text-zinc-400"> left {groupName || 'the group'}</span>
+          </>
+        );
 
       case "bet_created":
-        return `${activity.userName} created a bet "${activity.betTitle}"`;
+        return (
+          <>
+            <span className="text-orange-500 font-semibold">{activity.userName}</span>
+            <span className="text-white"> created a bet</span>
+            <div className="text-zinc-300 text-sm mt-1 italic">"{activity.betTitle}"</div>
+          </>
+        );
 
       case "bet_judged":
-        return `${activity.userName} won $${activity.winAmount?.toFixed(2)} on "${activity.betTitle}"`;
+        return (
+          <>
+            <span className="text-orange-500 font-semibold">{activity.userName}</span>
+            <span className="text-white"> won </span>
+            <span className="text-green-500 font-semibold">${activity.winAmount?.toFixed(2)}</span>
+            <span className="text-white"> on</span>
+            <div className="text-zinc-300 text-sm mt-1 italic">"{activity.betTitle}"</div>
+          </>
+        );
 
       case "milestone":
-        return `Group reached ${activity.milestoneCount} members!`;
+        return (
+          <>
+            <span className="text-white">Group reached </span>
+            <span className="text-orange-500 font-semibold">{activity.milestoneCount} members</span>
+            <span className="text-white"> 🎉</span>
+          </>
+        );
 
       default:
-        return "Unknown activity";
-    }
-  };
-
-  // Get icon for activity type
-  const getActivityIcon = (type: Activity["type"]) => {
-    switch (type) {
-      case "user_joined":
-        return <Users className="w-4 h-4 text-green-500" />;
-      case "user_left":
-        return <Users className="w-4 h-4 text-zinc-500" />;
-      case "bet_created":
-        return <TrendingUp className="w-4 h-4 text-blue-500" />;
-      case "bet_judged":
-        return <Trophy className="w-4 h-4 text-orange-500" />;
-      case "milestone":
-        return <Star className="w-4 h-4 text-yellow-500" />;
-      default:
-        return <Clock className="w-4 h-4 text-zinc-400" />;
+        return <span className="text-zinc-400">Unknown activity</span>;
     }
   };
 
@@ -176,46 +207,85 @@ export default function ActivityFeed({ groupId, groupName }: ActivityFeedProps) 
     return new Date(timestamp).toLocaleDateString();
   };
 
+  if (loading) {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-6">
+        <h3 className="text-lg font-bold text-white mb-4">Activity Feed</h3>
+        <div className="text-center py-8 text-zinc-400 text-sm">
+          Loading activities...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    // Check if it's an index error
+    const isIndexError = error.toLowerCase().includes("index") || error.toLowerCase().includes("requires an index");
+
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-6">
+        <h3 className="text-lg font-bold text-white mb-4">Activity Feed</h3>
+        <div className="text-center py-8">
+          {isIndexError ? (
+            <>
+              <p className="text-amber-500 text-sm mb-2">⚠️ Setting up Activity Feed...</p>
+              <p className="text-zinc-400 text-xs mb-4">
+                A database index is being created. This usually takes 1-5 minutes.
+              </p>
+              <p className="text-zinc-500 text-xs">
+                Refresh the page in a few minutes to see activities.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-red-500 text-sm mb-2">Error loading activities</p>
+              <p className="text-zinc-500 text-xs">{error}</p>
+              <p className="text-zinc-500 text-xs mt-2">
+                Check console for more details
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-6">
       <h3 className="text-lg font-bold text-white mb-4">Activity Feed</h3>
 
-      {loading ? (
-        <div className="text-center py-8 text-zinc-400 text-sm">
-          Loading activities...
-        </div>
-      ) : activities.length === 0 ? (
-        <div className="text-center py-8 text-zinc-400 text-sm">
-          No activity yet. Be the first to create a bet!
+      {activities.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-zinc-400 text-sm mb-2">
+            No activity yet in this group
+          </p>
+          <p className="text-zinc-500 text-xs">
+            Activity will appear when members join, create bets, or bets are judged
+          </p>
         </div>
       ) : (
         <>
-          <div className="space-y-3">
+          {/* Chat-style activity list */}
+          <div className="space-y-3 max-h-96 overflow-y-auto">
             {activities.map((activity) => (
               <div
                 key={activity.id}
                 className={`
-                  flex items-start gap-3 p-3 rounded-lg border border-zinc-800 bg-zinc-900/50
-                  transition-all duration-500
+                  py-2 px-3 rounded-lg transition-all duration-500
                   ${newActivityIds.has(activity.id)
-                    ? 'animate-fadeIn bg-orange-500/5 border-orange-500/20'
-                    : ''
+                    ? 'animate-fadeIn bg-orange-500/10'
+                    : 'hover:bg-zinc-800/50'
                   }
                 `}
               >
-                {/* Icon */}
-                <div className="flex-shrink-0 mt-0.5">
-                  {getActivityIcon(activity.type)}
+                {/* Message */}
+                <div className="text-sm leading-relaxed mb-1">
+                  {getActivityMessage(activity)}
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white">
-                    {getActivityMessage(activity)}
-                  </p>
-                  <p className="text-xs text-zinc-500 mt-1">
-                    {getTimeAgo(activity.timestamp)}
-                  </p>
+                {/* Timestamp */}
+                <div className="text-xs text-zinc-500">
+                  {getTimeAgo(activity.timestamp)}
                 </div>
               </div>
             ))}
