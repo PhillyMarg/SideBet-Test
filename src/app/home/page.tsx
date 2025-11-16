@@ -27,7 +27,7 @@ import Footer from "../../components/Footer";
 import BetFilters, { FilterTab, SortOption } from "../../components/BetFilters";
 import { getTimeRemaining } from "../../utils/timeUtils";
 import { filterBets, sortBets, getEmptyStateMessage, searchBets } from "../../utils/betFilters";
-import { Search } from "lucide-react";
+import { Search, Users, Dices } from "lucide-react";
 
 // Lazy load heavy wizard components
 const CreateBetWizard = lazy(() => import("../../components/CreateBetWizard"));
@@ -579,39 +579,51 @@ export default function HomePage() {
                     <li
                       key={group.id}
                       onClick={() => router.push(`/groups/${group.id}`)}
-                      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col text-left shadow-md hover:border-orange-500 hover:scale-[1.02] transition-transform duration-200 text-base cursor-pointer"
+                      className="
+                        relative
+                        rounded-2xl
+                        p-4 sm:p-5
+                        min-h-[88px] sm:min-h-[90px]
+                        cursor-pointer
+                        transition-all duration-200
+                        hover:scale-[1.02]
+                        hover:shadow-lg hover:shadow-orange-500/20
+                        active:scale-[0.98]
+                        bg-gradient-to-b from-orange-500/20 via-orange-500/10 to-black
+                        flex flex-col justify-center
+                        gap-2 sm:gap-3
+                      "
                     >
-                      <div className="flex justify-between items-center mb-3">
-                        <h3 className="font-semibold text-white text-sm sm:text-base">
+                      {/* Row 1: Group Name (left) + Members (right) */}
+                      <div className="flex items-center justify-between">
+                        {/* Group Name */}
+                        <h3 className="text-base sm:text-lg font-bold text-white truncate flex-1 mr-3">
                           {group.name}
                         </h3>
-                        <p className="text-xs text-gray-400">
-                          {group.memberIds?.length ?? 0} members
-                        </p>
+
+                        {/* Members Count */}
+                        <div className="flex items-center gap-1 text-xs sm:text-sm text-zinc-300 flex-shrink-0">
+                          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          <span className="font-medium">{group.memberIds?.length || 0}</span>
+                        </div>
                       </div>
 
-                      {group.tagline && (
-                        <p className="text-sm text-gray-300 mb-3 line-clamp-2">
-                          {group.tagline}
-                        </p>
-                      )}
+                      {/* Row 2: Wager Range (left) + Active Bets (right) */}
+                      <div className="flex items-center justify-between">
+                        {/* Wager Range */}
+                        <div className="text-xs sm:text-sm text-zinc-400">
+                          ${group.settings?.min_bet || 0} - ${group.settings?.max_bet || 0}
+                        </div>
 
-                      <div className="flex justify-between text-sm text-gray-400">
-                        <span>
-                          Wager Range:{" "}
-                          {group.settings?.min_bet && group.settings?.max_bet
-                            ? `$${group.settings.min_bet} – $${group.settings.max_bet}`
-                            : "Not set"}
-                        </span>
-                        <span
-                          className={`font-semibold ${
-                            activeCount > 0 ? "text-orange-500" : "text-gray-500"
-                          }`}
-                        >
-                          {activeCount > 0
-                            ? `${activeCount} Active Bets`
-                            : "No Active Bets"}
-                        </span>
+                        {/* Active Bets - Conditional styling and text */}
+                        <div className={`flex items-center gap-1 text-xs sm:text-sm flex-shrink-0 ${
+                          activeCount > 0 ? 'text-orange-500' : 'text-zinc-400'
+                        }`}>
+                          <Dices className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          <span className="font-medium">
+                            {activeCount > 0 ? activeCount : 'No active bets'}
+                          </span>
+                        </div>
                       </div>
                     </li>
                   );
