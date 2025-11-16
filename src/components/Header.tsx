@@ -299,14 +299,22 @@ export default function Header() {
 
       {/* Create Bet Wizard */}
       {showCreateBet && (
-        <Suspense fallback={null}>
-          <CreateBetWizard
-            isOpen={showCreateBet}
-            onClose={() => setShowCreateBet(false)}
-            groups={groups}
-            onCreateBet={handleCreateBet}
-          />
-        </Suspense>
+        <div
+          className="fixed inset-0 flex justify-center items-center z-50 bg-black/60 p-4"
+          onClick={() => setShowCreateBet(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto p-5"
+          >
+            <Suspense fallback={null}>
+              <CreateBetWizard
+                user={user}
+                onClose={() => setShowCreateBet(false)}
+              />
+            </Suspense>
+          </div>
+        </div>
       )}
 
       {/* Create Group Wizard */}

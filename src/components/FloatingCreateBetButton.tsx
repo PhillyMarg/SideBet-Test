@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { auth } from "../lib/firebase/client";
 import CreateBetWizard from "./CreateBetWizard";
 
 interface FloatingCreateBetButtonProps {
@@ -25,6 +27,14 @@ export default function FloatingCreateBetButton({
   onCreateBet,
 }: FloatingCreateBetButtonProps) {
   const [showWizard, setShowWizard] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
 
   return (
     <>
@@ -63,12 +73,22 @@ export default function FloatingCreateBetButton({
       </button>
 
       {/* Wizard Modal */}
-      <CreateBetWizard
-        isOpen={showWizard}
-        onClose={() => setShowWizard(false)}
-        groups={groups}
-        onCreateBet={onCreateBet}
-      />
+      {showWizard && user && (
+        <div
+          className="fixed inset-0 flex justify-center items-center z-[60] bg-black/60 p-4"
+          onClick={() => setShowWizard(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto p-5"
+          >
+            <CreateBetWizard
+              user={user}
+              onClose={() => setShowWizard(false)}
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 }

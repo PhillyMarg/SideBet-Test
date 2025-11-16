@@ -126,12 +126,12 @@ function CreateBetContent() {
             </button>
           </div>
         ) : (
-          <CreateBetWizard
-            isOpen={showWizard}
-            onClose={() => router.push("/home")}
-            groups={groups}
-            onCreateBet={handleCreateBet}
-          />
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl p-5">
+            <CreateBetWizard
+              user={user}
+              onClose={() => router.push("/home")}
+            />
+          </div>
         )}
       </div>
       <Footer />
