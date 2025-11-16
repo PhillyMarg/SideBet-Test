@@ -2,12 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import type { Dispatch, SetStateAction } from "react";
 
-interface ActiveBetCardProps {
+export interface ActiveBetCardProps {
   bet: any;
   user: any;
   onPick?: (bet: any, pick: string | number) => Promise<void>;
-  onJudge?: (bet: any) => void;
+  onJudge?: Dispatch<SetStateAction<any>>;
   groupName?: string;
 }
 
