@@ -27,9 +27,11 @@ import ArchivedBetCard from "../../../components/ArchivedBetCard";
 import FloatingCreateBetButton from "../../../components/FloatingCreateBetButton";
 import Footer from "../../../components/Footer";
 import BetFilters, { FilterTab, SortOption } from "../../../components/BetFilters";
+import ActivityFeed from "../../../components/ActivityFeed";
 import { getTimeRemaining } from "../../../utils/timeUtils";
 import { filterBets, sortBets, getEmptyStateMessage, searchBets } from "../../../utils/betFilters";
 import { removeUserFromGroupBets } from "../../../utils/groupHelpers";
+import { createActivity } from "../../../lib/activityHelpers";
 import { LogOut, X, Trash2 } from "lucide-react";
 
 export default function GroupDetailPage() {
@@ -123,7 +125,26 @@ export default function GroupDetailPage() {
     };
 
     try {
-      await addDoc(collection(db, "bets"), betDoc);
+      const betRef = await addDoc(collection(db, "bets"), betDoc);
+
+      // Get user's display name
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const userData = userDoc.data();
+      const userName = userData?.displayName ||
+                      `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() ||
+                      user.email ||
+                      "Unknown User";
+
+      // Create activity
+      await createActivity({
+        groupId: betData.groupId,
+        type: "bet_created",
+        userId: user.uid,
+        userName: userName,
+        betId: betRef.id,
+        betTitle: betData.title
+      });
+
       alert("✅ Bet created successfully!");
     } catch (err) {
       console.error("Error creating bet:", err);
@@ -138,13 +159,29 @@ export default function GroupDetailPage() {
     try {
       setIsLeaving(true);
 
-      // Step 1: Remove user's picks from all group bets
+      // Step 1: Get user's display name
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const userData = userDoc.data();
+      const userName = userData?.displayName ||
+                      `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() ||
+                      user.email ||
+                      "Unknown User";
+
+      // Step 2: Remove user's picks from all group bets
       await removeUserFromGroupBets(groupId as string, user.uid);
 
-      // Step 2: Remove user from group's memberIds array
+      // Step 3: Remove user from group's memberIds array
       const groupRef = doc(db, "groups", groupId as string);
       await updateDoc(groupRef, {
         memberIds: arrayRemove(user.uid),
+      });
+
+      // Step 4: Create activity
+      await createActivity({
+        groupId: groupId as string,
+        type: "user_left",
+        userId: user.uid,
+        userName: userName
       });
 
       // Success feedback
@@ -510,72 +547,78 @@ export default function GroupDetailPage() {
           )}
         </section>
 
-       {/* 🔶 USER STATS BAR */}
-        <section className="bg-zinc-900 border-2 border-orange-500/80 rounded-2xl p-5 shadow-lg mt-6">
-          <h2 className="text-xl font-bold mb-1 text-left text-white">Your Stats</h2>
+        {/* 🔶 USER STATS & ACTIVITY FEED */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          {/* Your Stats */}
+          <section className="bg-zinc-900 border-2 border-orange-500/80 rounded-2xl p-5 shadow-lg">
+            <h2 className="text-xl font-bold mb-1 text-left text-white">Your Stats</h2>
 
-          {(() => {
-            const userStats = leaderboard.find((l) => l.user_id === user?.uid);
-            
-            if (!userStats) {
+            {(() => {
+              const userStats = leaderboard.find((l) => l.user_id === user?.uid);
+
+              if (!userStats) {
+                return (
+                  <p className="text-sm text-gray-400">
+                    No stats yet. Place your first bet to get started!
+                  </p>
+                );
+              }
+
+              const balance = userStats.balance || 0;
+              const wins = userStats.wins || 0;
+              const losses = userStats.losses || 0;
+              const ties = userStats.ties || 0;
+              const totalGames = wins + losses + ties;
+              const winPercentage = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
+              const currentStreak = userStats.current_streak || 0;
+              const streakType = userStats.streak_type || "W";
+
               return (
-                <p className="text-sm text-gray-400">
-                  No stats yet. Place your first bet to get started!
-                </p>
+                <>
+                  <p
+                    className={`text-sm mb-4 ${
+                      balance >= 0 ? "text-green-400" : "text-red-400"
+                    }`}
+                  >
+                    Total Balance: {balance >= 0 ? "+" : ""}${balance.toFixed(2)}
+                  </p>
+
+                  <div className="grid grid-cols-3 gap-3 text-center text-sm font-semibold">
+                    <div className="bg-zinc-800 rounded-xl py-3 flex flex-col justify-center">
+                      <p className="text-xs text-gray-400 mb-1">Record</p>
+                      <p className="text-lg font-bold text-white">
+                        {wins}-{losses}-{ties}
+                      </p>
+                    </div>
+
+                    <div className="bg-zinc-800 rounded-xl py-3 flex flex-col justify-center">
+                      <p className="text-xs text-gray-400 mb-1">Win %</p>
+                      <p className="text-lg font-bold text-white">{winPercentage}%</p>
+                    </div>
+
+                    <div className="bg-zinc-800 rounded-xl py-3 flex flex-col justify-center">
+                      <p className="text-xs text-gray-400 mb-1">Current Streak</p>
+                      <p
+                        className={`text-lg font-bold ${
+                          streakType === "W" && currentStreak > 0
+                            ? "text-green-400"
+                            : streakType === "L" && currentStreak > 0
+                            ? "text-red-400"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        {currentStreak > 0 ? `${currentStreak}${streakType}` : "-"}
+                      </p>
+                    </div>
+                  </div>
+                </>
               );
-            }
+            })()}
+          </section>
 
-            const balance = userStats.balance || 0;
-            const wins = userStats.wins || 0;
-            const losses = userStats.losses || 0;
-            const ties = userStats.ties || 0;
-            const totalGames = wins + losses + ties;
-            const winPercentage = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
-            const currentStreak = userStats.current_streak || 0;
-            const streakType = userStats.streak_type || "W";
-
-            return (
-              <>
-                <p
-                  className={`text-sm mb-4 ${
-                    balance >= 0 ? "text-green-400" : "text-red-400"
-                  }`}
-                >
-                  Total Balance: {balance >= 0 ? "+" : ""}${balance.toFixed(2)}
-                </p>
-
-                <div className="grid grid-cols-3 gap-3 text-center text-sm font-semibold">
-                  <div className="bg-zinc-800 rounded-xl py-3 flex flex-col justify-center">
-                    <p className="text-xs text-gray-400 mb-1">Record</p>
-                    <p className="text-lg font-bold text-white">
-                      {wins}-{losses}-{ties}
-                    </p>
-                  </div>
-
-                  <div className="bg-zinc-800 rounded-xl py-3 flex flex-col justify-center">
-                    <p className="text-xs text-gray-400 mb-1">Win %</p>
-                    <p className="text-lg font-bold text-white">{winPercentage}%</p>
-                  </div>
-
-                  <div className="bg-zinc-800 rounded-xl py-3 flex flex-col justify-center">
-                    <p className="text-xs text-gray-400 mb-1">Current Streak</p>
-                    <p
-                      className={`text-lg font-bold ${
-                        streakType === "W" && currentStreak > 0
-                          ? "text-green-400"
-                          : streakType === "L" && currentStreak > 0
-                          ? "text-red-400"
-                          : "text-gray-400"
-                      }`}
-                    >
-                      {currentStreak > 0 ? `${currentStreak}${streakType}` : "-"}
-                    </p>
-                  </div>
-                </div>
-              </>
-            );
-          })()}
-        </section>
+          {/* Activity Feed */}
+          <ActivityFeed groupId={group.id} groupName={group.name} />
+        </div>
 
         {/* 🎯 ACTIVE BETS */}
         <section className="mt-6">

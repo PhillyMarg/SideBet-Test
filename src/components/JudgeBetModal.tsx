@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { doc, updateDoc, writeBatch, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase/client";
+import { createActivity } from "../lib/activityHelpers";
 
 interface JudgeBetModalProps {
   bet: any;
@@ -103,6 +104,27 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
       }
 
       await batch.commit();
+
+      // Create activity for each winner
+      for (const winnerId of winners) {
+        // Get winner's name from users collection
+        const userDoc = await getDoc(doc(db, "users", winnerId));
+        const userData = userDoc.data();
+        const winnerName = userData?.displayName ||
+                          `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() ||
+                          userData?.email ||
+                          "Unknown User";
+
+        await createActivity({
+          groupId: bet.groupId,
+          type: "bet_judged",
+          userId: winnerId,
+          userName: winnerName,
+          betId: bet.id,
+          betTitle: bet.title,
+          winAmount: payoutPerWinner
+        });
+      }
 
       alert(
         `✅ Bet judged! ${winners.length} winner${
