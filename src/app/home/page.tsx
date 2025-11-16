@@ -59,10 +59,9 @@ export default function HomePage() {
   const [sortBy, setSortBy] = useState<SortOption>("closingSoon");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Groups filtering state
+  // Groups filtering state - simplified
   const [groupSearchQuery, setGroupSearchQuery] = useState("");
-  const [groupFilter, setGroupFilter] = useState("all"); // "all" | "hasRecentBets" | "hasClosingSoon"
-  const [groupSortBy, setGroupSortBy] = useState("alphabetical");
+  const [groupView, setGroupView] = useState("all"); // "all" | "recent"
   const [groupBetsMap, setGroupBetsMap] = useState<{ [groupId: string]: any[] }>({});
 
   const handleLogout = async () => {
@@ -234,39 +233,26 @@ export default function HomePage() {
     return sorted;
   }, [activeBets, activeTab, searchQuery, sortBy, user, groups]);
 
-  // Helper function: Does group have bets in last 7 days?
-  const hasRecentBets = (groupId: string) => {
+  // Track last active bet time per group
+  const getLastBetTime = (groupId: string): number => {
     const groupBets = groupBetsMap[groupId] || [];
-    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-    return groupBets.some(bet =>
-      new Date(bet.createdAt).getTime() > sevenDaysAgo
-    );
-  };
+    if (groupBets.length === 0) return 0;
 
-  // Helper function: Does group have bets closing in next 24 hours?
-  const hasClosingSoonBets = (groupId: string) => {
-    const groupBets = groupBetsMap[groupId] || [];
-    const now = Date.now();
-    const oneDayFromNow = now + (24 * 60 * 60 * 1000);
-
-    return groupBets.some(bet => {
-      const closingTime = new Date(bet.closingAt).getTime();
-      return closingTime > now && closingTime <= oneDayFromNow && bet.status === "OPEN";
+    // Get the most recent bet's createdAt or updatedAt
+    const times = groupBets.map(bet => {
+      const created = new Date(bet.createdAt).getTime();
+      const updated = bet.updatedAt ? new Date(bet.updatedAt).getTime() : created;
+      return Math.max(created, updated);
     });
+
+    return Math.max(...times);
   };
 
   // Filter and sort groups
   const filteredAndSortedGroups = useMemo(() => {
     let displayGroups = groups;
 
-    // 1. Apply filter
-    if (groupFilter === "hasRecentBets") {
-      displayGroups = groups.filter(group => hasRecentBets(group.id));
-    } else if (groupFilter === "hasClosingSoon") {
-      displayGroups = groups.filter(group => hasClosingSoonBets(group.id));
-    }
-
-    // 2. Apply search
+    // 1. Apply search
     if (groupSearchQuery.trim()) {
       displayGroups = displayGroups.filter(group => {
         const query = groupSearchQuery.toLowerCase();
@@ -276,24 +262,23 @@ export default function HomePage() {
       });
     }
 
-    // 3. Apply sort
-    const sorted = [...displayGroups].sort((a, b) => {
-      switch (groupSortBy) {
-        case "alphabetical":
-          return a.name.localeCompare(b.name);
-        case "mostBets":
-          return (groupBetsMap[b.id]?.length || 0) - (groupBetsMap[a.id]?.length || 0);
-        case "memberCount":
-          return (b.memberIds?.length || 0) - (a.memberIds?.length || 0);
-        case "newest":
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        default:
-          return 0;
-      }
-    });
+    // 2. Apply view (All vs Recent)
+    if (groupView === "recent") {
+      // Sort by most recent bet activity
+      const sortedGroups = [...displayGroups].sort((a, b) => {
+        return getLastBetTime(b.id) - getLastBetTime(a.id);
+      });
+      displayGroups = sortedGroups;
+    } else {
+      // "all" - sort alphabetically by default
+      const sortedGroups = [...displayGroups].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
+      displayGroups = sortedGroups;
+    }
 
-    return sorted;
-  }, [groups, groupFilter, groupSearchQuery, groupSortBy, groupBetsMap]);
+    return displayGroups;
+  }, [groups, groupSearchQuery, groupView, groupBetsMap]);
 
   const getGroupName = (groupId: string) =>
     groups.find((g) => g.id === groupId)?.name || "Unknown Group";
@@ -523,13 +508,13 @@ export default function HomePage() {
           </ul>
         ) : groups.length > 0 ? (
           <>
-            {/* Single Row: Search + Filters */}
+            {/* Single Row: Search (60%) + Dropdown (40%) */}
             <div
               className="flex items-center gap-1.5 sm:gap-2 mb-4 w-full mx-auto"
               style={{ maxWidth: "var(--content-width)" }}
             >
-              {/* Search */}
-              <div className="flex-1 max-w-[45%] sm:max-w-[50%]">
+              {/* Search Bar - 60% width */}
+              <div className="flex-1 max-w-[60%]">
                 <div className="relative">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
                   <input
@@ -537,35 +522,20 @@ export default function HomePage() {
                     value={groupSearchQuery}
                     onChange={(e) => setGroupSearchQuery(e.target.value)}
                     placeholder="Search..."
-                    className="w-full pl-7 pr-2 py-1.5 sm:py-2 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                    className="w-full pl-7 pr-2 py-1.5 sm:py-2 text-xs sm:text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
                   />
                 </div>
               </div>
 
-              {/* Filter */}
-              <div className="flex-shrink-0 w-[28%] sm:w-[25%]">
+              {/* View Dropdown - 40% width */}
+              <div className="flex-shrink-0 max-w-[40%] w-full">
                 <select
-                  value={groupFilter}
-                  onChange={(e) => setGroupFilter(e.target.value)}
-                  className="w-full px-1.5 sm:px-2 py-1.5 sm:py-2 text-[10px] sm:text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-orange-500 truncate"
+                  value={groupView}
+                  onChange={(e) => setGroupView(e.target.value)}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-orange-500"
                 >
                   <option value="all">All</option>
-                  <option value="hasRecentBets">Recent</option>
-                  <option value="hasClosingSoon">Soon</option>
-                </select>
-              </div>
-
-              {/* Sort */}
-              <div className="flex-shrink-0 w-[28%] sm:w-[25%]">
-                <select
-                  value={groupSortBy}
-                  onChange={(e) => setGroupSortBy(e.target.value)}
-                  className="w-full px-1.5 sm:px-2 py-1.5 sm:py-2 text-[10px] sm:text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-orange-500 truncate"
-                >
-                  <option value="alphabetical">A-Z</option>
-                  <option value="mostBets">Bets</option>
-                  <option value="memberCount">Members</option>
-                  <option value="newest">New</option>
+                  <option value="recent">Recent</option>
                 </select>
               </div>
             </div>
@@ -585,13 +555,9 @@ export default function HomePage() {
                       Clear search
                     </button>
                   </>
-                ) : groupFilter === "hasRecentBets" ? (
+                ) : groupView === "recent" ? (
                   <p className="text-zinc-400 text-sm">
-                    No groups with recent bets (last 7 days)
-                  </p>
-                ) : groupFilter === "hasClosingSoon" ? (
-                  <p className="text-zinc-400 text-sm">
-                    No groups with bets closing in the next 24 hours
+                    No groups with recent bet activity
                   </p>
                 ) : (
                   <p className="text-zinc-400 text-sm">
