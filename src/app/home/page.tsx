@@ -201,7 +201,17 @@ export default function HomePage() {
     );
   }, [bets]);
 
-  const activeBets = bets.filter((bet) => bet.status !== "JUDGED");
+  // Filter to only show bets from groups user is currently in
+  const userGroupIds = useMemo(() => {
+    return groups.map(g => g.id);
+  }, [groups]);
+
+  // Filter active bets to only include those from current groups
+  const activeBets = useMemo(() => {
+    return bets.filter((bet) =>
+      bet.status !== "JUDGED" && userGroupIds.includes(bet.groupId)
+    );
+  }, [bets, userGroupIds]);
 
   // Apply filters and sorting
   const filteredAndSortedBets = useMemo(() => {

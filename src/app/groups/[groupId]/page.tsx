@@ -725,13 +725,13 @@ export default function GroupDetailPage() {
             </p>
 
             <p className="text-sm text-zinc-400 mb-4">
-              You'll be removed from all bets in this group and lose access to group
+              You'll be removed from all open bets in this group and lose access to group
               activity.
             </p>
 
             <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3 mb-4">
               <p className="text-sm text-orange-500">
-                ⚠️ Your picks will be removed from active bets in this group.
+                ⚠️ Your picks will be removed from open bets. Closed/judged bets remain unchanged.
               </p>
             </div>
 
