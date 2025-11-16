@@ -120,6 +120,9 @@ function CreateBetContent() {
   );
 }
 
+// Force dynamic rendering for this page since it uses useSearchParams
+export const dynamic = 'force-dynamic';
+
 // Main page component with Suspense boundary
 export default function CreateBetPage() {
   return (
