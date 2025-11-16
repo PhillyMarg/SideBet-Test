@@ -27,6 +27,7 @@ import Footer from "../../components/Footer";
 import BetFilters, { FilterTab, SortOption } from "../../components/BetFilters";
 import { getTimeRemaining } from "../../utils/timeUtils";
 import { filterBets, sortBets, getEmptyStateMessage, searchBets } from "../../utils/betFilters";
+import { createActivity } from "../../lib/activityHelpers";
 import { Search, Users, Dices } from "lucide-react";
 
 // Lazy load heavy wizard components
@@ -311,7 +312,26 @@ export default function HomePage() {
     };
 
     try {
-      await addDoc(collection(db, "bets"), betDoc);
+      const betRef = await addDoc(collection(db, "bets"), betDoc);
+
+      // Get user's display name
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const userData = userDoc.data();
+      const userName = userData?.displayName ||
+                      `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() ||
+                      user.email ||
+                      "Unknown User";
+
+      // Create activity
+      await createActivity({
+        groupId: betData.groupId,
+        type: "bet_created",
+        userId: user.uid,
+        userName: userName,
+        betId: betRef.id,
+        betTitle: betData.title
+      });
+
       setShowCreateBet(false);
     } catch (err) {
       console.error("Error creating bet:", err);
@@ -762,9 +782,38 @@ export default function HomePage() {
                       return;
                     }
 
+                    // Update group with new member
                     await updateDoc(groupRef, {
                       memberIds: [...(groupData.memberIds || []), user.uid],
                     });
+
+                    // Get user's display name
+                    const userDoc = await getDoc(doc(db, "users", user.uid));
+                    const userData = userDoc.data();
+                    const userName = userData?.displayName ||
+                                    `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() ||
+                                    user.email ||
+                                    "Unknown User";
+
+                    // Create activity for user joining
+                    await createActivity({
+                      groupId: matchSnap.id,
+                      type: "user_joined",
+                      userId: user.uid,
+                      userName: userName
+                    });
+
+                    // Check for milestone
+                    const newMemberCount = (groupData.memberIds || []).length + 1;
+                    if (newMemberCount === 5 || newMemberCount === 10 || newMemberCount === 20) {
+                      await createActivity({
+                        groupId: matchSnap.id,
+                        type: "milestone",
+                        userId: "group_system",
+                        userName: "Group",
+                        milestoneCount: newMemberCount
+                      });
+                    }
 
                     alert(`✅ Successfully joined "${groupData.name}"`);
                     setShowJoinGroup(false);
