@@ -26,7 +26,7 @@ import GroupCardSkeleton from "../../components/GroupCardSkeleton";
 import Footer from "../../components/Footer";
 import BetFilters, { FilterTab, SortOption } from "../../components/BetFilters";
 import { getTimeRemaining } from "../../utils/timeUtils";
-import { filterBets, sortBets, isClosingSoon, getEmptyStateMessage, searchBets } from "../../utils/betFilters";
+import { filterBets, sortBets, getEmptyStateMessage, searchBets } from "../../utils/betFilters";
 import { Search } from "lucide-react";
 
 // Lazy load heavy wizard components
@@ -459,14 +459,7 @@ export default function HomePage() {
                   style={{ maxWidth: "var(--content-width)" }}
                 >
                   {(showAllBets ? filteredAndSortedBets : filteredAndSortedBets.slice(0, 5)).map((bet) => (
-                    <li key={bet.id} className="relative">
-                      {/* Closing Soon Indicator */}
-                      {isClosingSoon(bet.closingAt) && (
-                        <div className="absolute -top-2 -right-2 z-10 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg flex items-center gap-1">
-                          <span>🔥</span>
-                          <span>Closing Soon</span>
-                        </div>
-                      )}
+                    <li key={bet.id}>
                       <ActiveBetCard
                         bet={bet}
                         user={user}

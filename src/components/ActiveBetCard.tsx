@@ -30,7 +30,7 @@ function ActiveBetCard({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const { text: countdownText, isClosed } = getTimeRemaining(bet.closingAt);
+  const { isClosed } = getTimeRemaining(bet.closingAt);
   const wager = bet.perUserWager ?? 0;
   const people = bet.participants?.length ?? 0;
   const pot = wager * people;
@@ -38,6 +38,44 @@ function ActiveBetCard({
   const { yes, no } = getLivePercentages(bet);
   const isCreator = bet.creatorId === user?.uid;
   const needsJudging = isClosed && bet.status !== "JUDGED" && isCreator;
+
+  // Helper function to format closing time
+  const getClosingTimeDisplay = () => {
+    if (!bet.closingAt) return "No close time";
+
+    const now = Date.now();
+    const closingTime = new Date(bet.closingAt).getTime();
+
+    if (isNaN(closingTime)) return "No close time";
+    if (closingTime <= now) return "CLOSED";
+
+    const timeUntilClose = closingTime - now;
+    const oneWeek = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+
+    // If closes in more than 7 days, show date format
+    if (timeUntilClose > oneWeek) {
+      const closingDate = new Date(bet.closingAt);
+      const day = String(closingDate.getDate()).padStart(2, '0');
+      const month = String(closingDate.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+      const year = String(closingDate.getFullYear()).slice(-2); // Last 2 digits
+
+      return `Closes ${day}/${month}/${year}`;
+    }
+
+    // If closes in 7 days or less, show countdown
+    const days = Math.floor(timeUntilClose / (24 * 60 * 60 * 1000));
+    const hours = Math.floor((timeUntilClose % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+
+    if (days > 0) {
+      return `Closes in ${days} day${days !== 1 ? 's' : ''}, ${hours} hour${hours !== 1 ? 's' : ''}`;
+    } else if (hours > 0) {
+      const minutes = Math.floor((timeUntilClose % (60 * 60 * 1000)) / (60 * 1000));
+      return `Closes in ${hours} hour${hours !== 1 ? 's' : ''}, ${minutes} min`;
+    } else {
+      const minutes = Math.floor(timeUntilClose / (60 * 1000));
+      return `Closes in ${minutes} min`;
+    }
+  };
 
   // Fetch creator data on mount
   useEffect(() => {
@@ -148,7 +186,7 @@ function ActiveBetCard({
           </span>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
-          <span className="text-[9px] sm:text-xs font-bold text-orange-500">{countdownText}</span>
+          <span className="text-[9px] sm:text-xs font-bold text-orange-500">{getClosingTimeDisplay()}</span>
           {isCreator && (
             <button
               onClick={() => setShowDeleteModal(true)}
