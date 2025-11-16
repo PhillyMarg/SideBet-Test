@@ -24,6 +24,7 @@ import {
   ChevronDown,
   ChevronRight
 } from "lucide-react";
+import Footer from "@/components/Footer";
 
 interface User {
   uid: string;
@@ -345,7 +346,8 @@ export default function FriendsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black pb-20 pt-16">
+    <>
+      <div className="min-h-screen bg-black pb-20 pt-16">
       {/* Header */}
       <div className="px-4 sm:px-6 py-4 border-b border-zinc-800">
         <div className="flex items-center justify-between">
@@ -636,6 +638,10 @@ export default function FriendsPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+
+      {/* Footer */}
+      <Footer />
+    </>
   );
 }
