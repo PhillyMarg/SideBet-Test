@@ -55,6 +55,8 @@ export default function FriendsPage() {
   const [friends, setFriends] = useState<User[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<User[]>([]);
   const [sentRequests, setSentRequests] = useState<User[]>([]);
+  const [suggestions, setSuggestions] = useState<User[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
 
   // UI state
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,6 +66,7 @@ export default function FriendsPage() {
 
   // Collapsible sections
   const [showFriends, setShowFriends] = useState(true);
+  const [showSuggestions, setShowSuggestions] = useState(true);
   const [showIncoming, setShowIncoming] = useState(true);
   const [showSent, setShowSent] = useState(true);
 
@@ -176,6 +179,85 @@ export default function FriendsPage() {
     return () => unsubscribe();
   }, [user]);
 
+  // Load groups
+  useEffect(() => {
+    if (!user) return;
+
+    const loadGroups = async () => {
+      try {
+        const groupsQuery = query(
+          collection(db, "groups"),
+          where("memberIds", "array-contains", user.uid)
+        );
+        const snapshot = await getDocs(groupsQuery);
+        const groupsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setGroups(groupsData);
+      } catch (error) {
+        console.error("Error loading groups:", error);
+      }
+    };
+
+    loadGroups();
+  }, [user]);
+
+  // Load suggestions
+  useEffect(() => {
+    if (!user || groups.length === 0) return;
+
+    const loadSuggestions = async () => {
+      try {
+        // Get all member IDs from user's groups
+        const allMemberIds = new Set<string>();
+        groups.forEach(group => {
+          group.memberIds?.forEach((memberId: string) => {
+            if (memberId !== user.uid) {
+              allMemberIds.add(memberId);
+            }
+          });
+        });
+
+        // Get existing friend/request IDs
+        const excludeIds = new Set<string>([
+          user.uid,
+          ...friends.map(f => f.uid),
+          ...incomingRequests.map(r => r.uid),
+          ...sentRequests.map(r => r.uid)
+        ]);
+
+        // Filter to only non-friends
+        const suggestionIds = Array.from(allMemberIds).filter(
+          id => !excludeIds.has(id)
+        );
+
+        // Fetch user data for suggestions
+        const suggestionsData = await Promise.all(
+          suggestionIds.slice(0, 10).map(async (id) => {
+            const userDoc = await getDoc(doc(db, "users", id));
+            if (userDoc.exists()) {
+              return { uid: id, ...userDoc.data() } as User;
+            }
+            return null;
+          })
+        );
+
+        // Filter out nulls and set
+        setSuggestions(suggestionsData.filter(s => s !== null) as User[]);
+
+      } catch (error) {
+        console.error("Error loading suggestions:", error);
+      }
+    };
+
+    loadSuggestions();
+  }, [user, groups, friends, incomingRequests, sentRequests]);
+
+  // Helper to count mutual groups
+  const getMutualGroupsCount = (userId: string): number => {
+    return groups.filter(group =>
+      group.memberIds?.includes(userId)
+    ).length;
+  };
+
   // Search users
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -251,6 +333,9 @@ export default function FriendsPage() {
       setSearchQuery("");
       setSearchResults([]);
       setShowAddModal(false);
+
+      // Remove from suggestions
+      setSuggestions(prev => prev.filter(s => s.uid !== friendId));
 
     } catch (error: any) {
       console.error("Error sending friend request:", error);
@@ -404,10 +489,12 @@ export default function FriendsPage() {
                     </div>
                   </div>
 
-                  {/* Challenge Button - Save for Phase 2 */}
+                  {/* Challenge Button */}
                   <button
-                    disabled
-                    className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-lg text-xs font-medium opacity-50 cursor-not-allowed"
+                    onClick={() => {
+                      router.push(`/create-bet?h2h=true&friendId=${friend.uid}`);
+                    }}
+                    className="px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-xs font-medium transition-colors"
                   >
                     Challenge
                   </button>
@@ -418,8 +505,93 @@ export default function FriendsPage() {
         )}
       </div>
 
+      {/* Suggestions Section */}
+      <div className="px-4 sm:px-6 py-4 border-t border-zinc-800">
+        <button
+          onClick={() => setShowSuggestions(!showSuggestions)}
+          className="flex items-center gap-2 mb-3 text-white hover:text-orange-500 transition-colors"
+        >
+          {showSuggestions ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+          <h2 className="text-lg font-semibold">
+            Suggestions ({suggestions.length})
+          </h2>
+        </button>
+
+        {showSuggestions && (
+          <div className="space-y-2">
+            {suggestions.length === 0 ? (
+              <p className="text-zinc-400 text-sm py-4">
+                No suggestions right now. Join more groups to meet new people!
+              </p>
+            ) : (
+              <>
+                <p className="text-xs text-zinc-500 mb-3">
+                  People in your groups who you might know
+                </p>
+
+                {suggestions.map(suggestion => {
+                  const mutualGroups = groups.filter(g => g.memberIds?.includes(suggestion.uid));
+
+                  return (
+                    <div
+                      key={suggestion.uid}
+                      className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {/* Avatar */}
+                          <div className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+                            <span className="text-orange-500 text-sm font-bold">
+                              {suggestion.firstName?.charAt(0) || suggestion.displayName?.charAt(0) || "?"}
+                            </span>
+                          </div>
+
+                          {/* Name */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-medium text-sm truncate">
+                              {suggestion.displayName || `${suggestion.firstName} ${suggestion.lastName}`}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Add Button */}
+                        <button
+                          onClick={() => sendFriendRequest(suggestion.uid)}
+                          className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-medium transition-colors flex-shrink-0"
+                        >
+                          Add
+                        </button>
+                      </div>
+
+                      {/* Mutual Groups */}
+                      {mutualGroups.length > 0 && (
+                        <div className="flex flex-wrap gap-1 ml-11">
+                          {mutualGroups.slice(0, 3).map(group => (
+                            <span
+                              key={group.id}
+                              className="text-[10px] px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-full"
+                            >
+                              {group.name}
+                            </span>
+                          ))}
+                          {mutualGroups.length > 3 && (
+                            <span className="text-[10px] px-2 py-0.5 text-zinc-500">
+                              +{mutualGroups.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Pending Requests Section */}
-      <div className="px-4 sm:px-6 py-4">
+      <div className="px-4 sm:px-6 py-4 border-t border-zinc-800">
         <button
           onClick={() => setShowIncoming(!showIncoming)}
           className="flex items-center gap-2 mb-3 text-white hover:text-orange-500 transition-colors"
@@ -473,7 +645,7 @@ export default function FriendsPage() {
       </div>
 
       {/* Sent Requests Section */}
-      <div className="px-4 sm:px-6 py-4">
+      <div className="px-4 sm:px-6 py-4 border-t border-zinc-800">
         <button
           onClick={() => setShowSent(!showSent)}
           className="flex items-center gap-2 mb-3 text-white hover:text-orange-500 transition-colors"
