@@ -129,9 +129,51 @@ function ActiveBetCard({
     } else if (userPick === "NO" || userPick === "UNDER") {
       return noVotes > 0 ? pot / noVotes : pot;
     }
-    
+
     return 0;
   };
+
+  // Calculate winnings for display
+  const calculateWinnings = () => {
+    if (!userHasPicked || !user?.uid) return null;
+
+    // Only show for binary and over/under bets
+    if (bet.type !== "YES_NO" && bet.type !== "OVER_UNDER") return null;
+
+    // Get user's pick
+    const userPick = bet.picks?.[user.uid];
+    if (!userPick) return null;
+
+    // Wager is the per-user bet amount
+    const userWager = wager;
+
+    // Count how many people picked the same as user
+    const yesVotes = Object.values(bet.picks || {}).filter(
+      (v) => v === "YES" || v === "OVER"
+    ).length;
+    const noVotes = Object.values(bet.picks || {}).filter(
+      (v) => v === "NO" || v === "UNDER"
+    ).length;
+
+    let winnersWithSamePick = 0;
+    if (userPick === "YES" || userPick === "OVER") {
+      winnersWithSamePick = yesVotes;
+    } else if (userPick === "NO" || userPick === "UNDER") {
+      winnersWithSamePick = noVotes;
+    }
+
+    // Calculate potential winnings (split pot among winners)
+    const potentialWinners = Math.max(1, winnersWithSamePick);
+    const potentialWin = Math.floor(pot / potentialWinners);
+
+    return {
+      wager: userWager,
+      potentialWin: potentialWin,
+      pick: userPick
+    };
+  };
+
+  const winnings = calculateWinnings();
 
   const handleDeleteBet = async () => {
     if (isDeleting) return; // Prevent double-click
@@ -244,29 +286,21 @@ function ActiveBetCard({
             <>
               {bet.type === "YES_NO" || bet.type === "OVER_UNDER" ? (
                 <div className="mt-1">
-                  {/* Mobile: Compact info */}
-                  <p className="text-[9px] sm:hidden text-gray-400 mb-1">
-                    Pick: <span className="font-bold text-orange-400">{bet.picks[user.uid]}</span>
-                    {" • "}
-                    Payout: <span className="font-bold text-green-400">${getEstimatedPayoutAfterPick().toFixed(2)}</span>
-                  </p>
-
-                  {/* Desktop: Full info */}
-                  <div className="hidden sm:block">
-                    <p className="text-xs text-gray-400 mb-2">
-                      Your Pick:{" "}
-                      <span className="font-bold text-orange-400">
-                        {bet.picks[user.uid]}
+                  {/* Wager → Winnings Display */}
+                  {winnings && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] sm:text-xs font-semibold text-orange-400">
+                        ${winnings.wager.toFixed(2)}
                       </span>
-                    </p>
-                    <p className="text-xs text-gray-400 mb-2">
-                      Estimated Payout:{" "}
-                      <span className="font-bold text-green-400">
-                        ${getEstimatedPayoutAfterPick().toFixed(2)}
-                      </span>{" "}
-                      if {bet.picks[user.uid]} wins
-                    </p>
-                  </div>
+                      <span className="text-[10px] sm:text-xs text-zinc-500">→</span>
+                      <span className="text-[10px] sm:text-xs font-semibold text-green-500">
+                        ${winnings.potentialWin.toFixed(2)}
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] text-zinc-500">
+                        ({winnings.pick})
+                      </span>
+                    </div>
+                  )}
 
                   {/* Progress Bar - Smaller on mobile */}
                   <div className="bg-zinc-800 rounded-lg overflow-hidden h-4 sm:h-5 flex items-center relative">
