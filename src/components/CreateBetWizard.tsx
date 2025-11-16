@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, Check } from "lucide-react";
 
@@ -11,12 +11,12 @@ interface CreateBetWizardProps {
   onCreateBet: (betData: any) => Promise<void>;
 }
 
-export default function CreateBetWizard({
+const CreateBetWizard: React.FC<CreateBetWizardProps> = ({
   isOpen,
   onClose,
   groups,
   onCreateBet,
-}: CreateBetWizardProps) {
+}) => {
   const [step, setStep] = useState(1);
   const [betData, setBetData] = useState({
     type: "",
@@ -435,4 +435,6 @@ export default function CreateBetWizard({
       </motion.div>
     </div>
   );
-}
+};
+
+export default CreateBetWizard;
