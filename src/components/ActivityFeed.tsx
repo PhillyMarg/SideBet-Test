@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { collection, query, where, orderBy, limit, onSnapshot, startAfter, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase/client";
-import { Clock, Users, TrendingUp, Trophy, Star } from "lucide-react";
 
 interface Activity {
   id: string;
@@ -137,44 +136,56 @@ export default function ActivityFeed({ groupId, groupName }: ActivityFeedProps) 
     }
   };
 
-  // Format activity message
+  // Format activity message with orange user names
   const getActivityMessage = (activity: Activity) => {
     switch (activity.type) {
       case "user_joined":
-        return `${activity.userName} joined ${groupName || 'the group'}`;
+        return (
+          <>
+            <span className="text-orange-500 font-semibold">{activity.userName}</span>
+            <span className="text-white"> joined {groupName || 'the group'}</span>
+          </>
+        );
 
       case "user_left":
-        return `${activity.userName} left ${groupName || 'the group'}`;
+        return (
+          <>
+            <span className="text-orange-500 font-semibold">{activity.userName}</span>
+            <span className="text-zinc-400"> left {groupName || 'the group'}</span>
+          </>
+        );
 
       case "bet_created":
-        return `${activity.userName} created a bet "${activity.betTitle}"`;
+        return (
+          <>
+            <span className="text-orange-500 font-semibold">{activity.userName}</span>
+            <span className="text-white"> created a bet</span>
+            <div className="text-zinc-300 text-sm mt-1 italic">"{activity.betTitle}"</div>
+          </>
+        );
 
       case "bet_judged":
-        return `${activity.userName} won $${activity.winAmount?.toFixed(2)} on "${activity.betTitle}"`;
+        return (
+          <>
+            <span className="text-orange-500 font-semibold">{activity.userName}</span>
+            <span className="text-white"> won </span>
+            <span className="text-green-500 font-semibold">${activity.winAmount?.toFixed(2)}</span>
+            <span className="text-white"> on</span>
+            <div className="text-zinc-300 text-sm mt-1 italic">"{activity.betTitle}"</div>
+          </>
+        );
 
       case "milestone":
-        return `Group reached ${activity.milestoneCount} members!`;
+        return (
+          <>
+            <span className="text-white">Group reached </span>
+            <span className="text-orange-500 font-semibold">{activity.milestoneCount} members</span>
+            <span className="text-white"> 🎉</span>
+          </>
+        );
 
       default:
-        return "Unknown activity";
-    }
-  };
-
-  // Get icon for activity type
-  const getActivityIcon = (type: Activity["type"]) => {
-    switch (type) {
-      case "user_joined":
-        return <Users className="w-4 h-4 text-green-500" />;
-      case "user_left":
-        return <Users className="w-4 h-4 text-zinc-500" />;
-      case "bet_created":
-        return <TrendingUp className="w-4 h-4 text-blue-500" />;
-      case "bet_judged":
-        return <Trophy className="w-4 h-4 text-orange-500" />;
-      case "milestone":
-        return <Star className="w-4 h-4 text-yellow-500" />;
-      default:
-        return <Clock className="w-4 h-4 text-zinc-400" />;
+        return <span className="text-zinc-400">Unknown activity</span>;
     }
   };
 
@@ -254,32 +265,27 @@ export default function ActivityFeed({ groupId, groupName }: ActivityFeedProps) 
         </div>
       ) : (
         <>
-          <div className="space-y-3">
+          {/* Chat-style activity list */}
+          <div className="space-y-3 max-h-96 overflow-y-auto">
             {activities.map((activity) => (
               <div
                 key={activity.id}
                 className={`
-                  flex items-start gap-3 p-3 rounded-lg border border-zinc-800 bg-zinc-900/50
-                  transition-all duration-500
+                  py-2 px-3 rounded-lg transition-all duration-500
                   ${newActivityIds.has(activity.id)
-                    ? 'animate-fadeIn bg-orange-500/5 border-orange-500/20'
-                    : ''
+                    ? 'animate-fadeIn bg-orange-500/10'
+                    : 'hover:bg-zinc-800/50'
                   }
                 `}
               >
-                {/* Icon */}
-                <div className="flex-shrink-0 mt-0.5">
-                  {getActivityIcon(activity.type)}
+                {/* Message */}
+                <div className="text-sm leading-relaxed mb-1">
+                  {getActivityMessage(activity)}
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white">
-                    {getActivityMessage(activity)}
-                  </p>
-                  <p className="text-xs text-zinc-500 mt-1">
-                    {getTimeAgo(activity.timestamp)}
-                  </p>
+                {/* Timestamp */}
+                <div className="text-xs text-zinc-500">
+                  {getTimeAgo(activity.timestamp)}
                 </div>
               </div>
             ))}
