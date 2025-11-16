@@ -32,6 +32,12 @@ export function filterBets(
     case "pending":
       return bets.filter((bet) => bet.status === "CLOSED");
 
+    case "h2h":
+      return bets.filter((bet) =>
+        bet.isH2H &&
+        (bet.challengerId === userId || bet.challengeeId === userId)
+      );
+
     case "all":
     default:
       return bets;
@@ -101,6 +107,8 @@ export function getEmptyStateMessage(activeTab: FilterTab): string {
       return "No urgent bets right now.";
     case "pending":
       return "No bets awaiting results";
+    case "h2h":
+      return "No head-to-head bets yet";
     case "all":
     default:
       return "No active bets found. Create a new one!";

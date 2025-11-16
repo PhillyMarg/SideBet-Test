@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Search, X } from "lucide-react";
 
-export type FilterTab = "all" | "open" | "myPicks" | "closingSoon" | "pending";
+export type FilterTab = "all" | "open" | "myPicks" | "closingSoon" | "pending" | "h2h";
 export type SortOption = "closingSoon" | "recent" | "group" | "wager";
 
 interface BetFiltersProps {
@@ -50,15 +50,29 @@ export default function BetFilters({
         return timeUntilClose > 0 && timeUntilClose <= twentyFourHours;
       }).length,
       pending: bets.filter((bet) => bet.status === "CLOSED").length,
+      h2h: bets.filter((bet) =>
+        bet.isH2H &&
+        (bet.challengerId === userId || bet.challengeeId === userId)
+      ).length,
     };
   }, [bets, userId]);
 
-  const tabs: { id: FilterTab; label: string; mobileLabel: string; count: number }[] = [
+  // Calculate pending H2H challenges
+  const pendingH2HChallenges = useMemo(() => {
+    return bets.filter((bet) =>
+      bet.isH2H &&
+      bet.h2hStatus === "pending" &&
+      bet.challengeeId === userId
+    ).length;
+  }, [bets, userId]);
+
+  const tabs: { id: FilterTab; label: string; mobileLabel: string; count: number; hasBadge?: boolean; badgeCount?: number }[] = [
     { id: "all", label: "All Bets", mobileLabel: "All", count: counts.all },
     { id: "open", label: "Open", mobileLabel: "Open", count: counts.open },
     { id: "myPicks", label: "My Picks", mobileLabel: "Picks", count: counts.myPicks },
     { id: "closingSoon", label: "Closing Soon", mobileLabel: "Soon", count: counts.closingSoon },
     { id: "pending", label: "Pending", mobileLabel: "Pending", count: counts.pending },
+    { id: "h2h", label: "H2H", mobileLabel: "H2H", count: counts.h2h, hasBadge: pendingH2HChallenges > 0, badgeCount: pendingH2HChallenges },
   ];
 
   return (
@@ -70,9 +84,11 @@ export default function BetFilters({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`px-3 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap rounded-md transition-colors ${
+              className={`relative px-3 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap rounded-md transition-colors ${
                 activeTab === tab.id
-                  ? "bg-orange-500 text-white shadow-lg shadow-orange-500/50"
+                  ? tab.id === "h2h"
+                    ? "bg-purple-500 text-white shadow-lg shadow-purple-500/50"
+                    : "bg-orange-500 text-white shadow-lg shadow-orange-500/50"
                   : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border border-zinc-800"
               }`}
             >
@@ -80,6 +96,13 @@ export default function BetFilters({
               <span className="sm:hidden">{tab.mobileLabel}</span>
               <span className="hidden sm:inline">{tab.label}</span>
               {tab.count > 0 && <span className="ml-1 text-xs">({tab.count})</span>}
+
+              {/* Red notification badge for pending challenges */}
+              {tab.hasBadge && tab.badgeCount && tab.badgeCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                  {tab.badgeCount}
+                </span>
+              )}
             </button>
           ))}
         </div>
