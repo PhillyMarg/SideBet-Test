@@ -56,10 +56,10 @@ export default function CreateBetWizard({
 
         const friendshipsSnap = await getDocs(friendshipsQuery);
         const friendshipDocs = friendshipsSnap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter(f => f.status === "accepted");
+          .map(d => ({ id: d.id, ...d.data() } as any))
+          .filter((f: any) => f.status === "accepted");
 
-        const friendIds = friendshipDocs.map(f =>
+        const friendIds = friendshipDocs.map((f: any) =>
           f.user1Id === currentUser.uid ? f.user2Id : f.user1Id
         );
 
