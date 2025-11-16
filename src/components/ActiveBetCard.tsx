@@ -49,6 +49,50 @@ export default function ActiveBetCard({ bet, user, onPick, onJudge, groupName }:
 
   const winnings = calculateH2HWinnings();
 
+  // Calculate estimated payout for regular bets
+  const getEstimatedPayoutAfterPick = () => {
+    if (!bet.picks || !user?.uid || !bet.picks[user.uid]) return 0;
+
+    const userPick = bet.picks[user.uid];
+    const wager = bet.settings?.min_bet || 10;
+    const pot = wager * (bet.participants?.length || 1);
+
+    // Count votes for each side
+    const yesVotes = Object.values(bet.picks || {}).filter(
+      (v) => v === "YES" || v === "OVER"
+    ).length;
+    const noVotes = Object.values(bet.picks || {}).filter(
+      (v) => v === "NO" || v === "UNDER"
+    ).length;
+
+    if (userPick === "YES" || userPick === "OVER") {
+      return yesVotes > 0 ? pot / yesVotes : pot;
+    } else if (userPick === "NO" || userPick === "UNDER") {
+      return noVotes > 0 ? pot / noVotes : pot;
+    }
+
+    return 0;
+  };
+
+  // Calculate percentage for progress bar
+  const calculatePercentages = () => {
+    if (!bet.picks) return { yes: 50, no: 50 };
+
+    const picks = Object.values(bet.picks);
+    const yesVotes = picks.filter((v) => v === "YES" || v === "OVER").length;
+    const noVotes = picks.filter((v) => v === "NO" || v === "UNDER").length;
+    const totalVotes = yesVotes + noVotes;
+
+    if (totalVotes === 0) return { yes: 50, no: 50 };
+
+    const yes = Math.round((yesVotes / totalVotes) * 100);
+    const no = 100 - yes;
+
+    return { yes, no };
+  };
+
+  const { yes, no } = calculatePercentages();
+
   // Format closing time
   const getClosingTimeDisplay = () => {
     const oneWeek = 7 * 24 * 60 * 60 * 1000;
@@ -145,8 +189,58 @@ export default function ActiveBetCard({ bet, user, onPick, onJudge, groupName }:
         {bet.title}
       </h3>
 
-      {/* Wager → Winnings Display (H2H with odds) */}
-      {winnings && (bet.type === "YES_NO" || bet.type === "OVER_UNDER") && (
+      {/* Old Style: Your Pick and Estimated Payout Display */}
+      {!isH2H && userHasPicked && (bet.type === "YES_NO" || bet.type === "OVER_UNDER") && (
+        <div className="mt-1">
+          {/* Mobile: Compact info */}
+          <p className="text-[9px] sm:hidden text-gray-400 mb-1">
+            Pick: <span className="font-bold text-orange-400">{bet.picks[user.uid]}</span>
+            {" • "}
+            Payout: <span className="font-bold text-green-400">${getEstimatedPayoutAfterPick().toFixed(2)}</span>
+          </p>
+
+          {/* Desktop: Full info */}
+          <div className="hidden sm:block">
+            <p className="text-xs text-gray-400 mb-2">
+              Your Pick:{" "}
+              <span className="font-bold text-orange-400">
+                {bet.picks[user.uid]}
+              </span>
+            </p>
+            <p className="text-xs text-gray-400 mb-2">
+              Estimated Payout:{" "}
+              <span className="font-bold text-green-400">
+                ${getEstimatedPayoutAfterPick().toFixed(2)}
+              </span>{" "}
+              if {bet.picks[user.uid]} wins
+            </p>
+          </div>
+
+          {/* Progress Bar - Smaller on mobile */}
+          <div className="bg-zinc-800 rounded-lg overflow-hidden h-4 sm:h-5 flex items-center relative">
+            <div
+              className="bg-orange-500 h-full flex items-center justify-start px-1 sm:px-2 transition-all duration-500"
+              style={{ width: `${yes}%` }}
+            >
+              <span className="text-white text-[9px] sm:text-[10px] font-bold">
+                {bet.type === "YES_NO" ? "Yes" : "Over"} {yes}%
+              </span>
+            </div>
+
+            <div
+              className="bg-white h-full flex items-center justify-end px-1 sm:px-2 transition-all duration-500"
+              style={{ width: `${no}%` }}
+            >
+              <span className="text-black text-[9px] sm:text-[10px] font-bold">
+                {bet.type === "YES_NO" ? "No" : "Under"} {no}%
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* H2H Wager Display (arrow format kept for H2H) */}
+      {isH2H && winnings && (bet.type === "YES_NO" || bet.type === "OVER_UNDER") && (
         <div className="flex items-center gap-2 mb-2 text-sm">
           <span className="font-semibold text-purple-400">${winnings.wager}</span>
           <svg className="w-3 h-3 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
