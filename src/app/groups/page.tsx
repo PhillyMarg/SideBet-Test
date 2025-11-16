@@ -703,11 +703,11 @@ export default function GroupsPage() {
 
                         {/* Active Bets - Conditional styling and text */}
                         <div className={`flex items-center gap-1 text-xs sm:text-sm flex-shrink-0 ${
-                          activeBets > 0 ? 'text-orange-500' : 'text-zinc-400'
+                          activeBets > 0 ? 'text-orange-400' : 'text-zinc-400'
                         }`}>
                           <Dices className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           <span className="font-medium">
-                            {activeBets > 0 ? activeBets : 'No active bets'}
+                            {activeBets > 0 ? `${activeBets} Active Bet${activeBets !== 1 ? 's' : ''}` : 'No active bets'}
                           </span>
                         </div>
                       </div>

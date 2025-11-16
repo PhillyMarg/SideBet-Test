@@ -617,11 +617,11 @@ export default function HomePage() {
 
                         {/* Active Bets - Conditional styling and text */}
                         <div className={`flex items-center gap-1 text-xs sm:text-sm flex-shrink-0 ${
-                          activeCount > 0 ? 'text-orange-500' : 'text-zinc-400'
+                          activeCount > 0 ? 'text-orange-400' : 'text-zinc-400'
                         }`}>
                           <Dices className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           <span className="font-medium">
-                            {activeCount > 0 ? activeCount : 'No active bets'}
+                            {activeCount > 0 ? `${activeCount} Active Bet${activeCount !== 1 ? 's' : ''}` : 'No active bets'}
                           </span>
                         </div>
                       </div>
