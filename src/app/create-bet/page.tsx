@@ -1,136 +1,774 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
-import { db, auth } from "../../lib/firebase/client";
-import Footer from "../../components/Footer";
-import Header from "../../components/Header";
-import CreateBetWizard from "../../components/CreateBetWizard";
+import { collection, addDoc, getDocs, query, where, getDoc, doc } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase/client";
+import { onAuthStateChanged } from "firebase/auth";
+import { Users, Swords, Check, ChevronDown } from "lucide-react";
 
-// Component that uses useSearchParams - must be wrapped in Suspense
-function CreateBetContent() {
+export default function CreateBetPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
+
+  // Step control
+  const [currentStep, setCurrentStep] = useState(1);
+
+  // Step 1: Bet Type
+  const [betType, setBetType] = useState<"binary" | "multiple_choice" | "over_under">("binary");
+
+  // Step 2: Destination
+  const [betDestination, setBetDestination] = useState<"group" | "h2h" | null>(null);
   const [groups, setGroups] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showWizard, setShowWizard] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<any>(null);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [selectedFriend, setSelectedFriend] = useState<any>(null);
 
-  // Get groupId from URL search params if provided
-  const preselectedGroupId = searchParams.get("groupId");
+  // H2H specific
+  const [h2hOdds, setH2hOdds] = useState({ challenger: 1, challengee: 1 });
+  const [h2hInGroup, setH2hInGroup] = useState(false);
+  const [h2hGroupSelection, setH2hGroupSelection] = useState<any>(null);
 
+  // Step 3: Bet Details
+  const [betTitle, setBetTitle] = useState("");
+  const [betDescription, setBetDescription] = useState("");
+  const [betAmount, setBetAmount] = useState(10);
+  const [closingDate, setClosingDate] = useState("");
+  const [closingTime, setClosingTime] = useState("");
+  const [multipleChoiceOptions, setMultipleChoiceOptions] = useState(["", ""]);
+  const [overUnderLine, setOverUnderLine] = useState(0);
+
+  const [isCreating, setIsCreating] = useState(false);
+
+  // Theme color based on destination
+  const themeColor = betDestination === "h2h" ? "purple" : "orange";
+
+  // Helper to get theme classes
+  const getThemeClass = (baseClass: string) => {
+    if (betDestination === "h2h") {
+      return baseClass.replace("orange", "purple");
+    }
+    return baseClass;
+  };
+
+  // Auth listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (!firebaseUser) {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
         router.push("/login");
-        return;
-      }
-
-      setUser(firebaseUser);
-
-      // Load user's groups
-      try {
-        const groupsQuery = query(
-          collection(db, "groups"),
-          where("memberIds", "array-contains", firebaseUser.uid)
-        );
-        const groupsSnapshot = await getDocs(groupsQuery);
-        const groupsList = groupsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setGroups(groupsList);
-        setShowWizard(true);
-      } catch (error) {
-        console.error("Error loading groups:", error);
-      } finally {
-        setLoading(false);
       }
     });
-
     return () => unsubscribe();
   }, [router]);
 
-  const handleCreateBet = async (betData: any) => {
+  // Load groups
+  useEffect(() => {
     if (!user) return;
 
-    try {
-      const betDoc = {
-        ...betData,
-        createdBy: user.uid,
-        createdAt: new Date().toISOString(),
-        status: "OPEN",
-        participants: [],
-        wager: parseFloat(betData.wager),
-        line: betData.line ? parseFloat(betData.line) : null,
-      };
+    const loadGroups = async () => {
+      const groupsQuery = query(
+        collection(db, "groups"),
+        where("memberIds", "array-contains", user.uid)
+      );
+      const snapshot = await getDocs(groupsQuery);
+      const groupsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      setGroups(groupsData);
+    };
 
-      await addDoc(collection(db, "bets"), betDoc);
+    loadGroups();
+  }, [user]);
 
-      // Navigate back to the group or home
-      if (betData.groupId) {
-        router.push(`/groups/${betData.groupId}`);
-      } else {
-        router.push("/home");
+  // Load friends
+  useEffect(() => {
+    if (!user) return;
+
+    const loadFriends = async () => {
+      try {
+        const friendshipsQuery = query(
+          collection(db, "friendships"),
+          where("status", "==", "accepted")
+        );
+        const snapshot = await getDocs(friendshipsQuery);
+
+        const friendIds: string[] = [];
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.user1Id === user.uid) {
+            friendIds.push(data.user2Id);
+          } else if (data.user2Id === user.uid) {
+            friendIds.push(data.user1Id);
+          }
+        });
+
+        const friendsData = await Promise.all(
+          friendIds.map(async (id) => {
+            const userDoc = await getDoc(doc(db, "users", id));
+            return { uid: id, ...userDoc.data() };
+          })
+        );
+
+        setFriends(friendsData);
+      } catch (error) {
+        console.error("Error loading friends:", error);
       }
-    } catch (error) {
-      console.error("Error creating bet:", error);
-      alert("Failed to create bet. Please try again.");
+    };
+
+    loadFriends();
+  }, [user]);
+
+  // Check for pre-selected friend from Friends page
+  useEffect(() => {
+    const isH2H = searchParams.get("h2h") === "true";
+    const friendId = searchParams.get("friendId");
+
+    if (isH2H) {
+      setBetDestination("h2h");
+      setCurrentStep(2); // Skip to destination step
+
+      if (friendId && friends.length > 0) {
+        const friend = friends.find(f => f.uid === friendId);
+        if (friend) {
+          setSelectedFriend(friend);
+        }
+      }
+    }
+  }, [searchParams, friends]);
+
+  // Handle submit
+  const handleSubmit = async () => {
+    if (betDestination === "h2h") {
+      await createH2HBet();
+    } else {
+      await createGroupBet();
     }
   };
 
-  if (loading) {
+  const createH2HBet = async () => {
+    if (!user || !selectedFriend) {
+      alert("Please select a friend to challenge");
+      return;
+    }
+
+    if (!betTitle.trim()) {
+      alert("Please enter a bet title");
+      return;
+    }
+
+    if (!closingDate || !closingTime) {
+      alert("Please set a closing date and time");
+      return;
+    }
+
+    setIsCreating(true);
+
+    try {
+      const closingDateTime = new Date(`${closingDate}T${closingTime}`);
+
+      const betData: any = {
+        title: betTitle,
+        description: betDescription,
+        type: betType,
+        creatorId: user.uid,
+        createdAt: new Date().toISOString(),
+        closingAt: closingDateTime.toISOString(),
+        status: "OPEN",
+
+        isH2H: true,
+        challengerId: user.uid,
+        challengeeId: selectedFriend.uid,
+        challengerName: user.displayName || `${user.firstName} ${user.lastName}`,
+        challengeeName: selectedFriend.displayName || `${selectedFriend.firstName} ${selectedFriend.lastName}`,
+        h2hOdds: h2hOdds,
+        h2hStatus: "pending",
+        betAmount: betAmount,
+
+        groupId: h2hInGroup && h2hGroupSelection ? h2hGroupSelection.id : null,
+
+        picks: {},
+        participants: [],
+        winners: []
+      };
+
+      if (betType === "binary") {
+        betData.options = ["YES", "NO"];
+      } else if (betType === "multiple_choice") {
+        betData.options = multipleChoiceOptions.filter(opt => opt.trim());
+      } else if (betType === "over_under") {
+        betData.line = overUnderLine;
+        betData.options = ["OVER", "UNDER"];
+      }
+
+      const betRef = await addDoc(collection(db, "bets"), betData);
+
+      if (h2hInGroup && h2hGroupSelection) {
+        await addDoc(collection(db, "activities"), {
+          groupId: h2hGroupSelection.id,
+          type: "bet_created",
+          userId: user.uid,
+          userName: user.displayName || `${user.firstName} ${user.lastName}`,
+          betId: betRef.id,
+          betTitle: betTitle,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      alert(`✅ Challenge sent to ${selectedFriend.displayName || selectedFriend.firstName}!`);
+      router.push("/home");
+
+    } catch (error: any) {
+      console.error("Error creating H2H bet:", error);
+      alert(`Failed to create challenge: ${error.message}`);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const createGroupBet = async () => {
+    if (!selectedGroup) {
+      alert("Please select a group");
+      return;
+    }
+
+    if (!betTitle.trim()) {
+      alert("Please enter a bet title");
+      return;
+    }
+
+    if (!closingDate || !closingTime) {
+      alert("Please set a closing date and time");
+      return;
+    }
+
+    setIsCreating(true);
+
+    try {
+      const closingDateTime = new Date(`${closingDate}T${closingTime}`);
+
+      const betData: any = {
+        title: betTitle,
+        description: betDescription,
+        type: betType,
+        creatorId: user.uid,
+        groupId: selectedGroup.id,
+        createdAt: new Date().toISOString(),
+        closingAt: closingDateTime.toISOString(),
+        status: "OPEN",
+        isH2H: false,
+        picks: {},
+        participants: [],
+        winners: [],
+        settings: selectedGroup.settings
+      };
+
+      if (betType === "binary") {
+        betData.options = ["YES", "NO"];
+      } else if (betType === "multiple_choice") {
+        betData.options = multipleChoiceOptions.filter(opt => opt.trim());
+      } else if (betType === "over_under") {
+        betData.line = overUnderLine;
+        betData.options = ["OVER", "UNDER"];
+      }
+
+      const betRef = await addDoc(collection(db, "bets"), betData);
+
+      await addDoc(collection(db, "activities"), {
+        groupId: selectedGroup.id,
+        type: "bet_created",
+        userId: user.uid,
+        userName: user.displayName || `${user.firstName} ${user.lastName}`,
+        betId: betRef.id,
+        betTitle: betTitle,
+        timestamp: new Date().toISOString()
+      });
+
+      alert("✅ Bet created!");
+      router.push("/home");
+
+    } catch (error: any) {
+      console.error("Error creating bet:", error);
+      alert(`Failed to create bet: ${error.message}`);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-white text-lg">Loading...</div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <p className="text-white">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black pb-20">
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold text-white mb-6">Create a Bet</h1>
+    <div className="min-h-screen bg-black pb-20 pt-16">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-white mb-2">Create Bet</h1>
+          <div className="flex items-center gap-2">
+            {[1, 2, 3].map((step) => (
+              <div
+                key={step}
+                className={`flex-1 h-1 rounded-full ${
+                  step <= currentStep
+                    ? (betDestination === "h2h" ? 'bg-purple-500' : 'bg-orange-500')
+                    : 'bg-zinc-800'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
 
-        {groups.length === 0 ? (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center">
-            <p className="text-zinc-400 mb-4">
-              You need to join or create a group before creating a bet.
-            </p>
+        {/* STEP 1: Bet Type */}
+        {currentStep === 1 && (
+          <div>
+            <h2 className="text-lg font-semibold text-white mb-4">
+              What type of bet?
+            </h2>
+
+            <div className="grid grid-cols-3 gap-3 mb-8">
+              <button
+                onClick={() => setBetType("binary")}
+                className={`p-4 rounded-xl border-2 transition-all ${
+                  betType === "binary"
+                    ? (betDestination === "h2h" ? "border-purple-500 bg-purple-500/10" : "border-orange-500 bg-orange-500/10")
+                    : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                }`}
+              >
+                <p className={`text-sm font-semibold mb-1 ${betType === "binary" ? (betDestination === "h2h" ? "text-purple-500" : "text-orange-500") : "text-white"}`}>
+                  Yes/No
+                </p>
+                <p className="text-xs text-zinc-500">Binary choice</p>
+              </button>
+
+              <button
+                onClick={() => setBetType("multiple_choice")}
+                className={`p-4 rounded-xl border-2 transition-all ${
+                  betType === "multiple_choice"
+                    ? (betDestination === "h2h" ? "border-purple-500 bg-purple-500/10" : "border-orange-500 bg-orange-500/10")
+                    : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                }`}
+              >
+                <p className={`text-sm font-semibold mb-1 ${betType === "multiple_choice" ? (betDestination === "h2h" ? "text-purple-500" : "text-orange-500") : "text-white"}`}>
+                  Multiple
+                </p>
+                <p className="text-xs text-zinc-500">Many options</p>
+              </button>
+
+              <button
+                onClick={() => setBetType("over_under")}
+                className={`p-4 rounded-xl border-2 transition-all ${
+                  betType === "over_under"
+                    ? (betDestination === "h2h" ? "border-purple-500 bg-purple-500/10" : "border-orange-500 bg-orange-500/10")
+                    : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                }`}
+              >
+                <p className={`text-sm font-semibold mb-1 ${betType === "over_under" ? (betDestination === "h2h" ? "text-purple-500" : "text-orange-500") : "text-white"}`}>
+                  Over/Under
+                </p>
+                <p className="text-xs text-zinc-500">Set a line</p>
+              </button>
+            </div>
+
             <button
-              onClick={() => router.push("/groups")}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-semibold transition"
+              onClick={() => setCurrentStep(2)}
+              className={`w-full py-3 ${betDestination === "h2h" ? "bg-purple-500 hover:bg-purple-600" : "bg-orange-500 hover:bg-orange-600"} text-white rounded-lg font-semibold transition-colors`}
             >
-              Go to Groups
+              Next
             </button>
           </div>
-        ) : (
-          <CreateBetWizard
-            isOpen={showWizard}
-            onClose={() => router.push("/home")}
-            groups={groups}
-            onCreateBet={handleCreateBet}
-          />
+        )}
+
+        {/* STEP 2: Destination */}
+        {currentStep === 2 && (
+          <div>
+            <h2 className="text-lg font-semibold text-white mb-4">
+              Who's this bet for?
+            </h2>
+
+            {/* Destination Selection */}
+            <div className="space-y-3 mb-6">
+              {/* Post to Group */}
+              <button
+                onClick={() => {
+                  setBetDestination("group");
+                  setSelectedFriend(null);
+                }}
+                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
+                  betDestination === "group"
+                    ? "border-orange-500 bg-orange-500/10"
+                    : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Users className={`w-5 h-5 ${betDestination === "group" ? "text-orange-500" : "text-zinc-400"}`} />
+                  <div className="flex-1">
+                    <p className={`font-semibold ${betDestination === "group" ? "text-orange-500" : "text-white"}`}>
+                      Post to Group
+                    </p>
+                    <p className="text-xs text-zinc-400">
+                      Share with group members
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Challenge Friend */}
+              <button
+                onClick={() => {
+                  setBetDestination("h2h");
+                  setSelectedGroup(null);
+                }}
+                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
+                  betDestination === "h2h"
+                    ? "border-purple-500 bg-purple-500/10"
+                    : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Swords className={`w-5 h-5 ${betDestination === "h2h" ? "text-purple-500" : "text-zinc-400"}`} />
+                  <div className="flex-1">
+                    <p className={`font-semibold ${betDestination === "h2h" ? "text-purple-500" : "text-white"}`}>
+                      Challenge Friend
+                    </p>
+                    <p className="text-xs text-zinc-400">
+                      Head-to-head with a friend
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* Group Dropdown */}
+            {betDestination === "group" && (
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-white mb-2">
+                  Select Group
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedGroup?.id || ""}
+                    onChange={(e) => {
+                      const group = groups.find(g => g.id === e.target.value);
+                      setSelectedGroup(group);
+                    }}
+                    className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white appearance-none cursor-pointer focus:outline-none focus:border-orange-500"
+                  >
+                    <option value="">Choose a group...</option>
+                    {groups.map(group => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 pointer-events-none" />
+                </div>
+                {groups.length === 0 && (
+                  <p className="text-xs text-zinc-500 mt-2">
+                    You're not in any groups yet. Join or create one first.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Friend Selection */}
+            {betDestination === "h2h" && (
+              <>
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-white mb-2">
+                    Choose Your Opponent
+                  </label>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {friends.length === 0 ? (
+                      <p className="text-zinc-400 text-sm py-4 text-center">
+                        No friends yet. Add friends to challenge them!
+                      </p>
+                    ) : (
+                      friends.map(friend => (
+                        <button
+                          key={friend.uid}
+                          onClick={() => setSelectedFriend(friend)}
+                          className={`w-full p-3 rounded-lg border transition-all text-left ${
+                            selectedFriend?.uid === friend.uid
+                              ? "border-purple-500 bg-purple-500/10"
+                              : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${
+                                friend.isOnline ? "bg-green-500" : "bg-red-500"
+                              }`} />
+                              <span className="text-white text-sm">
+                                {friend.displayName || `${friend.firstName} ${friend.lastName}`}
+                              </span>
+                            </div>
+                            {selectedFriend?.uid === friend.uid && (
+                              <Check className="w-4 h-4 text-purple-500" />
+                            )}
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Wager Amount for H2H */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-white mb-2">
+                    Wager Amount ($)
+                  </label>
+                  <input
+                    type="number"
+                    value={betAmount}
+                    onChange={(e) => setBetAmount(Number(e.target.value))}
+                    min="1"
+                    className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                {/* Odds Selection */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-white mb-2">
+                    Set Odds
+                  </label>
+
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {[
+                      { challenger: 1, challengee: 1, label: "1:1", desc: "Even" },
+                      { challenger: 2, challengee: 1, label: "2:1", desc: "You favor" },
+                      { challenger: 1, challengee: 2, label: "1:2", desc: "They favor" },
+                      { challenger: 3, challengee: 1, label: "3:1", desc: "Long" },
+                      { challenger: 4, challengee: 1, label: "4:1", desc: "Very long" },
+                      { challenger: 1, challengee: 4, label: "1:4", desc: "Underdog" }
+                    ].map((odds) => (
+                      <button
+                        key={`${odds.challenger}:${odds.challengee}`}
+                        onClick={() => setH2hOdds({ challenger: odds.challenger, challengee: odds.challengee })}
+                        className={`p-3 rounded-lg border transition-all ${
+                          h2hOdds.challenger === odds.challenger && h2hOdds.challengee === odds.challengee
+                            ? "border-purple-500 bg-purple-500/10"
+                            : "border-zinc-800 bg-zinc-900"
+                        }`}
+                      >
+                        <p className={`text-sm font-semibold ${
+                          h2hOdds.challenger === odds.challenger && h2hOdds.challengee === odds.challengee
+                            ? "text-purple-500" : "text-white"
+                        }`}>
+                          {odds.label}
+                        </p>
+                        <p className="text-xs text-zinc-500">{odds.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Odds Explanation */}
+                  <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                    <p className="text-xs text-purple-400">
+                      {h2hOdds.challenger === h2hOdds.challengee ? (
+                        <>Even odds: Both risk ${betAmount} to win ${betAmount}</>
+                      ) : h2hOdds.challenger > h2hOdds.challengee ? (
+                        <>You risk ${betAmount * h2hOdds.challenger} to win ${betAmount * h2hOdds.challengee}</>
+                      ) : (
+                        <>They risk ${betAmount * h2hOdds.challengee} to win ${betAmount * h2hOdds.challenger}</>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Optional: Post to Group */}
+                <div className="mb-6">
+                  <label className="flex items-center gap-2 cursor-pointer mb-3">
+                    <input
+                      type="checkbox"
+                      checked={h2hInGroup}
+                      onChange={(e) => setH2hInGroup(e.target.checked)}
+                      className="w-4 h-4 rounded border-zinc-700 text-purple-500 focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-white">
+                      Post to a group (others can see but not join)
+                    </span>
+                  </label>
+
+                  {h2hInGroup && (
+                    <div className="relative">
+                      <select
+                        value={h2hGroupSelection?.id || ""}
+                        onChange={(e) => {
+                          const group = groups.find(g => g.id === e.target.value);
+                          setH2hGroupSelection(group);
+                        }}
+                        className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white appearance-none cursor-pointer focus:outline-none focus:border-purple-500"
+                      >
+                        <option value="">Choose a group...</option>
+                        {groups.map(group => (
+                          <option key={group.id} value={group.id}>
+                            {group.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 pointer-events-none" />
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Navigation */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setCurrentStep(1)}
+                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-semibold transition-colors"
+              >
+                Back
+              </button>
+
+              <button
+                onClick={() => setCurrentStep(3)}
+                disabled={
+                  (betDestination === "group" && !selectedGroup) ||
+                  (betDestination === "h2h" && !selectedFriend)
+                }
+                className={`flex-1 py-3 ${betDestination === "h2h" ? "bg-purple-500 hover:bg-purple-600" : "bg-orange-500 hover:bg-orange-600"} disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-lg font-semibold transition-colors`}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: Bet Details */}
+        {currentStep === 3 && (
+          <div>
+            <h2 className="text-lg font-semibold text-white mb-4">
+              Bet Details
+            </h2>
+
+            {/* Bet Title */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-white mb-2">
+                Bet Title *
+              </label>
+              <input
+                type="text"
+                value={betTitle}
+                onChange={(e) => setBetTitle(e.target.value)}
+                placeholder="e.g., Will it rain tomorrow?"
+                className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none ${betDestination === "h2h" ? "focus:border-purple-500" : "focus:border-orange-500"}`}
+              />
+            </div>
+
+            {/* Bet Description */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-white mb-2">
+                Description (optional)
+              </label>
+              <textarea
+                value={betDescription}
+                onChange={(e) => setBetDescription(e.target.value)}
+                placeholder="Add more details..."
+                rows={3}
+                className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none ${betDestination === "h2h" ? "focus:border-purple-500" : "focus:border-orange-500"}`}
+              />
+            </div>
+
+            {/* Multiple Choice Options */}
+            {betType === "multiple_choice" && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-white mb-2">
+                  Options
+                </label>
+                {multipleChoiceOptions.map((option, index) => (
+                  <div key={index} className="mb-2">
+                    <input
+                      type="text"
+                      value={option}
+                      onChange={(e) => {
+                        const newOptions = [...multipleChoiceOptions];
+                        newOptions[index] = e.target.value;
+                        setMultipleChoiceOptions(newOptions);
+                      }}
+                      placeholder={`Option ${index + 1}`}
+                      className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none ${betDestination === "h2h" ? "focus:border-purple-500" : "focus:border-orange-500"}`}
+                    />
+                  </div>
+                ))}
+                <button
+                  onClick={() => setMultipleChoiceOptions([...multipleChoiceOptions, ""])}
+                  className={`${betDestination === "h2h" ? "text-purple-500 hover:text-purple-600" : "text-orange-500 hover:text-orange-600"} text-sm`}
+                >
+                  + Add Option
+                </button>
+              </div>
+            )}
+
+            {/* Over/Under Line */}
+            {betType === "over_under" && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-white mb-2">
+                  Line
+                </label>
+                <input
+                  type="number"
+                  value={overUnderLine}
+                  onChange={(e) => setOverUnderLine(Number(e.target.value))}
+                  placeholder="e.g., 50.5"
+                  step="0.5"
+                  className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none ${betDestination === "h2h" ? "focus:border-purple-500" : "focus:border-orange-500"}`}
+                />
+              </div>
+            )}
+
+            {/* Closing Date */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-white mb-2">
+                Closing Date *
+              </label>
+              <input
+                type="date"
+                value={closingDate}
+                onChange={(e) => setClosingDate(e.target.value)}
+                className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none ${betDestination === "h2h" ? "focus:border-purple-500" : "focus:border-orange-500"}`}
+              />
+            </div>
+
+            {/* Closing Time */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-white mb-2">
+                Closing Time *
+              </label>
+              <input
+                type="time"
+                value={closingTime}
+                onChange={(e) => setClosingTime(e.target.value)}
+                className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none ${betDestination === "h2h" ? "focus:border-purple-500" : "focus:border-orange-500"}`}
+              />
+            </div>
+
+            {/* Navigation */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setCurrentStep(2)}
+                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-semibold transition-colors"
+              >
+                Back
+              </button>
+
+              <button
+                onClick={handleSubmit}
+                disabled={isCreating || !betTitle || !closingDate || !closingTime}
+                className={`flex-1 py-3 ${betDestination === "h2h" ? "bg-purple-500 hover:bg-purple-600" : "bg-orange-500 hover:bg-orange-600"} disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-lg font-semibold transition-colors`}
+              >
+                {isCreating ? "Creating..." : "Create Bet"}
+              </button>
+            </div>
+          </div>
         )}
       </div>
-      <Footer />
     </div>
-  );
-}
-
-// Main page component with Suspense boundary
-export default function CreateBetPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-screen bg-black">
-          <div className="text-white text-lg">Loading...</div>
-        </div>
-      }
-    >
-      <CreateBetContent />
-    </Suspense>
   );
 }
