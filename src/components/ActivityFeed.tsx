@@ -30,12 +30,20 @@ export default function ActivityFeed({ groupId, groupName }: ActivityFeedProps) 
   const [hasMore, setHasMore] = useState(true);
   const [lastVisible, setLastVisible] = useState<any>(null);
   const [newActivityIds, setNewActivityIds] = useState<Set<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
 
   const ACTIVITIES_PER_PAGE = 20;
 
   // Real-time listener for new activities
   useEffect(() => {
-    if (!groupId) return;
+    if (!groupId) {
+      console.error("ActivityFeed: No groupId provided");
+      setError("No group ID provided");
+      setLoading(false);
+      return;
+    }
+
+    console.log("ActivityFeed: Starting listener for group:", groupId);
 
     const activitiesQuery = query(
       collection(db, "activities"),
@@ -44,36 +52,56 @@ export default function ActivityFeed({ groupId, groupName }: ActivityFeedProps) 
       limit(ACTIVITIES_PER_PAGE)
     );
 
-    const unsubscribe = onSnapshot(activitiesQuery, (snapshot) => {
-      const activitiesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Activity[];
+    const unsubscribe = onSnapshot(
+      activitiesQuery,
+      (snapshot) => {
+        console.log(`ActivityFeed: Received ${snapshot.docs.length} activities`);
 
-      // Detect new activities for fade-in animation
-      const currentIds = new Set(activities.map(a => a.id));
-      const newIds = new Set<string>();
+        const activitiesData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          console.log("ActivityFeed: Activity doc:", doc.id, data);
+          return {
+            id: doc.id,
+            ...data
+          } as Activity;
+        });
 
-      activitiesData.forEach(activity => {
-        if (!currentIds.has(activity.id)) {
-          newIds.add(activity.id);
-        }
-      });
+        // Detect new activities for fade-in animation
+        const currentIds = new Set(activities.map(a => a.id));
+        const newIds = new Set<string>();
 
-      setNewActivityIds(newIds);
+        activitiesData.forEach(activity => {
+          if (!currentIds.has(activity.id)) {
+            newIds.add(activity.id);
+          }
+        });
 
-      // Clear new activity IDs after animation
-      setTimeout(() => {
-        setNewActivityIds(new Set());
-      }, 1000);
+        setNewActivityIds(newIds);
 
-      setActivities(activitiesData);
-      setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
-      setHasMore(snapshot.docs.length === ACTIVITIES_PER_PAGE);
-      setLoading(false);
-    });
+        // Clear new activity IDs after animation
+        setTimeout(() => {
+          setNewActivityIds(new Set());
+        }, 1000);
 
-    return () => unsubscribe();
+        setActivities(activitiesData);
+        setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+        setHasMore(snapshot.docs.length === ACTIVITIES_PER_PAGE);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error("ActivityFeed: Error fetching activities:", err);
+        console.error("ActivityFeed: Error code:", err.code);
+        console.error("ActivityFeed: Error message:", err.message);
+        setError(err.message);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      console.log("ActivityFeed: Cleaning up listener");
+      unsubscribe();
+    };
   }, [groupId]);
 
   // Load more activities
@@ -168,17 +196,61 @@ export default function ActivityFeed({ groupId, groupName }: ActivityFeedProps) 
     return new Date(timestamp).toLocaleDateString();
   };
 
+  if (loading) {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-6">
+        <h3 className="text-lg font-bold text-white mb-4">Activity Feed</h3>
+        <div className="text-center py-8 text-zinc-400 text-sm">
+          Loading activities...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    // Check if it's an index error
+    const isIndexError = error.toLowerCase().includes("index") || error.toLowerCase().includes("requires an index");
+
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-6">
+        <h3 className="text-lg font-bold text-white mb-4">Activity Feed</h3>
+        <div className="text-center py-8">
+          {isIndexError ? (
+            <>
+              <p className="text-amber-500 text-sm mb-2">⚠️ Setting up Activity Feed...</p>
+              <p className="text-zinc-400 text-xs mb-4">
+                A database index is being created. This usually takes 1-5 minutes.
+              </p>
+              <p className="text-zinc-500 text-xs">
+                Refresh the page in a few minutes to see activities.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-red-500 text-sm mb-2">Error loading activities</p>
+              <p className="text-zinc-500 text-xs">{error}</p>
+              <p className="text-zinc-500 text-xs mt-2">
+                Check console for more details
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-6">
       <h3 className="text-lg font-bold text-white mb-4">Activity Feed</h3>
 
-      {loading ? (
-        <div className="text-center py-8 text-zinc-400 text-sm">
-          Loading activities...
-        </div>
-      ) : activities.length === 0 ? (
-        <div className="text-center py-8 text-zinc-400 text-sm">
-          No activity yet. Be the first to create a bet!
+      {activities.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-zinc-400 text-sm mb-2">
+            No activity yet in this group
+          </p>
+          <p className="text-zinc-500 text-xs">
+            Activity will appear when members join, create bets, or bets are judged
+          </p>
         </div>
       ) : (
         <>
