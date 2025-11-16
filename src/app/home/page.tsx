@@ -27,6 +27,7 @@ import Footer from "../../components/Footer";
 import BetFilters, { FilterTab, SortOption } from "../../components/BetFilters";
 import { getTimeRemaining } from "../../utils/timeUtils";
 import { filterBets, sortBets, isClosingSoon, getEmptyStateMessage, searchBets } from "../../utils/betFilters";
+import { Search } from "lucide-react";
 
 // Lazy load heavy wizard components
 const CreateBetWizard = lazy(() => import("../../components/CreateBetWizard"));
@@ -53,10 +54,16 @@ export default function HomePage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true);
 
-  // Filter and sort state
+  // Filter and sort state (for bets)
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [sortBy, setSortBy] = useState<SortOption>("closingSoon");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Groups filtering state
+  const [groupSearchQuery, setGroupSearchQuery] = useState("");
+  const [groupFilter, setGroupFilter] = useState("all"); // "all" | "hasRecentBets" | "hasClosingSoon"
+  const [groupSortBy, setGroupSortBy] = useState("alphabetical");
+  const [groupBetsMap, setGroupBetsMap] = useState<{ [groupId: string]: any[] }>({});
 
   const handleLogout = async () => {
     try {
@@ -201,6 +208,18 @@ export default function HomePage() {
     );
   }, [bets]);
 
+  // Organize bets by group for filtering
+  useEffect(() => {
+    if (groups.length === 0) return;
+
+    const betsMap: { [groupId: string]: any[] } = {};
+    groups.forEach(group => {
+      betsMap[group.id] = bets.filter(bet => bet.groupId === group.id);
+    });
+
+    setGroupBetsMap(betsMap);
+  }, [groups, bets]);
+
   const activeBets = bets.filter((bet) => bet.status !== "JUDGED");
 
   // Apply filters and sorting
@@ -214,6 +233,67 @@ export default function HomePage() {
     const sorted = sortBets(searchFiltered, sortBy, groups);
     return sorted;
   }, [activeBets, activeTab, searchQuery, sortBy, user, groups]);
+
+  // Helper function: Does group have bets in last 7 days?
+  const hasRecentBets = (groupId: string) => {
+    const groupBets = groupBetsMap[groupId] || [];
+    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    return groupBets.some(bet =>
+      new Date(bet.createdAt).getTime() > sevenDaysAgo
+    );
+  };
+
+  // Helper function: Does group have bets closing in next 24 hours?
+  const hasClosingSoonBets = (groupId: string) => {
+    const groupBets = groupBetsMap[groupId] || [];
+    const now = Date.now();
+    const oneDayFromNow = now + (24 * 60 * 60 * 1000);
+
+    return groupBets.some(bet => {
+      const closingTime = new Date(bet.closingAt).getTime();
+      return closingTime > now && closingTime <= oneDayFromNow && bet.status === "OPEN";
+    });
+  };
+
+  // Filter and sort groups
+  const filteredAndSortedGroups = useMemo(() => {
+    let displayGroups = groups;
+
+    // 1. Apply filter
+    if (groupFilter === "hasRecentBets") {
+      displayGroups = groups.filter(group => hasRecentBets(group.id));
+    } else if (groupFilter === "hasClosingSoon") {
+      displayGroups = groups.filter(group => hasClosingSoonBets(group.id));
+    }
+
+    // 2. Apply search
+    if (groupSearchQuery.trim()) {
+      displayGroups = displayGroups.filter(group => {
+        const query = groupSearchQuery.toLowerCase();
+        const name = group.name.toLowerCase();
+        const tagline = group.tagline?.toLowerCase() || "";
+        return name.includes(query) || tagline.includes(query);
+      });
+    }
+
+    // 3. Apply sort
+    const sorted = [...displayGroups].sort((a, b) => {
+      switch (groupSortBy) {
+        case "alphabetical":
+          return a.name.localeCompare(b.name);
+        case "mostBets":
+          return (groupBetsMap[b.id]?.length || 0) - (groupBetsMap[a.id]?.length || 0);
+        case "memberCount":
+          return (b.memberIds?.length || 0) - (a.memberIds?.length || 0);
+        case "newest":
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [groups, groupFilter, groupSearchQuery, groupSortBy, groupBetsMap]);
 
   const getGroupName = (groupId: string) =>
     groups.find((g) => g.id === groupId)?.name || "Unknown Group";
@@ -449,57 +529,137 @@ export default function HomePage() {
             ))}
           </ul>
         ) : groups.length > 0 ? (
-          <ul
-            className="space-y-4 w-full mx-auto"
-            style={{ maxWidth: "var(--content-width)" }}
-          >
-            {groups.map((group) => {
-              const activeCount = bets.filter(
-                (bet) => bet.groupId === group.id && bet.status !== "JUDGED"
-              ).length;
+          <>
+            {/* Single Row: Search + Filters */}
+            <div
+              className="flex items-center gap-1.5 sm:gap-2 mb-4 w-full mx-auto"
+              style={{ maxWidth: "var(--content-width)" }}
+            >
+              {/* Search */}
+              <div className="flex-1 max-w-[45%] sm:max-w-[50%]">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+                  <input
+                    type="text"
+                    value={groupSearchQuery}
+                    onChange={(e) => setGroupSearchQuery(e.target.value)}
+                    placeholder="Search..."
+                    className="w-full pl-7 pr-2 py-1.5 sm:py-2 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+              </div>
 
-              return (
-                <li
-                  key={group.id}
-                  onClick={() => router.push(`/groups/${group.id}`)}
-                  className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col text-left shadow-md hover:border-orange-500 hover:scale-[1.02] transition-transform duration-200 text-base cursor-pointer"
+              {/* Filter */}
+              <div className="flex-shrink-0 w-[28%] sm:w-[25%]">
+                <select
+                  value={groupFilter}
+                  onChange={(e) => setGroupFilter(e.target.value)}
+                  className="w-full px-1.5 sm:px-2 py-1.5 sm:py-2 text-[10px] sm:text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-orange-500 truncate"
                 >
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-semibold text-white text-sm sm:text-base">
-                      {group.name}
-                    </h3>
-                    <p className="text-xs text-gray-400">
-                      {group.memberIds?.length ?? 0} members
-                    </p>
-                  </div>
+                  <option value="all">All</option>
+                  <option value="hasRecentBets">Recent</option>
+                  <option value="hasClosingSoon">Soon</option>
+                </select>
+              </div>
 
-                  {group.tagline && (
-                    <p className="text-sm text-gray-300 mb-3 line-clamp-2">
-                      {group.tagline}
-                    </p>
-                  )}
+              {/* Sort */}
+              <div className="flex-shrink-0 w-[28%] sm:w-[25%]">
+                <select
+                  value={groupSortBy}
+                  onChange={(e) => setGroupSortBy(e.target.value)}
+                  className="w-full px-1.5 sm:px-2 py-1.5 sm:py-2 text-[10px] sm:text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-orange-500 truncate"
+                >
+                  <option value="alphabetical">A-Z</option>
+                  <option value="mostBets">Bets</option>
+                  <option value="memberCount">Members</option>
+                  <option value="newest">New</option>
+                </select>
+              </div>
+            </div>
 
-                  <div className="flex justify-between text-sm text-gray-400">
-                    <span>
-                      Wager Range:{" "}
-                      {group.settings?.min_bet && group.settings?.max_bet
-                        ? `$${group.settings.min_bet} – $${group.settings.max_bet}`
-                        : "Not set"}
-                    </span>
-                    <span
-                      className={`font-semibold ${
-                        activeCount > 0 ? "text-orange-500" : "text-gray-500"
-                      }`}
+            {/* Groups List */}
+            {filteredAndSortedGroups.length === 0 ? (
+              <div className="text-center py-12 px-4">
+                {groupSearchQuery.trim() ? (
+                  <>
+                    <p className="text-zinc-400 text-sm mb-2">
+                      No groups found for "{groupSearchQuery}"
+                    </p>
+                    <button
+                      onClick={() => setGroupSearchQuery("")}
+                      className="text-orange-500 text-sm hover:text-orange-600"
                     >
-                      {activeCount > 0
-                        ? `${activeCount} Active Bets`
-                        : "No Active Bets"}
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                      Clear search
+                    </button>
+                  </>
+                ) : groupFilter === "hasRecentBets" ? (
+                  <p className="text-zinc-400 text-sm">
+                    No groups with recent bets (last 7 days)
+                  </p>
+                ) : groupFilter === "hasClosingSoon" ? (
+                  <p className="text-zinc-400 text-sm">
+                    No groups with bets closing in the next 24 hours
+                  </p>
+                ) : (
+                  <p className="text-zinc-400 text-sm">
+                    No groups yet. Create or join one to get started!
+                  </p>
+                )}
+              </div>
+            ) : (
+              <ul
+                className="space-y-4 w-full mx-auto"
+                style={{ maxWidth: "var(--content-width)" }}
+              >
+                {filteredAndSortedGroups.map((group) => {
+                  const activeCount = bets.filter(
+                    (bet) => bet.groupId === group.id && bet.status !== "JUDGED"
+                  ).length;
+
+                  return (
+                    <li
+                      key={group.id}
+                      onClick={() => router.push(`/groups/${group.id}`)}
+                      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col text-left shadow-md hover:border-orange-500 hover:scale-[1.02] transition-transform duration-200 text-base cursor-pointer"
+                    >
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="font-semibold text-white text-sm sm:text-base">
+                          {group.name}
+                        </h3>
+                        <p className="text-xs text-gray-400">
+                          {group.memberIds?.length ?? 0} members
+                        </p>
+                      </div>
+
+                      {group.tagline && (
+                        <p className="text-sm text-gray-300 mb-3 line-clamp-2">
+                          {group.tagline}
+                        </p>
+                      )}
+
+                      <div className="flex justify-between text-sm text-gray-400">
+                        <span>
+                          Wager Range:{" "}
+                          {group.settings?.min_bet && group.settings?.max_bet
+                            ? `$${group.settings.min_bet} – $${group.settings.max_bet}`
+                            : "Not set"}
+                        </span>
+                        <span
+                          className={`font-semibold ${
+                            activeCount > 0 ? "text-orange-500" : "text-gray-500"
+                          }`}
+                        >
+                          {activeCount > 0
+                            ? `${activeCount} Active Bets`
+                            : "No Active Bets"}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </>
         ) : (
           <p className="text-gray-500 text-sm">
             You haven't joined any groups yet.
