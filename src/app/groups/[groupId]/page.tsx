@@ -19,6 +19,7 @@ import {
   limit,
   documentId,
   arrayRemove,
+  deleteDoc,
 } from "firebase/firestore";
 import JudgeBetModal from "../../../components/JudgeBetModal";
 import ActiveBetCard from "../../../components/ActiveBetCard";
@@ -29,7 +30,7 @@ import BetFilters, { FilterTab, SortOption } from "../../../components/BetFilter
 import { getTimeRemaining } from "../../../utils/timeUtils";
 import { filterBets, sortBets, getEmptyStateMessage, searchBets } from "../../../utils/betFilters";
 import { removeUserFromGroupBets } from "../../../utils/groupHelpers";
-import { LogOut, X } from "lucide-react";
+import { LogOut, X, Trash2 } from "lucide-react";
 
 export default function GroupDetailPage() {
   const { groupId } = useParams();
@@ -57,6 +58,10 @@ export default function GroupDetailPage() {
   // Leave Group state
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+
+  // Delete Group state
+  const [showDeleteGroupModal, setShowDeleteGroupModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // 🎯 Handle user pick
   const handleUserPick = async (bet: any, pick: string | number) => {
@@ -153,6 +158,66 @@ export default function GroupDetailPage() {
     } finally {
       setIsLeaving(false);
       setShowLeaveModal(false);
+    }
+  };
+
+  /**
+   * Delete all bets in the group
+   */
+  const deleteAllGroupBets = async (groupId: string) => {
+    try {
+      // Query all bets in this group
+      const betsQuery = query(
+        collection(db, "bets"),
+        where("groupId", "==", groupId)
+      );
+
+      const betsSnapshot = await getDocs(betsQuery);
+
+      console.log(`Found ${betsSnapshot.docs.length} bets to delete`);
+
+      // Delete each bet
+      const deletePromises = betsSnapshot.docs.map(async (betDoc) => {
+        return deleteDoc(doc(db, "bets", betDoc.id));
+      });
+
+      await Promise.all(deletePromises);
+
+      console.log(`Deleted ${betsSnapshot.docs.length} bets`);
+
+    } catch (error) {
+      console.error("Error deleting group bets:", error);
+      throw error;
+    }
+  };
+
+  /**
+   * Delete the group and all its bets
+   */
+  const handleDeleteGroup = async () => {
+    if (isDeleting || !user || !group) return;
+
+    try {
+      setIsDeleting(true);
+
+      // Step 1: Delete all bets in the group
+      await deleteAllGroupBets(group.id);
+
+      // Step 2: Delete the group itself
+      const groupRef = doc(db, "groups", group.id);
+      await deleteDoc(groupRef);
+
+      alert(`✅ ${group.name} has been deleted`);
+
+      // Step 3: Redirect to home page
+      router.push("/home");
+
+    } catch (error: any) {
+      console.error("Error deleting group:", error);
+      alert(`Failed to delete group: ${error.message}`);
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteGroupModal(false);
     }
   };
 
@@ -262,7 +327,7 @@ export default function GroupDetailPage() {
 
   // 🚫 Prevent body scroll when modal open
   useEffect(() => {
-    if (showLeaveModal) {
+    if (showLeaveModal || showDeleteGroupModal) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -271,7 +336,7 @@ export default function GroupDetailPage() {
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [showLeaveModal]);
+  }, [showLeaveModal, showDeleteGroupModal]);
 
   // 👤 Auth + Firestore listeners
   useEffect(() => {
@@ -391,11 +456,23 @@ export default function GroupDetailPage() {
               )}
             </div>
 
-            {/* Leave Group Button - Only show if member and not admin */}
+            {/* Delete Group Button - Admin Only */}
+            {group.admin_id === user.uid && (
+              <button
+                onClick={() => setShowDeleteGroupModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-red-500 hover:text-red-600 hover:bg-red-500/10 border border-red-500/30 rounded-lg transition-colors flex-shrink-0"
+              >
+                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Delete Group</span>
+                <span className="sm:hidden">Delete</span>
+              </button>
+            )}
+
+            {/* Leave Group Button - Non-Admin Members */}
             {group.memberIds?.includes(user.uid) && group.admin_id !== user.uid && (
               <button
                 onClick={() => setShowLeaveModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-red-500 hover:text-red-600 hover:bg-red-500/10 border border-red-500/30 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-red-500 hover:text-red-600 hover:bg-red-500/10 border border-red-500/30 rounded-lg transition-colors flex-shrink-0"
               >
                 <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Leave Group</span>
@@ -744,6 +821,65 @@ export default function GroupDetailPage() {
                 className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 {isLeaving ? "Leaving..." : "Leave"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Group Confirmation Modal */}
+      {showDeleteGroupModal && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          onClick={() => setShowDeleteGroupModal(false)}
+        >
+          <div
+            className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 max-w-sm w-full relative z-[61] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setShowDeleteGroupModal(false)}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Content */}
+            <h3 className="text-lg font-semibold text-white mb-3">
+              Delete Group?
+            </h3>
+
+            <p className="text-sm text-zinc-400 mb-2">
+              Are you sure you want to permanently delete "<span className="text-white font-medium">{group?.name}</span>"?
+            </p>
+
+            <p className="text-sm text-zinc-400 mb-4">
+              This will delete the group and all {group?.memberIds?.length || 0} member(s) will be removed.
+            </p>
+
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4">
+              <p className="text-sm text-red-500 font-medium">
+                ⚠️ Warning: All bets in this group will be permanently deleted. This action cannot be undone.
+              </p>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteGroupModal(false)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-800/50 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleDeleteGroup}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {isDeleting ? "Deleting..." : "Delete Group"}
               </button>
             </div>
           </div>
