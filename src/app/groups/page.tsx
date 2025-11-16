@@ -17,7 +17,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { motion } from "framer-motion";
-import { Search, X, LogOut } from "lucide-react";
+import { Search, X, LogOut, Users, Dices } from "lucide-react";
 import { removeUserFromGroupBets } from "../../utils/groupHelpers";
 import { arrayRemove, doc } from "firebase/firestore";
 
@@ -639,56 +639,77 @@ export default function GroupsPage() {
                       key={group.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-orange-500/50 transition-all cursor-pointer"
+                      onClick={() => router.push(`/groups/${group.id}`)}
+                      className="
+                        relative
+                        rounded-2xl
+                        p-4 sm:p-5
+                        min-h-[88px] sm:min-h-[90px]
+                        cursor-pointer
+                        transition-all duration-200
+                        hover:scale-[1.02]
+                        hover:shadow-lg hover:shadow-orange-500/20
+                        active:scale-[0.98]
+                        bg-gradient-to-b from-orange-500/20 via-orange-500/10 to-black
+                        flex flex-col justify-center
+                        gap-2 sm:gap-3
+                      "
                     >
-                      <div className="flex justify-between items-start mb-3">
-                        <div onClick={() => router.push(`/groups/${group.id}`)} className="flex-1">
-                          <h3 className="text-xl font-bold text-white">
-                            {group.name}
-                          </h3>
-                          {group.tagline && (
-                            <p className="text-sm text-gray-400 mt-1">
-                              {group.tagline}
-                            </p>
-                          )}
+                      {/* Balance Badge - Top Right Corner */}
+                      <div className="absolute top-2 right-2 flex items-center gap-2">
+                        <div
+                          className={`text-xs sm:text-sm font-bold px-2 py-1 rounded-lg ${
+                            balance >= 0
+                              ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                              : "bg-red-500/20 text-red-400 border border-red-500/30"
+                          }`}
+                        >
+                          {balance >= 0 ? "+" : ""}${balance.toFixed(2)}
                         </div>
-                        <div className="flex items-start gap-3">
-                          <div className="text-right" onClick={() => router.push(`/groups/${group.id}`)}>
-                            <p
-                              className={`text-lg font-bold ${
-                                balance >= 0 ? "text-green-400" : "text-red-400"
-                              }`}
-                            >
-                              {balance >= 0 ? "+" : ""}${balance.toFixed(2)}
-                            </p>
-                          </div>
-                          {/* Leave Button - Only show if member and not admin */}
-                          {group.memberIds?.includes(user?.uid) && group.admin_id !== user?.uid && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleLeaveGroup(group.id, group.name);
-                              }}
-                              className="flex items-center gap-1 px-2 py-1 text-xs text-red-500 hover:text-red-600 hover:bg-red-500/10 border border-red-500/30 rounded-lg transition-colors"
-                            >
-                              <LogOut className="w-3.5 h-3.5" />
-                              <span>Leave</span>
-                            </button>
-                          )}
+                        {/* Leave Button - Only show if member and not admin */}
+                        {group.memberIds?.includes(user?.uid) && group.admin_id !== user?.uid && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleLeaveGroup(group.id, group.name);
+                            }}
+                            className="flex items-center gap-1 px-2 py-1 text-xs text-red-500 hover:text-red-600 hover:bg-red-500/10 border border-red-500/30 rounded-lg transition-colors"
+                          >
+                            <LogOut className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Row 1: Group Name (left) + Members (right) */}
+                      <div className="flex items-center justify-between pr-20">
+                        {/* Group Name */}
+                        <h3 className="text-base sm:text-lg font-bold text-white truncate flex-1 mr-3">
+                          {group.name}
+                        </h3>
+
+                        {/* Members Count */}
+                        <div className="flex items-center gap-1 text-xs sm:text-sm text-zinc-300 flex-shrink-0">
+                          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          <span className="font-medium">{group.memberIds?.length || 0}</span>
                         </div>
                       </div>
 
-                      <div onClick={() => router.push(`/groups/${group.id}`)} className="flex justify-between items-center text-sm">
-                        <div className="flex gap-4 text-gray-400">
-                          <span>{group.memberIds?.length || 0} members</span>
-                          <span>{record}</span>
-                          <span className="text-orange-400 font-semibold">
-                            {activeBets} active bet{activeBets !== 1 ? "s" : ""}
+                      {/* Row 2: Wager Range (left) + Active Bets (right) */}
+                      <div className="flex items-center justify-between">
+                        {/* Wager Range */}
+                        <div className="text-xs sm:text-sm text-zinc-400">
+                          ${group.settings?.min_bet || 0} - ${group.settings?.max_bet || 0}
+                        </div>
+
+                        {/* Active Bets - Conditional styling and text */}
+                        <div className={`flex items-center gap-1 text-xs sm:text-sm flex-shrink-0 ${
+                          activeBets > 0 ? 'text-orange-500' : 'text-zinc-400'
+                        }`}>
+                          <Dices className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          <span className="font-medium">
+                            {activeBets > 0 ? activeBets : 'No active bets'}
                           </span>
                         </div>
-                        <span className="text-orange-400 font-medium">
-                          View →
-                        </span>
                       </div>
                     </motion.div>
                   );
