@@ -392,30 +392,16 @@ export default function GroupDetailPage() {
             </div>
 
             {/* Leave Group Button - Only show if member and not admin */}
-            {(() => {
-              const isMember = group.memberIds?.includes(user.uid);
-              const isAdmin = group.admin_id === user.uid;
-
-              console.log('Leave button check:', {
-                userId: user.uid,
-                isMember,
-                isAdmin,
-                memberIds: group.memberIds,
-                adminId: group.admin_id,
-                shouldShow: isMember && !isAdmin
-              });
-
-              return isMember && !isAdmin ? (
-                <button
-                  onClick={() => setShowLeaveModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-red-500 hover:text-red-600 hover:bg-red-500/10 border border-red-500/30 rounded-lg transition-colors flex-shrink-0"
-                >
-                  <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline">Leave Group</span>
-                  <span className="sm:hidden">Leave</span>
-                </button>
-              ) : null;
-            })()}
+            {group.memberIds?.includes(user.uid) && group.admin_id !== user.uid && (
+              <button
+                onClick={() => setShowLeaveModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-red-500 hover:text-red-600 hover:bg-red-500/10 border border-red-500/30 rounded-lg transition-colors flex-shrink-0"
+              >
+                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Leave Group</span>
+                <span className="sm:hidden">Leave</span>
+              </button>
+            )}
           </div>
 
           <p className="text-sm text-gray-500 mt-2">
