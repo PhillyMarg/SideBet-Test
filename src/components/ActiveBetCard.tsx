@@ -551,4 +551,4 @@ function ActiveBetCard({
     </li>
   );
 }
-export default React.memo(ActiveBetCard);
+export default React.memo<ActiveBetCardProps>(ActiveBetCard);
