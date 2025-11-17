@@ -156,7 +156,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
         groupId: h2hInGroup && h2hGroupSelection ? h2hGroupSelection.id : null,
 
         picks: {},
-        participants: [],
+        participants: [user.uid], // Challenger is automatically a participant
         winners: []
       };
 
@@ -169,7 +169,29 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
         betData.options = ["OVER", "UNDER"];
       }
 
-      await addDoc(collection(db, "bets"), betData);
+      // CREATE BET
+      const betRef = await addDoc(collection(db, "bets"), betData);
+      console.log("H2H bet created:", betRef.id);
+
+      // Get full names for notification
+      const challengerFullName = user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim();
+
+      // CREATE NOTIFICATION FOR CHALLENGEE - CRITICAL
+      await addDoc(collection(db, "notifications"), {
+        userId: selectedFriend.uid,
+        type: "h2h_challenge",
+        title: "New Challenge!",
+        message: `${challengerFullName} challenged you: "${betTitle}"`,
+        link: `/bets/${betRef.id}`,
+        betId: betRef.id,
+        betTitle: betTitle,
+        fromUserId: user.uid,
+        fromUserName: challengerFullName,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+
+      console.log("Notification sent to:", selectedFriend.uid);
 
       alert(`✅ Challenge sent to ${selectedFriend.displayName || selectedFriend.firstName}!`);
       if (onClose) onClose();

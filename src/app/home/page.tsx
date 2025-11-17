@@ -127,7 +127,7 @@ export default function HomePage() {
         setLoading(false); // ← Set loading to false after groups load
       });
 
-      // ✅ Real-time listener for bets created OR joined
+      // ✅ Real-time listener for bets created OR joined OR challenged (H2H)
       const betsCreatedQuery = query(
         collection(db, "bets"),
         where("creatorId", "==", uid),
@@ -138,8 +138,15 @@ export default function HomePage() {
         where("participants", "array-contains", uid),
         limit(50)
       );
+      // NEW: Query for H2H bets where user is the challengee
+      const betsH2HChallengeQuery = query(
+        collection(db, "bets"),
+        where("challengeeId", "==", uid),
+        limit(50)
+      );
 
       const unsubCreated = onSnapshot(betsCreatedQuery, (snapshot) => {
+        console.log("Bets created snapshot:", snapshot.docs.length);
         const created = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
         setBets((prev) => {
           const existingIds = new Set(prev.map((b) => b.id));
@@ -151,6 +158,7 @@ export default function HomePage() {
       });
 
       const unsubJoined = onSnapshot(betsJoinedQuery, (snapshot) => {
+        console.log("Bets joined snapshot:", snapshot.docs.length);
         const joined = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
         setBets((prev) => {
           const existingIds = new Set(prev.map((b) => b.id));
@@ -161,11 +169,24 @@ export default function HomePage() {
         });
       });
 
+      const unsubH2HChallenges = onSnapshot(betsH2HChallengeQuery, (snapshot) => {
+        console.log("H2H challenges snapshot:", snapshot.docs.length);
+        const h2hChallenges = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setBets((prev) => {
+          const existingIds = new Set(prev.map((b) => b.id));
+          return [
+            ...prev.filter((b) => !h2hChallenges.some((h) => h.id === b.id)),
+            ...h2hChallenges,
+          ];
+        });
+      });
+
       // ✅ Cleanup all listeners
       return () => {
         unsubGroups();
         unsubCreated();
         unsubJoined();
+        unsubH2HChallenges();
       };
     });
 
@@ -231,7 +252,18 @@ export default function HomePage() {
     const searchFiltered = searchBets(tabFiltered, searchQuery);
     // 3. Apply sort
     const sorted = sortBets(searchFiltered, sortBy, groups);
-    return sorted;
+
+    // 4. CRITICAL: Prioritize pending H2H challenges for this user at the TOP
+    const pendingChallenges = sorted.filter(
+      bet => bet.isH2H && bet.h2hStatus === "pending" && bet.challengeeId === user.uid
+    );
+    const otherBets = sorted.filter(
+      bet => !(bet.isH2H && bet.h2hStatus === "pending" && bet.challengeeId === user.uid)
+    );
+
+    console.log("Pending H2H challenges for user:", pendingChallenges.length);
+
+    return [...pendingChallenges, ...otherBets];
   }, [activeBets, activeTab, searchQuery, sortBy, user, groups]);
 
   // Track last active bet time per group
