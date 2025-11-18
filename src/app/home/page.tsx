@@ -758,22 +758,28 @@ export default function HomePage() {
       )}
 
       {showCreateBet && (
-        <div
-          className="fixed inset-0 flex justify-center items-center z-50 bg-black/60 p-4"
-          onClick={() => setShowCreateBet(false)}
-        >
+        <>
+          {/* Backdrop */}
           <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto p-5"
-          >
-            <Suspense fallback={null}>
-              <CreateBetWizard
-                user={user}
-                onClose={() => setShowCreateBet(false)}
-              />
-            </Suspense>
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9998]"
+            onClick={() => setShowCreateBet(false)}
+          />
+
+          {/* Modal Content */}
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto p-5 pointer-events-auto"
+            >
+              <Suspense fallback={null}>
+                <CreateBetWizard
+                  user={user}
+                  onClose={() => setShowCreateBet(false)}
+                />
+              </Suspense>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {showCreateGroup && (
@@ -788,14 +794,19 @@ export default function HomePage() {
 
       {/* Join Group Modal */}
       {showJoinGroup && (
-        <div
-          className="fixed inset-0 flex justify-center items-center z-50 bg-black/60 transition-opacity duration-300 ease-out"
-          onClick={() => setShowJoinGroup(false)}
-        >
+        <>
+          {/* Backdrop */}
           <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-[95%] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl px-5 py-5 transform transition-all duration-300 ease-out"
-          >
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9998] transition-opacity duration-300 ease-out"
+            onClick={() => setShowJoinGroup(false)}
+          />
+
+          {/* Modal Content */}
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-[95%] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl px-5 py-5 pointer-events-auto transform transition-all duration-300 ease-out"
+            >
             <h3 className="text-lg font-semibold mb-4 text-center text-white">
               Join a Group
             </h3>
@@ -912,6 +923,7 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+        </>
       )}
 
       {/* Judge Bet Modal */}

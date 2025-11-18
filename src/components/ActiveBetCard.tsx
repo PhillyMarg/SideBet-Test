@@ -672,14 +672,19 @@ function ActiveBetCard({
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-          onClick={() => setShowDeleteModal(false)}
-        >
+        <>
+          {/* Backdrop */}
           <div
-            className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 max-w-sm w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9998]"
+            onClick={() => setShowDeleteModal(false)}
+          />
+
+          {/* Modal Content */}
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+            <div
+              className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 max-w-sm w-full pointer-events-auto shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
             <h3 className="text-lg font-semibold text-white mb-2">
               Delete Bet?
             </h3>
@@ -713,18 +718,24 @@ function ActiveBetCard({
             </div>
           </div>
         </div>
+        </>
       )}
 
       {/* Pick Modal for H2H Accept */}
       {showPickModal && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
-          onClick={() => setShowPickModal(false)}
-        >
+        <>
+          {/* Backdrop */}
           <div
-            className="bg-zinc-900 rounded-2xl border border-purple-500 p-6 max-w-md w-full relative z-[101]"
-            onClick={(e) => e.stopPropagation()}
-          >
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9998]"
+            onClick={() => setShowPickModal(false)}
+          />
+
+          {/* Modal Content */}
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+            <div
+              className="bg-zinc-900 rounded-2xl border border-purple-500 p-6 max-w-md w-full pointer-events-auto shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
             <h3 className="text-lg font-semibold text-white mb-4">
               Accept Challenge - Choose Your Side
             </h3>
@@ -774,18 +785,24 @@ function ActiveBetCard({
             </div>
           </div>
         </div>
+        </>
       )}
 
       {/* Decline Confirmation Modal */}
       {showDeclineConfirm && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
-          onClick={() => setShowDeclineConfirm(false)}
-        >
+        <>
+          {/* Backdrop */}
           <div
-            className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 max-w-md w-full relative z-[101]"
-            onClick={(e) => e.stopPropagation()}
-          >
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9998]"
+            onClick={() => setShowDeclineConfirm(false)}
+          />
+
+          {/* Modal Content */}
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+            <div
+              className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 max-w-md w-full pointer-events-auto shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
             <h3 className="text-lg font-semibold text-white mb-4">
               Decline Challenge?
             </h3>
@@ -811,6 +828,7 @@ function ActiveBetCard({
             </div>
           </div>
         </div>
+        </>
       )}
     </li>
   );
