@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { deleteDoc, doc } from "firebase/firestore";
+import { deleteDoc, doc, updateDoc, addDoc, collection, arrayUnion, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase/client";
 import { Trash2 } from "lucide-react";
 import { getTimeRemaining, getLivePercentages } from "../utils/timeUtils";
@@ -14,6 +14,7 @@ interface ActiveBetCardProps {
   onPick: (bet: any, pick: string | number) => Promise<void>;
   onJudge: (bet: any) => void;
   groupName?: string;
+  onPickMade?: () => void;
 }
 
 function ActiveBetCard({
@@ -22,6 +23,7 @@ function ActiveBetCard({
   onPick,
   onJudge,
   groupName,
+  onPickMade,
 }: ActiveBetCardProps) {
   // ============ DEBUG LOGGING ============
   console.log("=== BET CARD DEBUG ===");
@@ -42,6 +44,11 @@ function ActiveBetCard({
   const [loadingCreator, setLoadingCreator] = useState<boolean>(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // H2H Accept/Reject state
+  const [showPickModal, setShowPickModal] = useState(false);
+  const [selectedPick, setSelectedPick] = useState("");
+  const [showDeclineConfirm, setShowDeclineConfirm] = useState(false);
 
   const { isClosed } = getTimeRemaining(bet.closingAt);
   const isH2H = bet.isH2H === true;
@@ -252,6 +259,88 @@ function ActiveBetCard({
     }
   };
 
+  // H2H Accept Challenge Handlers
+  const handleAcceptChallenge = () => {
+    // Open modal to pick a side
+    setShowPickModal(true);
+  };
+
+  const submitH2HAccept = async () => {
+    if (!user?.uid || !selectedPick) return;
+
+    try {
+      const betRef = doc(db, "bets", bet.id);
+
+      // Update bet status and add challengee's pick
+      await updateDoc(betRef, {
+        h2hStatus: "active",
+        status: "OPEN",
+        participants: arrayUnion(user.uid),
+        [`picks.${user.uid}`]: selectedPick
+      });
+
+      // Send notification to challenger
+      await addDoc(collection(db, "notifications"), {
+        recipientId: bet.challengerId,
+        type: "H2H_ACCEPTED",
+        title: "Challenge Accepted!",
+        message: `${user.firstName} ${user.lastName} accepted your H2H challenge`,
+        read: false,
+        createdAt: serverTimestamp(),
+        betId: bet.id,
+        senderId: user.uid,
+        senderName: `${user.firstName} ${user.lastName}`
+      });
+
+      console.log("H2H challenge accepted");
+      setShowPickModal(false);
+      setSelectedPick("");
+      if (onPickMade) onPickMade();
+
+    } catch (error) {
+      console.error("Error accepting challenge:", error);
+      alert("Failed to accept challenge");
+    }
+  };
+
+  // H2H Decline Challenge Handlers
+  const handleDeclineChallenge = () => {
+    setShowDeclineConfirm(true);
+  };
+
+  const confirmDecline = async () => {
+    try {
+      const betRef = doc(db, "bets", bet.id);
+
+      // Update bet status to declined
+      await updateDoc(betRef, {
+        h2hStatus: "declined",
+        status: "CLOSED"
+      });
+
+      // Send notification to challenger
+      await addDoc(collection(db, "notifications"), {
+        recipientId: bet.challengerId,
+        type: "H2H_DECLINED",
+        title: "Challenge Declined",
+        message: `${user.firstName} ${user.lastName} declined your H2H challenge`,
+        read: false,
+        createdAt: serverTimestamp(),
+        betId: bet.id,
+        senderId: user.uid,
+        senderName: `${user.firstName} ${user.lastName}`
+      });
+
+      console.log("H2H challenge declined");
+      setShowDeclineConfirm(false);
+      if (onPickMade) onPickMade();
+
+    } catch (error) {
+      console.error("Error declining challenge:", error);
+      alert("Failed to decline challenge");
+    }
+  };
+
   return (
     <li
       className={`
@@ -375,6 +464,31 @@ function ActiveBetCard({
           Pot: ${pot.toFixed(2)}
         </span>
       </div>
+
+      {/* ACCEPT/REJECT BUTTONS - Only show for challengee when pending */}
+      {bet.isH2H && bet.h2hStatus === "pending" && user?.uid === bet.challengeeId && (
+        <div className="flex gap-2 mb-3">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleAcceptChallenge();
+            }}
+            className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition-colors text-xs sm:text-sm"
+          >
+            Accept Challenge
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeclineChallenge();
+            }}
+            className="flex-1 py-2.5 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg font-semibold transition-colors text-xs sm:text-sm"
+          >
+            Decline
+          </button>
+        </div>
+      )}
 
       {/* Judge Button */}
       {needsJudging && (
@@ -595,6 +709,104 @@ function ActiveBetCard({
                 className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 text-white rounded-lg text-sm transition"
               >
                 {isDeleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pick Modal for H2H Accept */}
+      {showPickModal && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          onClick={() => setShowPickModal(false)}
+        >
+          <div
+            className="bg-zinc-900 rounded-2xl border border-purple-500 p-6 max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Accept Challenge - Choose Your Side
+            </h3>
+
+            <p className="text-zinc-400 text-sm mb-4">
+              {bet.title}
+            </p>
+
+            <div className="space-y-2 mb-6">
+              {bet.options?.map((option: string) => (
+                <button
+                  key={option}
+                  onClick={() => setSelectedPick(option)}
+                  className={`w-full p-3 rounded-lg border-2 transition-all ${
+                    selectedPick === option
+                      ? 'border-purple-500 bg-purple-500/10'
+                      : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
+                  }`}
+                >
+                  <span className={`font-semibold ${
+                    selectedPick === option ? 'text-purple-500' : 'text-white'
+                  }`}>
+                    {option}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowPickModal(false);
+                  setSelectedPick("");
+                }}
+                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-semibold"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={submitH2HAccept}
+                disabled={!selectedPick}
+                className="flex-1 py-3 bg-purple-500 hover:bg-purple-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white rounded-lg font-semibold transition-colors"
+              >
+                Accept Challenge
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Decline Confirmation Modal */}
+      {showDeclineConfirm && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          onClick={() => setShowDeclineConfirm(false)}
+        >
+          <div
+            className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Decline Challenge?
+            </h3>
+
+            <p className="text-zinc-400 text-sm mb-6">
+              Are you sure you want to decline this H2H challenge from {bet.challengerName}?
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeclineConfirm(false)}
+                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-semibold"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={confirmDecline}
+                className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold"
+              >
+                Decline Challenge
               </button>
             </div>
           </div>
