@@ -168,7 +168,14 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
         challengerDisplayName = user.lastName;
       } else {
         console.error("❌ Cannot find proper name for user:", user);
-        alert("Error: Your profile is missing a name. Please update your profile with your first and last name before creating bets.");
+        alert(
+          "Your profile is missing a name.\n\n" +
+          "Please:\n" +
+          "1. Go to Settings (bottom navigation)\n" +
+          "2. Add your first and last name\n" +
+          "3. Try creating the bet again\n\n" +
+          "Note: If you just signed up, try logging out and logging back in."
+        );
         setIsCreating(false);
         return;
       }

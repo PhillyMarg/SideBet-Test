@@ -104,7 +104,7 @@ export default function HomePage() {
 
   // 👤 Auth + Firestore (fixed real-time listener)
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
         setUser(null);
         setLoading(false);
@@ -112,7 +112,31 @@ export default function HomePage() {
         return;
       }
 
-      setUser(firebaseUser);
+      // ✅ Fetch complete user profile from Firestore
+      try {
+        const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+
+          // ✅ Merge Firebase Auth + Firestore data into user object
+          const completeUser = {
+            ...firebaseUser,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            displayName: userData.displayName,
+          } as any;
+
+          console.log("✅ Complete user object loaded in home page:", completeUser);
+          setUser(completeUser);
+        } else {
+          console.warn("⚠️ User document not found in Firestore");
+          setUser(firebaseUser);
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        setUser(firebaseUser);
+      }
+
       const uid = firebaseUser.uid;
 
       // ✅ Real-time listener for groups
