@@ -3,7 +3,7 @@ import { db } from "./firebase/client";
 
 interface CreateNotificationParams {
   userId: string;
-  type: "friend_request" | "h2h_challenge" | "bet_result" | "bet_closing" | "activity";
+  type: "friend_request" | "h2h_challenge" | "bet_result" | "bet_closing" | "activity" | "group_bet_created" | "group_invite";
   title: string;
   message: string;
   link?: string;
@@ -12,6 +12,8 @@ interface CreateNotificationParams {
   betId?: string;
   betTitle?: string;
   friendshipId?: string;
+  groupId?: string;
+  groupName?: string;
   amount?: number;
 }
 
@@ -22,8 +24,10 @@ export async function createNotification(params: CreateNotificationParams) {
       read: false,
       createdAt: new Date().toISOString()
     });
+    console.log(`Notification created for user ${params.userId}: ${params.title}`);
   } catch (error) {
     console.error("Error creating notification:", error);
+    throw error; // Re-throw to let caller handle
   }
 }
 
@@ -88,5 +92,45 @@ export async function notifyFriendRequestAccepted(userId: string, friendName: st
     message: `${friendName} accepted your friend request`,
     link: "/friends",
     fromUserName: friendName
+  });
+}
+
+export async function notifyGroupBetCreated(
+  userId: string,
+  creatorName: string,
+  betId: string,
+  betTitle: string,
+  groupName: string,
+  groupId: string
+) {
+  await createNotification({
+    userId: userId,
+    type: "group_bet_created",
+    title: "New Bet in Group",
+    message: `${creatorName} created "${betTitle}" in ${groupName}`,
+    link: `/bets/${betId}`,
+    betId: betId,
+    betTitle: betTitle,
+    groupId: groupId,
+    groupName: groupName,
+    fromUserName: creatorName
+  });
+}
+
+export async function notifyGroupInvite(
+  userId: string,
+  inviterName: string,
+  groupId: string,
+  groupName: string
+) {
+  await createNotification({
+    userId: userId,
+    type: "group_invite",
+    title: "Group Invitation",
+    message: `${inviterName} invited you to join ${groupName}`,
+    link: `/groups/${groupId}`,
+    groupId: groupId,
+    groupName: groupName,
+    fromUserName: inviterName
   });
 }

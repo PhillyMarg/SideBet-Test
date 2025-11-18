@@ -9,7 +9,7 @@ import { Bell, Check, X, Swords, Users, TrendingUp, Clock } from "lucide-react";
 interface Notification {
   id: string;
   userId: string;
-  type: "friend_request" | "h2h_challenge" | "bet_result" | "bet_closing" | "activity";
+  type: "friend_request" | "h2h_challenge" | "bet_result" | "bet_closing" | "activity" | "group_bet_created" | "group_invite";
   title: string;
   message: string;
   read: boolean;
@@ -20,6 +20,8 @@ interface Notification {
   betId?: string;
   betTitle?: string;
   friendshipId?: string;
+  groupId?: string;
+  groupName?: string;
   amount?: number;
 }
 
@@ -38,6 +40,8 @@ export default function NotificationBell({ userId }: NotificationBellProps) {
   useEffect(() => {
     if (!userId) return;
 
+    console.log("🔔 Setting up notification listener for user:", userId);
+
     const notificationsQuery = query(
       collection(db, "notifications"),
       where("userId", "==", userId),
@@ -46,16 +50,22 @@ export default function NotificationBell({ userId }: NotificationBellProps) {
     );
 
     const unsubscribe = onSnapshot(notificationsQuery, (snapshot) => {
+      console.log("🔔 Notifications received:", snapshot.docs.length);
+
       const notificationsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Notification[];
+
+      console.log("🔔 Notification data:", notificationsData);
 
       setNotifications(notificationsData);
 
       // Count unread
       const unread = notificationsData.filter(n => !n.read).length;
       setUnreadCount(unread);
+
+      console.log("🔔 Unread count:", unread);
     });
 
     return () => unsubscribe();
@@ -105,17 +115,15 @@ export default function NotificationBell({ userId }: NotificationBellProps) {
       await markAsRead(notification.id);
     }
 
-    // Navigate based on type
+    // Navigate based on type or link
     if (notification.link) {
       router.push(notification.link);
     } else if (notification.type === "friend_request") {
       router.push("/friends");
-    } else if (notification.type === "h2h_challenge" && notification.betId) {
+    } else if (notification.betId) {
       router.push(`/bets/${notification.betId}`);
-    } else if (notification.type === "bet_result" && notification.betId) {
-      router.push(`/bets/${notification.betId}`);
-    } else if (notification.type === "bet_closing" && notification.betId) {
-      router.push(`/bets/${notification.betId}`);
+    } else if (notification.groupId) {
+      router.push(`/groups/${notification.groupId}`);
     }
 
     setShowDropdown(false);
@@ -132,6 +140,12 @@ export default function NotificationBell({ userId }: NotificationBellProps) {
         return <TrendingUp className="w-4 h-4 text-green-500" />;
       case "bet_closing":
         return <Clock className="w-4 h-4 text-amber-500" />;
+      case "group_bet_created":
+        return <Bell className="w-4 h-4 text-orange-500" />;
+      case "group_invite":
+        return <Users className="w-4 h-4 text-blue-500" />;
+      case "activity":
+        return <Bell className="w-4 h-4 text-zinc-400" />;
       default:
         return <Bell className="w-4 h-4 text-zinc-400" />;
     }
