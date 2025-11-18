@@ -135,29 +135,75 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
     try {
       const closingDateTime = new Date(`${closingDate}T${closingTime}`);
 
-      // DEBUG: Log user data to see what's available
-      console.log("=== H2H BET CREATION DEBUG ===");
-      console.log("Creating H2H with user data:", {
-        user: user,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        displayName: user.displayName,
-        email: user.email,
-        friend: selectedFriend,
-        friendFirstName: selectedFriend.firstName,
-        friendLastName: selectedFriend.lastName,
-        friendDisplayName: selectedFriend.displayName,
-        friendEmail: selectedFriend.email
-      });
+      // ======= ENHANCED DEBUG LOGGING =======
+      console.log("======= H2H BET CREATION DEBUG =======");
+      console.log("Full user object:", user);
+      console.log("user.email:", user?.email);
+      console.log("user.displayName:", user?.displayName);
+      console.log("user.firstName:", user?.firstName);
+      console.log("user.lastName:", user?.lastName);
+      console.log("user.name:", user?.name);
 
-      // Build proper display names with fallbacks - PREFER firstName + lastName over displayName
-      const challengerDisplayName = (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` :
-        user.displayName || user.firstName || user.lastName || user.email || 'Challenger');
+      console.log("Selected friend:", selectedFriend);
+      console.log("friend.email:", selectedFriend?.email);
+      console.log("friend.displayName:", selectedFriend?.displayName);
+      console.log("friend.firstName:", selectedFriend?.firstName);
+      console.log("friend.lastName:", selectedFriend?.lastName);
+      console.log("friend.name:", selectedFriend?.name);
+      console.log("======================================");
 
-      const challengeeDisplayName = (selectedFriend.firstName && selectedFriend.lastName ? `${selectedFriend.firstName} ${selectedFriend.lastName}` :
-        selectedFriend.displayName || selectedFriend.firstName || selectedFriend.lastName || selectedFriend.email || 'Challengee');
+      // Build proper display names with STRICT validation to prevent emails
+      let challengerDisplayName = "";
+      let challengeeDisplayName = "";
 
-      console.log("Bet data being saved:", {
+      // ===== CHALLENGER NAME =====
+      if (user.firstName && user.lastName) {
+        challengerDisplayName = `${user.firstName} ${user.lastName}`;
+      } else if (user.displayName && !user.displayName.includes('@')) {
+        // Only use displayName if it's NOT an email
+        challengerDisplayName = user.displayName;
+      } else if (user.firstName) {
+        challengerDisplayName = user.firstName;
+      } else if (user.lastName) {
+        challengerDisplayName = user.lastName;
+      } else {
+        console.error("❌ Cannot find proper name for user:", user);
+        alert("Error: Your profile is missing a name. Please update your profile with your first and last name before creating bets.");
+        setIsCreating(false);
+        return;
+      }
+
+      // ===== CHALLENGEE NAME =====
+      if (selectedFriend.firstName && selectedFriend.lastName) {
+        challengeeDisplayName = `${selectedFriend.firstName} ${selectedFriend.lastName}`;
+      } else if (selectedFriend.displayName && !selectedFriend.displayName.includes('@')) {
+        // Only use displayName if it's NOT an email
+        challengeeDisplayName = selectedFriend.displayName;
+      } else if (selectedFriend.firstName) {
+        challengeeDisplayName = selectedFriend.firstName;
+      } else if (selectedFriend.lastName) {
+        challengeeDisplayName = selectedFriend.lastName;
+      } else {
+        console.warn("⚠️ Cannot find proper name for friend, using fallback");
+        challengeeDisplayName = selectedFriend.email || "Friend";
+      }
+
+      // ===== VALIDATION: PREVENT EMAILS FROM BEING SAVED =====
+      if (challengerDisplayName.includes('@')) {
+        console.error("❌ ERROR: Trying to save email as challenger name!");
+        alert("Error: Cannot use email as your name. Please update your profile with your first and last name.");
+        setIsCreating(false);
+        return;
+      }
+
+      if (challengeeDisplayName.includes('@')) {
+        console.error("❌ ERROR: Trying to save email as challengee name!");
+        alert(`Error: Friend's profile is missing a name. Please ask them to update their profile.`);
+        setIsCreating(false);
+        return;
+      }
+
+      console.log("✅ Names validated and ready to save:", {
         challengerName: challengerDisplayName,
         challengeeName: challengeeDisplayName
       });
@@ -279,10 +325,19 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
       const betRef = await addDoc(collection(db, "bets"), betData);
       console.log("Group bet created:", betRef.id);
 
-      // BUILD CREATOR DISPLAY NAME
-      const creatorDisplayName = user.displayName ||
-        (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` :
-        user.firstName || user.lastName || user.email || 'Someone');
+      // BUILD CREATOR DISPLAY NAME - PREFER firstName + lastName, SKIP displayName if it's an email
+      let creatorDisplayName = "";
+      if (user.firstName && user.lastName) {
+        creatorDisplayName = `${user.firstName} ${user.lastName}`;
+      } else if (user.displayName && !user.displayName.includes('@')) {
+        creatorDisplayName = user.displayName;
+      } else if (user.firstName) {
+        creatorDisplayName = user.firstName;
+      } else if (user.lastName) {
+        creatorDisplayName = user.lastName;
+      } else {
+        creatorDisplayName = 'Someone';
+      }
 
       // SEND NOTIFICATIONS TO ALL GROUP MEMBERS (except creator)
       const memberIds = selectedGroup.memberIds || [];
