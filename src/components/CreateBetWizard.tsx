@@ -257,7 +257,39 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
         betData.options = ["OVER", "UNDER"];
       }
 
-      await addDoc(collection(db, "bets"), betData);
+      // CREATE BET
+      const betRef = await addDoc(collection(db, "bets"), betData);
+      console.log("Group bet created:", betRef.id);
+
+      // BUILD CREATOR DISPLAY NAME
+      const creatorDisplayName = user.displayName ||
+        (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` :
+        user.firstName || user.lastName || user.email || 'Someone');
+
+      // SEND NOTIFICATIONS TO ALL GROUP MEMBERS (except creator)
+      const memberIds = selectedGroup.memberIds || [];
+      const membersToNotify = memberIds.filter((memberId: string) => memberId !== user.uid);
+
+      console.log(`Sending notifications to ${membersToNotify.length} group members`);
+
+      const notificationPromises = membersToNotify.map((memberId: string) =>
+        addDoc(collection(db, "notifications"), {
+          userId: memberId,
+          type: "activity",
+          title: "New Bet in Group",
+          message: `${creatorDisplayName} created "${betTitle}" in ${selectedGroup.name}`,
+          link: `/bets/${betRef.id}`,
+          betId: betRef.id,
+          betTitle: betTitle,
+          fromUserId: user.uid,
+          fromUserName: creatorDisplayName,
+          read: false,
+          createdAt: new Date().toISOString()
+        })
+      );
+
+      await Promise.all(notificationPromises);
+      console.log(`Notifications sent to ${membersToNotify.length} members`);
 
       alert("✅ Bet created!");
       if (onClose) onClose();
