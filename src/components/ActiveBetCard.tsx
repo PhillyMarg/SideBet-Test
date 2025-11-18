@@ -74,6 +74,20 @@ function ActiveBetCard({
     });
   }, [bet.id, bet.title, bet.type, bet.status, isClosed, isH2H, bet.h2hStatus, userHasPicked]);
 
+  // Debug logging for H2H bet names
+  useEffect(() => {
+    if (isH2H) {
+      console.log("H2H Bet Debug:");
+      console.log("Bet data:", bet);
+      console.log("Challenger ID:", bet.challengerId);
+      console.log("Challenger Name:", bet.challengerName);
+      console.log("Challengee ID:", bet.challengeeId);
+      console.log("Challengee Name:", bet.challengeeName);
+      console.log("Creator ID:", bet.creatorId);
+      console.log("User ID:", user?.uid);
+    }
+  }, [isH2H, bet, user?.uid]);
+
   // Theme color based on bet type - PURPLE for H2H, ORANGE for Group
   const themeColor = isH2H ? "purple" : "orange";
 
@@ -274,8 +288,8 @@ function ActiveBetCard({
                 )}
 
                 {bet.h2hStatus === "pending" && bet.challengerId === user?.uid && (
-                  <div className="bg-amber-500/20 border border-amber-500/40 rounded-full px-1.5 py-0.5">
-                    <span className="text-[8px] sm:text-[9px] text-amber-500 font-medium">AWAITING RESPONSE</span>
+                  <div className="bg-purple-500/20 border border-purple-500/40 rounded-full px-1.5 py-0.5">
+                    <span className="text-[8px] sm:text-[9px] text-purple-400 font-medium">AWAITING RESPONSE</span>
                   </div>
                 )}
 
