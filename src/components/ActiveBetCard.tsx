@@ -276,7 +276,7 @@ function ActiveBetCard({
             <div className="flex flex-col gap-1">
               {/* H2H vs Display with FULL NAMES */}
               <p className="text-[9px] sm:text-xs font-bold text-purple-500">
-                {bet.challengerName || 'Challenger'} v {bet.challengeeName || 'Challengee'}
+                {bet.challengerName || 'Challenger'} (Challenger) v {bet.challengeeName || 'Challengee'} (Challengee)
               </p>
 
               {/* H2H Status Badges */}
