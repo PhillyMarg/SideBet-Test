@@ -74,20 +74,26 @@ export default function FloatingCreateBetButton({
 
       {/* Wizard Modal */}
       {showWizard && user && (
-        <div
-          className="fixed inset-0 flex justify-center items-center z-[60] bg-black/60 p-4"
-          onClick={() => setShowWizard(false)}
-        >
+        <>
+          {/* Backdrop */}
           <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto p-5"
-          >
-            <CreateBetWizard
-              user={user}
-              onClose={() => setShowWizard(false)}
-            />
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9998]"
+            onClick={() => setShowWizard(false)}
+          />
+
+          {/* Modal Content */}
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto p-5 pointer-events-auto"
+            >
+              <CreateBetWizard
+                user={user}
+                onClose={() => setShowWizard(false)}
+              />
+            </div>
           </div>
-        </div>
+        </>
       )}
     </>
   );

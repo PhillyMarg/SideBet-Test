@@ -154,14 +154,19 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
   };
 
   return (
-    <div
-      className="fixed inset-0 flex justify-center items-center z-[200] bg-black/70"
-      onClick={onClose}
-    >
+    <>
+      {/* Backdrop */}
       <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-[95%] sm:max-w-md bg-zinc-900 border border-orange-500 rounded-2xl shadow-xl px-6 py-6"
-      >
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9998]"
+        onClick={onClose}
+      />
+
+      {/* Modal Content */}
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="w-[95%] sm:max-w-md bg-zinc-900 border border-orange-500 rounded-2xl shadow-xl px-6 py-6 pointer-events-auto"
+        >
         <h3 className="text-xl font-bold mb-4 text-center text-white">
           Judge Bet
         </h3>
@@ -235,5 +240,7 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
         </button>
       </div>
     </div>
+    </div>
+    </>
   );
 }

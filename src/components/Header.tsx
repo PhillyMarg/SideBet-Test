@@ -312,22 +312,28 @@ export default function Header() {
 
       {/* Create Bet Wizard */}
       {showCreateBet && (
-        <div
-          className="fixed inset-0 flex justify-center items-center z-50 bg-black/60 p-4"
-          onClick={() => setShowCreateBet(false)}
-        >
+        <>
+          {/* Backdrop */}
           <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto p-5"
-          >
-            <Suspense fallback={null}>
-              <CreateBetWizard
-                user={user}
-                onClose={() => setShowCreateBet(false)}
-              />
-            </Suspense>
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9998]"
+            onClick={() => setShowCreateBet(false)}
+          />
+
+          {/* Modal Content */}
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto p-5 pointer-events-auto"
+            >
+              <Suspense fallback={null}>
+                <CreateBetWizard
+                  user={user}
+                  onClose={() => setShowCreateBet(false)}
+                />
+              </Suspense>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Create Group Wizard */}
@@ -343,49 +349,55 @@ export default function Header() {
 
       {/* Join Group Modal */}
       {showJoinGroup && (
-        <div
-          className="fixed inset-0 flex justify-center items-center z-[100] bg-black/60"
-          onClick={() => setShowJoinGroup(false)}
-        >
+        <>
+          {/* Backdrop */}
           <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-[95%] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl px-5 py-5"
-          >
-            <h3 className="text-lg font-semibold mb-4 text-center text-white">
-              Join a Group
-            </h3>
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9998]"
+            onClick={() => setShowJoinGroup(false)}
+          />
 
-            <p className="text-sm text-gray-400 mb-3 text-center">
-              Enter an{" "}
-              <span className="text-orange-400 font-medium">Access Code</span> or paste
-              a <span className="text-orange-400 font-medium">Join Link</span> to join a
-              group.
-            </p>
+          {/* Modal Content */}
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-[95%] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl px-5 py-5 pointer-events-auto"
+            >
+              <h3 className="text-lg font-semibold mb-4 text-center text-white">
+                Join a Group
+              </h3>
 
-            <input
-              type="text"
-              placeholder="Enter access code or join link"
-              value={joinInput}
-              onChange={(e) => setJoinInput(e.target.value.trim())}
-              className="w-full bg-zinc-800 text-white p-3 rounded-md text-sm border border-zinc-700 mb-4 focus:outline-none focus:border-orange-500"
-            />
+              <p className="text-sm text-gray-400 mb-3 text-center">
+                Enter an{" "}
+                <span className="text-orange-400 font-medium">Access Code</span> or paste
+                a <span className="text-orange-400 font-medium">Join Link</span> to join a
+                group.
+              </p>
 
-            <div className="flex justify-between mt-4">
-              <button
-                onClick={() => setShowJoinGroup(false)}
-                className="text-gray-400 border border-gray-600 px-4 py-2 rounded-md text-sm hover:bg-gray-800 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleJoinGroup}
-                className="bg-orange-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-600 transition"
-              >
-                Join Group
-              </button>
+              <input
+                type="text"
+                placeholder="Enter access code or join link"
+                value={joinInput}
+                onChange={(e) => setJoinInput(e.target.value.trim())}
+                className="w-full bg-zinc-800 text-white p-3 rounded-md text-sm border border-zinc-700 mb-4 focus:outline-none focus:border-orange-500"
+              />
+
+              <div className="flex justify-between mt-4">
+                <button
+                  onClick={() => setShowJoinGroup(false)}
+                  className="text-gray-400 border border-gray-600 px-4 py-2 rounded-md text-sm hover:bg-gray-800 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleJoinGroup}
+                  className="bg-orange-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-600 transition"
+                >
+                  Join Group
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </>
   );

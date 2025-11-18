@@ -88,12 +88,17 @@ export default function CreateGroupModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="bg-zinc-900 rounded-2xl max-w-md w-full border border-zinc-800"
-      >
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9998]" />
+
+      {/* Modal Content */}
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="bg-zinc-900 rounded-2xl max-w-md w-full border border-zinc-800 pointer-events-auto shadow-2xl"
+        >
         {/* Header */}
         <div className="border-b border-zinc-800 p-6 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-white">Create New Group</h2>
@@ -153,5 +158,6 @@ export default function CreateGroupModal({
         </form>
       </motion.div>
     </div>
+    </>
   );
 }

@@ -53,16 +53,21 @@ export default function OnboardingWizard({
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 flex justify-center items-center z-50 bg-black/60 p-4"
-      onClick={handleSkip}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto"
-      >
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9998]"
+        onClick={handleSkip}
+      />
+
+      {/* Modal Content */}
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          onClick={(e) => e.stopPropagation()}
+          className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto pointer-events-auto"
+        >
         {/* Header */}
         <div className="sticky top-0 bg-zinc-900 border-b border-zinc-800 px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between z-10">
           <h3 className="text-base sm:text-lg font-semibold text-white">
@@ -368,5 +373,6 @@ export default function OnboardingWizard({
         </div>
       </motion.div>
     </div>
+    </>
   );
 }
