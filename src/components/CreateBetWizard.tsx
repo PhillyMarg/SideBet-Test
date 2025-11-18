@@ -135,14 +135,12 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
     try {
       const closingDateTime = new Date(`${closingDate}T${closingTime}`);
 
-      // Build proper display names with fallbacks
-      const challengerDisplayName = user.displayName ||
-        (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` :
-        user.firstName || user.lastName || user.email || 'Challenger');
+      // Build proper display names with fallbacks - PREFER firstName + lastName over displayName
+      const challengerDisplayName = (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` :
+        user.displayName || user.firstName || user.lastName || user.email || 'Challenger');
 
-      const challengeeDisplayName = selectedFriend.displayName ||
-        (selectedFriend.firstName && selectedFriend.lastName ? `${selectedFriend.firstName} ${selectedFriend.lastName}` :
-        selectedFriend.firstName || selectedFriend.lastName || selectedFriend.email || 'Challengee');
+      const challengeeDisplayName = (selectedFriend.firstName && selectedFriend.lastName ? `${selectedFriend.firstName} ${selectedFriend.lastName}` :
+        selectedFriend.displayName || selectedFriend.firstName || selectedFriend.lastName || selectedFriend.email || 'Challengee');
 
       const betData: any = {
         title: betTitle,
