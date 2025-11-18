@@ -40,6 +40,21 @@ function ActiveBetCard({
   const isCreator = bet.creatorId === user?.uid;
   const needsJudging = isClosed && bet.status !== "JUDGED" && isCreator;
 
+  // Debug logging for voting conditions
+  useEffect(() => {
+    console.log("Bet voting conditions:", {
+      betId: bet.id,
+      betTitle: bet.title,
+      type: bet.type,
+      status: bet.status,
+      isClosed,
+      isH2H,
+      h2hStatus: bet.h2hStatus,
+      userHasPicked,
+      canVote: !isClosed && (!isH2H || bet.h2hStatus === "accepted") && !userHasPicked
+    });
+  }, [bet.id, bet.title, bet.type, bet.status, isClosed, isH2H, bet.h2hStatus, userHasPicked]);
+
   // Theme color based on bet type - PURPLE for H2H, ORANGE for Group
   const themeColor = isH2H ? "purple" : "orange";
 
@@ -335,7 +350,7 @@ function ActiveBetCard({
       )}
 
       {/* Betting Interface */}
-      {!isClosed && (
+      {!isClosed && (!isH2H || bet.h2hStatus === "accepted") && (
         <>
           {userHasPicked ? (
             <>
