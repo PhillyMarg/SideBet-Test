@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import {
   collection,
@@ -26,6 +26,9 @@ import {
 } from "lucide-react";
 import Footer from "@/components/Footer";
 import { notifyFriendRequest, notifyFriendRequestAccepted } from "@/lib/notifications";
+
+// Lazy load CreateBetWizard
+const CreateBetWizard = lazy(() => import("@/components/CreateBetWizard"));
 
 interface User {
   uid: string;
@@ -64,6 +67,10 @@ export default function FriendsPage() {
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+
+  // Create bet wizard state
+  const [showCreateBet, setShowCreateBet] = useState(false);
+  const [preSelectedFriend, setPreSelectedFriend] = useState<User | null>(null);
 
   // Collapsible sections
   const [showFriends, setShowFriends] = useState(true);
@@ -518,7 +525,10 @@ export default function FriendsPage() {
                   {/* Challenge Button */}
                   <button
                     onClick={() => {
-                      router.push(`/create-bet?h2h=true&friendId=${friend.uid}`);
+                      console.log("Challenge button clicked for friend:", friend);
+                      setPreSelectedFriend(friend);
+                      setShowCreateBet(true);
+                      console.log("Create Bet Wizard should open with H2H pre-selected");
                     }}
                     className="px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-xs font-medium transition-colors"
                   >
@@ -833,6 +843,33 @@ export default function FriendsPage() {
             >
               Got it
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Create Bet Wizard Modal */}
+      {showCreateBet && (
+        <div
+          className="fixed inset-0 flex justify-center items-center z-[60] bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => {
+            setShowCreateBet(false);
+            setPreSelectedFriend(null);
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto p-5"
+          >
+            <Suspense fallback={<div className="text-white text-center py-8">Loading...</div>}>
+              <CreateBetWizard
+                user={user}
+                preSelectedFriend={preSelectedFriend}
+                onClose={() => {
+                  setShowCreateBet(false);
+                  setPreSelectedFriend(null);
+                }}
+              />
+            </Suspense>
           </div>
         </div>
       )}
