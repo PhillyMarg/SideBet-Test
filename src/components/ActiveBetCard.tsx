@@ -77,12 +77,16 @@ function ActiveBetCard({
   // Debug logging for H2H bet names
   useEffect(() => {
     if (isH2H) {
-      console.log("H2H Bet Debug:");
+      console.log("=== H2H NAME DEBUG ===");
+      console.log("Challenger Name from bet:", bet.challengerName);
+      console.log("Challengee Name from bet:", bet.challengeeName);
+      console.log("Current user:", user);
+      console.log("User first/last:", user?.firstName, user?.lastName);
+      console.log("Is user challenger?", user?.uid === bet.challengerId);
+      console.log("Is user challengee?", user?.uid === bet.challengeeId);
       console.log("Bet data:", bet);
       console.log("Challenger ID:", bet.challengerId);
-      console.log("Challenger Name:", bet.challengerName);
       console.log("Challengee ID:", bet.challengeeId);
-      console.log("Challengee Name:", bet.challengeeName);
       console.log("Creator ID:", bet.creatorId);
       console.log("User ID:", user?.uid);
     }
@@ -274,9 +278,9 @@ function ActiveBetCard({
           {/* H2H Header - Show Full Names */}
           {isH2H ? (
             <div className="flex flex-col gap-1">
-              {/* H2H vs Display with FULL NAMES */}
+              {/* H2H vs Display with FULL NAMES - NO LABELS */}
               <p className="text-[9px] sm:text-xs font-bold text-purple-500">
-                {bet.challengerName || 'Challenger'} (Challenger) v {bet.challengeeName || 'Challengee'} (Challengee)
+                {bet.challengerName || 'Challenger'} v {bet.challengeeName || 'Challengee'}
               </p>
 
               {/* H2H Status Badges */}

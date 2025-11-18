@@ -135,12 +135,32 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
     try {
       const closingDateTime = new Date(`${closingDate}T${closingTime}`);
 
+      // DEBUG: Log user data to see what's available
+      console.log("=== H2H BET CREATION DEBUG ===");
+      console.log("Creating H2H with user data:", {
+        user: user,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        displayName: user.displayName,
+        email: user.email,
+        friend: selectedFriend,
+        friendFirstName: selectedFriend.firstName,
+        friendLastName: selectedFriend.lastName,
+        friendDisplayName: selectedFriend.displayName,
+        friendEmail: selectedFriend.email
+      });
+
       // Build proper display names with fallbacks - PREFER firstName + lastName over displayName
       const challengerDisplayName = (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` :
         user.displayName || user.firstName || user.lastName || user.email || 'Challenger');
 
       const challengeeDisplayName = (selectedFriend.firstName && selectedFriend.lastName ? `${selectedFriend.firstName} ${selectedFriend.lastName}` :
         selectedFriend.displayName || selectedFriend.firstName || selectedFriend.lastName || selectedFriend.email || 'Challengee');
+
+      console.log("Bet data being saved:", {
+        challengerName: challengerDisplayName,
+        challengeeName: challengeeDisplayName
+      });
 
       const betData: any = {
         title: betTitle,
