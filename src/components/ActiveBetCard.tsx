@@ -23,6 +23,19 @@ function ActiveBetCard({
   onJudge,
   groupName,
 }: ActiveBetCardProps) {
+  // ============ DEBUG LOGGING ============
+  console.log("=== BET CARD DEBUG ===");
+  console.log("Bet ID:", bet.id);
+  console.log("Bet Type:", bet.type);
+  console.log("Bet Status:", bet.status);
+  console.log("Bet Options:", bet.options);
+  console.log("User ID:", user?.uid);
+  console.log("Participants:", bet.participants);
+  console.log("Picks:", bet.picks);
+  console.log("Is H2H:", bet.isH2H);
+  console.log("H2H Status:", bet.h2hStatus);
+  console.log("Closing At:", bet.closingAt);
+
   const router = useRouter();
   const [showResults, setShowResults] = useState(false);
   const [creatorName, setCreatorName] = useState<string>("");
@@ -39,6 +52,12 @@ function ActiveBetCard({
   const { yes, no } = getLivePercentages(bet);
   const isCreator = bet.creatorId === user?.uid;
   const needsJudging = isClosed && bet.status !== "JUDGED" && isCreator;
+
+  console.log("User Has Picked:", userHasPicked);
+  console.log("Is Closed:", isClosed);
+  console.log("Should Show Voting Section:", !isClosed && (!isH2H || bet.h2hStatus === "accepted"));
+  console.log("Should Show Vote Buttons:", !isClosed && (!isH2H || bet.h2hStatus === "accepted") && !userHasPicked);
+  console.log("======================")
 
   // Debug logging for voting conditions
   useEffect(() => {

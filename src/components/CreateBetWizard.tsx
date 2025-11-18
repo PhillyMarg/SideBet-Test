@@ -31,7 +31,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
   const [h2hGroupSelection, setH2hGroupSelection] = useState<any>(null);
 
   // STEP 2: Bet Type - NOW SECOND
-  const [betType, setBetType] = useState<"binary" | "multiple_choice" | "over_under">("binary");
+  const [betType, setBetType] = useState<"YES_NO" | "CLOSEST_GUESS" | "OVER_UNDER">("YES_NO");
 
   // STEP 3: Bet Details - NOW THIRD
   const [betTitle, setBetTitle] = useState("");
@@ -160,11 +160,11 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
         winners: []
       };
 
-      if (betType === "binary") {
+      if (betType === "YES_NO") {
         betData.options = ["YES", "NO"];
-      } else if (betType === "multiple_choice") {
+      } else if (betType === "CLOSEST_GUESS") {
         betData.options = multipleChoiceOptions.filter(opt => opt.trim());
-      } else if (betType === "over_under") {
+      } else if (betType === "OVER_UNDER") {
         betData.line = overUnderLine;
         betData.options = ["OVER", "UNDER"];
       }
@@ -242,11 +242,11 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
         settings: selectedGroup.settings
       };
 
-      if (betType === "binary") {
+      if (betType === "YES_NO") {
         betData.options = ["YES", "NO"];
-      } else if (betType === "multiple_choice") {
+      } else if (betType === "CLOSEST_GUESS") {
         betData.options = multipleChoiceOptions.filter(opt => opt.trim());
-      } else if (betType === "over_under") {
+      } else if (betType === "OVER_UNDER") {
         betData.line = overUnderLine;
         betData.options = ["OVER", "UNDER"];
       }
@@ -629,42 +629,42 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
 
           <div className="grid grid-cols-3 gap-3 mb-8">
             <button
-              onClick={() => setBetType("binary")}
+              onClick={() => setBetType("YES_NO")}
               className={`p-4 rounded-xl border-2 transition-all ${
-                betType === "binary"
+                betType === "YES_NO"
                   ? `border-${themeColor}-500 bg-${themeColor}-500/10`
                   : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
               }`}
             >
-              <p className={`text-sm font-semibold mb-1 ${betType === "binary" ? `text-${themeColor}-500` : "text-white"}`}>
+              <p className={`text-sm font-semibold mb-1 ${betType === "YES_NO" ? `text-${themeColor}-500` : "text-white"}`}>
                 Yes/No
               </p>
               <p className="text-xs text-zinc-500">Binary choice</p>
             </button>
 
             <button
-              onClick={() => setBetType("multiple_choice")}
+              onClick={() => setBetType("CLOSEST_GUESS")}
               className={`p-4 rounded-xl border-2 transition-all ${
-                betType === "multiple_choice"
+                betType === "CLOSEST_GUESS"
                   ? `border-${themeColor}-500 bg-${themeColor}-500/10`
                   : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
               }`}
             >
-              <p className={`text-sm font-semibold mb-1 ${betType === "multiple_choice" ? `text-${themeColor}-500` : "text-white"}`}>
-                Multiple
+              <p className={`text-sm font-semibold mb-1 ${betType === "CLOSEST_GUESS" ? `text-${themeColor}-500` : "text-white"}`}>
+                Closest Guess
               </p>
-              <p className="text-xs text-zinc-500">Many options</p>
+              <p className="text-xs text-zinc-500">Numeric guess</p>
             </button>
 
             <button
-              onClick={() => setBetType("over_under")}
+              onClick={() => setBetType("OVER_UNDER")}
               className={`p-4 rounded-xl border-2 transition-all ${
-                betType === "over_under"
+                betType === "OVER_UNDER"
                   ? `border-${themeColor}-500 bg-${themeColor}-500/10`
                   : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
               }`}
             >
-              <p className={`text-sm font-semibold mb-1 ${betType === "over_under" ? `text-${themeColor}-500` : "text-white"}`}>
+              <p className={`text-sm font-semibold mb-1 ${betType === "OVER_UNDER" ? `text-${themeColor}-500` : "text-white"}`}>
                 Over/Under
               </p>
               <p className="text-xs text-zinc-500">Set a line</p>
@@ -729,8 +729,8 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
             />
           </div>
 
-          {/* Multiple Choice Options */}
-          {betType === "multiple_choice" && (
+          {/* Closest Guess Options */}
+          {betType === "CLOSEST_GUESS" && (
             <div className="mb-4">
               <label className="block text-sm font-medium text-white mb-2">
                 Options
@@ -762,7 +762,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
           )}
 
           {/* Over/Under Line */}
-          {betType === "over_under" && (
+          {betType === "OVER_UNDER" && (
             <div className="mb-4">
               <label className="block text-sm font-medium text-white mb-2">
                 Line
