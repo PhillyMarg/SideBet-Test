@@ -186,9 +186,7 @@ export default function Header() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        setUser(currentUser);
-
-        // Fetch user's name from Firestore
+        // Fetch complete user profile from Firestore
         try {
           const userDoc = await getDoc(doc(db, "users", currentUser.uid));
           if (userDoc.exists()) {
@@ -196,9 +194,24 @@ export default function Header() {
             const firstName = userData.firstName || "";
             const lastName = userData.lastName || "";
             setUserName(`${firstName} ${lastName}`.trim());
+
+            // ✅ Merge Firebase Auth + Firestore data into user object
+            const completeUser = {
+              ...currentUser,
+              firstName: userData.firstName,
+              lastName: userData.lastName,
+              displayName: userData.displayName,
+            } as any;
+
+            console.log("✅ Complete user object loaded:", completeUser);
+            setUser(completeUser);
+          } else {
+            console.warn("⚠️ User document not found in Firestore");
+            setUser(currentUser);
           }
         } catch (error) {
-          console.error("Error fetching user name:", error);
+          console.error("Error fetching user data:", error);
+          setUser(currentUser);
         }
       } else {
         router.push("/login");
