@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { deleteDoc, doc, updateDoc, arrayUnion, addDoc, collection } from "firebase/firestore";
+import { deleteDoc, doc } from "firebase/firestore";
 import { db } from "../lib/firebase/client";
-import { Trash2, Check, X } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { getTimeRemaining, getLivePercentages } from "../utils/timeUtils";
 import { fetchUserData, getUserDisplayName } from "../utils/userUtils";
 
@@ -30,12 +30,6 @@ function ActiveBetCard({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // H2H Challenge Accept/Reject state
-  const [showPickModal, setShowPickModal] = useState(false);
-  const [selectedPick, setSelectedPick] = useState("");
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-
   const { isClosed } = getTimeRemaining(bet.closingAt);
   const isH2H = bet.isH2H === true;
   const wager = bet.perUserWager ?? bet.betAmount ?? 0;
@@ -45,12 +39,6 @@ function ActiveBetCard({
   const { yes, no } = getLivePercentages(bet);
   const isCreator = bet.creatorId === user?.uid;
   const needsJudging = isClosed && bet.status !== "JUDGED" && isCreator;
-
-  // Check if this is a pending challenge for this user
-  const isPendingChallenge =
-    isH2H &&
-    bet.h2hStatus === "pending" &&
-    bet.challengeeId === user?.uid;
 
   // Theme color based on bet type - PURPLE for H2H, ORANGE for Group
   const themeColor = isH2H ? "purple" : "orange";
@@ -212,97 +200,6 @@ function ActiveBetCard({
     }
   };
 
-  // Accept H2H challenge
-  const acceptChallenge = async (pick: string) => {
-    if (!pick) {
-      alert("Please select your pick");
-      return;
-    }
-
-    setIsProcessing(true);
-
-    try {
-      const betRef = doc(db, "bets", bet.id);
-
-      // Update bet: add pick, add to participants, change status to accepted
-      await updateDoc(betRef, {
-        [`picks.${user.uid}`]: pick,
-        participants: arrayUnion(user.uid),
-        h2hStatus: "accepted",
-        h2hAcceptedAt: new Date().toISOString()
-      });
-
-      console.log("Challenge accepted, bet updated");
-
-      // Get user's display name
-      const userName = user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim();
-
-      // Notify challenger
-      await addDoc(collection(db, "notifications"), {
-        userId: bet.challengerId,
-        type: "h2h_challenge",
-        title: "Challenge Accepted!",
-        message: `${userName} accepted your challenge: "${bet.title}"`,
-        link: `/bets/${bet.id}`,
-        betId: bet.id,
-        betTitle: bet.title,
-        read: false,
-        createdAt: new Date().toISOString()
-      });
-
-      console.log("Notification sent to challenger");
-
-      setShowPickModal(false);
-      setSelectedPick("");
-
-      // Call onPick callback if provided (for parent component refresh)
-      if (onPick) {
-        await onPick(bet, pick);
-      }
-
-    } catch (error: any) {
-      console.error("Error accepting challenge:", error);
-      alert(`Failed to accept: ${error.message}`);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // Reject H2H challenge
-  const rejectChallenge = async () => {
-    setIsProcessing(true);
-
-    try {
-      // Delete the bet
-      await deleteDoc(doc(db, "bets", bet.id));
-
-      console.log("Bet deleted");
-
-      // Get user's display name
-      const userName = user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim();
-
-      // Notify challenger
-      await addDoc(collection(db, "notifications"), {
-        userId: bet.challengerId,
-        type: "h2h_challenge",
-        title: "Challenge Declined",
-        message: `${userName} declined your challenge: "${bet.title}"`,
-        read: false,
-        createdAt: new Date().toISOString()
-      });
-
-      console.log("Notification sent to challenger");
-
-      setShowRejectModal(false);
-
-    } catch (error: any) {
-      console.error("Error rejecting challenge:", error);
-      alert(`Failed to decline: ${error.message}`);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   return (
     <li
       className={`
@@ -396,60 +293,6 @@ function ActiveBetCard({
           )}
         </div>
       </div>
-
-      {/* PENDING CHALLENGE BANNER - Accept/Reject Buttons */}
-      {isPendingChallenge && (
-        <div className="mb-3 p-2 sm:p-3 bg-red-500/20 border-2 border-red-500 rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] sm:text-xs font-bold text-red-500">
-              🎯 YOU'VE BEEN CHALLENGED!
-            </p>
-          </div>
-
-          <p className="text-[9px] sm:text-xs text-white mb-2">
-            <span className="font-semibold">{bet.challengerName}</span> wants to bet with you
-          </p>
-
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 text-[9px] sm:text-xs mb-2">
-            <div>
-              <span className="text-zinc-400">Wager:</span>
-              <span className="text-white font-semibold ml-1">
-                ${bet.betAmount && bet.h2hOdds ? (bet.betAmount * bet.h2hOdds.challengee).toFixed(2) : '0'}
-              </span>
-            </div>
-            <div>
-              <span className="text-zinc-400">Win:</span>
-              <span className="text-green-500 font-semibold ml-1">
-                ${bet.betAmount && bet.h2hOdds ? (bet.betAmount * bet.h2hOdds.challenger).toFixed(2) : '0'}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex gap-1.5 sm:gap-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowPickModal(true);
-              }}
-              className="flex-1 py-1.5 sm:py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-semibold text-[10px] sm:text-xs flex items-center justify-center gap-1 transition-colors"
-            >
-              <Check className="w-3 h-3 sm:w-4 sm:h-4" />
-              Accept
-            </button>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowRejectModal(true);
-              }}
-              className="flex-1 py-1.5 sm:py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-semibold text-[10px] sm:text-xs flex items-center justify-center gap-1 transition-colors"
-            >
-              <X className="w-3 h-3 sm:w-4 sm:h-4" />
-              Decline
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Title */}
       <p className="font-semibold text-white mb-0.5 sm:mb-1 text-xs sm:text-sm leading-tight line-clamp-1 sm:line-clamp-2">
@@ -700,91 +543,6 @@ function ActiveBetCard({
                 className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 text-white rounded-lg text-sm transition"
               >
                 {isDeleting ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Pick Modal - For accepting H2H challenge */}
-      {showPickModal && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
-          onClick={() => setShowPickModal(false)}
-        >
-          <div
-            className="bg-zinc-900 rounded-2xl border border-zinc-800 p-4 sm:p-6 max-w-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">
-              Accept Challenge - Make Your Pick
-            </h3>
-
-            <div className="space-y-2 mb-4 sm:mb-6">
-              {bet.options?.map((option: string) => (
-                <button
-                  key={option}
-                  onClick={() => setSelectedPick(option)}
-                  className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all ${
-                    selectedPick === option
-                      ? 'border-purple-500 bg-purple-500/10'
-                      : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
-                  }`}
-                >
-                  <span className={`font-semibold text-sm sm:text-base ${
-                    selectedPick === option ? 'text-purple-500' : 'text-white'
-                  }`}>
-                    {option}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={() => acceptChallenge(selectedPick)}
-              disabled={!selectedPick || isProcessing}
-              className="w-full py-2.5 sm:py-3 bg-purple-500 hover:bg-purple-600 disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-lg font-semibold text-sm sm:text-base transition-colors"
-            >
-              {isProcessing ? "Accepting..." : "Accept Challenge"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Reject Confirmation Modal */}
-      {showRejectModal && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
-          onClick={() => setShowRejectModal(false)}
-        >
-          <div
-            className="bg-zinc-900 rounded-2xl border border-zinc-800 p-4 sm:p-6 max-w-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-3">
-              Decline Challenge?
-            </h3>
-
-            <p className="text-xs sm:text-sm text-zinc-400 mb-4 sm:mb-6">
-              This will delete the bet and notify{" "}
-              <span className="text-white font-semibold">{bet.challengerName}</span>.
-            </p>
-
-            <div className="flex gap-2 sm:gap-3">
-              <button
-                onClick={() => setShowRejectModal(false)}
-                disabled={isProcessing}
-                className="flex-1 py-2 sm:py-2.5 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-800/50 text-white rounded-lg font-semibold text-sm transition-colors"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={rejectChallenge}
-                disabled={isProcessing}
-                className="flex-1 py-2 sm:py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 text-white rounded-lg font-semibold text-sm transition-colors"
-              >
-                {isProcessing ? "Declining..." : "Decline"}
               </button>
             </div>
           </div>
