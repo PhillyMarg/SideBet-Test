@@ -718,11 +718,11 @@ function ActiveBetCard({
       {/* Pick Modal for H2H Accept */}
       {showPickModal && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
           onClick={() => setShowPickModal(false)}
         >
           <div
-            className="bg-zinc-900 rounded-2xl border border-purple-500 p-6 max-w-md w-full"
+            className="bg-zinc-900 rounded-2xl border border-purple-500 p-6 max-w-md w-full relative z-[101]"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold text-white mb-4">
@@ -779,11 +779,11 @@ function ActiveBetCard({
       {/* Decline Confirmation Modal */}
       {showDeclineConfirm && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
           onClick={() => setShowDeclineConfirm(false)}
         >
           <div
-            className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 max-w-md w-full"
+            className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 max-w-md w-full relative z-[101]"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold text-white mb-4">
