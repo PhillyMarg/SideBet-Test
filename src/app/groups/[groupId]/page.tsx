@@ -581,9 +581,6 @@ export default function GroupDetailPage() {
                       <ActiveBetCard
                         bet={bet}
                         user={user}
-                        onPick={handleUserPick}
-                        onJudge={setJudgingBet}
-                        groupName={bet.isH2H ? undefined : group.name}
                       />
                     </li>
                   ))}

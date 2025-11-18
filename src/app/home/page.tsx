@@ -500,9 +500,6 @@ export default function HomePage() {
                       <ActiveBetCard
                         bet={bet}
                         user={user}
-                        onPick={handleUserPick}
-                        onJudge={setJudgingBet}
-                        groupName={getGroupName(bet.groupId)}
                       />
                     </li>
                   ))}
