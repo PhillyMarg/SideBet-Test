@@ -135,6 +135,15 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
     try {
       const closingDateTime = new Date(`${closingDate}T${closingTime}`);
 
+      // Build proper display names with fallbacks
+      const challengerDisplayName = user.displayName ||
+        (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` :
+        user.firstName || user.lastName || user.email || 'Challenger');
+
+      const challengeeDisplayName = selectedFriend.displayName ||
+        (selectedFriend.firstName && selectedFriend.lastName ? `${selectedFriend.firstName} ${selectedFriend.lastName}` :
+        selectedFriend.firstName || selectedFriend.lastName || selectedFriend.email || 'Challengee');
+
       const betData: any = {
         title: betTitle,
         description: betDescription,
@@ -147,8 +156,8 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
         isH2H: true,
         challengerId: user.uid,
         challengeeId: selectedFriend.uid,
-        challengerName: user.displayName || `${user.firstName} ${user.lastName}`,
-        challengeeName: selectedFriend.displayName || `${selectedFriend.firstName} ${selectedFriend.lastName}`,
+        challengerName: challengerDisplayName,
+        challengeeName: challengeeDisplayName,
         h2hOdds: h2hOdds,
         h2hStatus: "pending",
         betAmount: betAmount,
@@ -173,20 +182,17 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
       const betRef = await addDoc(collection(db, "bets"), betData);
       console.log("H2H bet created:", betRef.id);
 
-      // Get full names for notification
-      const challengerFullName = user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim();
-
       // CREATE NOTIFICATION FOR CHALLENGEE - CRITICAL
       await addDoc(collection(db, "notifications"), {
         userId: selectedFriend.uid,
         type: "h2h_challenge",
         title: "New Challenge!",
-        message: `${challengerFullName} challenged you: "${betTitle}"`,
+        message: `${challengerDisplayName} challenged you: "${betTitle}"`,
         link: `/bets/${betRef.id}`,
         betId: betRef.id,
         betTitle: betTitle,
         fromUserId: user.uid,
-        fromUserName: challengerFullName,
+        fromUserName: challengerDisplayName,
         read: false,
         createdAt: new Date().toISOString()
       });
