@@ -64,5 +64,31 @@ service cloud.firestore {
       allow update: if request.auth != null;
       allow delete: if request.auth != null;
     }
+
+    // Notifications collection
+    match /notifications/{notificationId} {
+      // Users can only read their own notifications
+      allow read: if request.auth != null &&
+                     resource.data.userId == request.auth.uid;
+
+      // Any authenticated user can create notifications (for others)
+      allow create: if request.auth != null;
+
+      // Users can only update their own notifications (e.g., marking as read)
+      allow update: if request.auth != null &&
+                      resource.data.userId == request.auth.uid;
+
+      // Users can delete their own notifications
+      allow delete: if request.auth != null &&
+                      resource.data.userId == request.auth.uid;
+    }
+
+    // Leaderboards collection
+    match /leaderboards/{leaderboardId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
   }
 }
