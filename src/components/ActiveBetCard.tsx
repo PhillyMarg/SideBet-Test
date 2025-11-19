@@ -64,10 +64,26 @@ function ActiveBetCard({
   const isCreator = bet.creatorId === user?.uid;
   const needsJudging = isClosed && bet.status !== "JUDGED" && isCreator;
 
+  // Determine if user can vote based on H2H status and role
+  const isChallenger = isH2H && bet.challengerId === user?.uid;
+  const isChallengee = isH2H && bet.challengeeId === user?.uid;
+  const isPending = bet.h2hStatus === "pending";
+
+  // Voting is allowed when:
+  // - For non-H2H: always (if not closed)
+  // - For H2H accepted: both can vote
+  // - For H2H pending: only challenger can vote
+  const canVote = !isClosed && (
+    !isH2H ||
+    bet.h2hStatus === "accepted" ||
+    (isPending && isChallenger)
+  );
+
   console.log("User Has Picked:", userHasPicked);
   console.log("Is Closed:", isClosed);
-  console.log("Should Show Voting Section:", !isClosed && (!isH2H || bet.h2hStatus === "accepted"));
-  console.log("Should Show Vote Buttons:", !isClosed && (!isH2H || bet.h2hStatus === "accepted") && !userHasPicked);
+  console.log("Is Challenger:", isChallenger);
+  console.log("Is Challengee:", isChallengee);
+  console.log("Can Vote:", canVote);
   console.log("======================")
 
   // Debug logging for voting conditions
@@ -81,9 +97,11 @@ function ActiveBetCard({
       isH2H,
       h2hStatus: bet.h2hStatus,
       userHasPicked,
-      canVote: !isClosed && (!isH2H || bet.h2hStatus === "accepted") && !userHasPicked
+      isChallenger,
+      isChallengee,
+      canVote
     });
-  }, [bet.id, bet.title, bet.type, bet.status, isClosed, isH2H, bet.h2hStatus, userHasPicked]);
+  }, [bet.id, bet.title, bet.type, bet.status, isClosed, isH2H, bet.h2hStatus, userHasPicked, isChallenger, isChallengee, canVote]);
 
   // Debug logging for H2H bet names
   useEffect(() => {
@@ -264,9 +282,69 @@ function ActiveBetCard({
   };
 
   // H2H Accept Challenge Handlers
-  const handleAcceptChallenge = () => {
-    // Open modal to pick a side
-    setShowPickModal(true);
+  const handleAcceptChallenge = async () => {
+    if (!user?.uid) return;
+
+    try {
+      const challengerPick = bet.picks?.[bet.challengerId];
+
+      // For CLOSEST_GUESS, open modal to get challengee's guess
+      if (bet.type === "CLOSEST_GUESS") {
+        setShowPickModal(true);
+        return;
+      }
+
+      // For YES_NO and OVER_UNDER, auto-assign opposite pick
+      let challengeePick: string;
+
+      if (bet.type === "YES_NO") {
+        if (!challengerPick) {
+          alert("Challenger hasn't made their pick yet. Please wait.");
+          return;
+        }
+        // Challengee gets opposite of challenger
+        challengeePick = challengerPick === "YES" ? "NO" : "YES";
+      } else if (bet.type === "OVER_UNDER") {
+        if (!challengerPick) {
+          alert("Challenger hasn't made their pick yet. Please wait.");
+          return;
+        }
+        // Challengee gets opposite of challenger
+        challengeePick = challengerPick === "OVER" ? "UNDER" : "OVER";
+      } else {
+        alert("Invalid bet type");
+        return;
+      }
+
+      // Update bet to accepted with challengee's pick
+      const betRef = doc(db, "bets", bet.id);
+      await updateDoc(betRef, {
+        h2hStatus: "accepted",
+        status: "OPEN",
+        participants: arrayUnion(user.uid),
+        [`picks.${user.uid}`]: challengeePick
+      });
+
+      // Send notification to challenger
+      await addDoc(collection(db, "notifications"), {
+        recipientId: bet.challengerId,
+        type: "H2H_ACCEPTED",
+        title: "Challenge Accepted!",
+        message: `${user.firstName} ${user.lastName} accepted your H2H challenge - They picked ${challengeePick}`,
+        read: false,
+        createdAt: serverTimestamp(),
+        betId: bet.id,
+        senderId: user.uid,
+        senderName: `${user.firstName} ${user.lastName}`
+      });
+
+      console.log("H2H challenge accepted with pick:", challengeePick);
+      if (onPickMade) onPickMade();
+
+    } catch (error) {
+      console.error("Error accepting challenge:", error);
+      alert("Failed to accept challenge");
+    }
   };
 
   const submitH2HAccept = async () => {
@@ -275,9 +353,9 @@ function ActiveBetCard({
     try {
       const betRef = doc(db, "bets", bet.id);
 
-      // Update bet status and add challengee's pick
+      // For CLOSEST_GUESS, challengee enters their own number
       await updateDoc(betRef, {
-        h2hStatus: "active",
+        h2hStatus: "accepted",
         status: "OPEN",
         participants: arrayUnion(user.uid),
         [`picks.${user.uid}`]: selectedPick
@@ -493,28 +571,113 @@ function ActiveBetCard({
         </span>
       </div>
 
+      {/* H2H DECLINED STATE */}
+      {isH2H && bet.h2hStatus === "declined" && (
+        <div className="mb-3 bg-red-900/20 rounded-lg p-4 border border-red-500/30 text-center">
+          <div className="bg-red-500 rounded-full px-3 py-1.5 mb-2 inline-block">
+            <span className="text-xs sm:text-sm text-white font-bold">DECLINED</span>
+          </div>
+          <p className="text-sm text-red-300">
+            {isChallenger
+              ? `${bet.challengeeName} declined your challenge.`
+              : `You declined this challenge.`
+            }
+          </p>
+        </div>
+      )}
+
+      {/* H2H ACTIVE - DISPLAY BOTH PICKS */}
+      {isH2H && bet.h2hStatus === "accepted" && bet.picks && bet.picks[bet.challengerId] && bet.picks[bet.challengeeId] && (
+        <div className="mb-3 bg-purple-900/20 rounded-lg p-4 border border-purple-500/30">
+          <div className="flex items-center justify-between gap-3">
+            {/* Challenger Pick */}
+            <div className="flex-1 text-center">
+              <p className="text-[10px] sm:text-xs text-zinc-400 mb-1">
+                {bet.challengerName}
+              </p>
+              <p className="text-lg sm:text-2xl font-bold text-purple-400">
+                {bet.picks[bet.challengerId]}
+              </p>
+            </div>
+
+            {/* VS Divider */}
+            <div className="text-sm sm:text-base font-bold text-zinc-500">
+              VS
+            </div>
+
+            {/* Challengee Pick */}
+            <div className="flex-1 text-center">
+              <p className="text-[10px] sm:text-xs text-zinc-400 mb-1">
+                {bet.challengeeName}
+              </p>
+              <p className="text-lg sm:text-2xl font-bold text-purple-400">
+                {bet.picks[bet.challengeeId]}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3 text-center">
+            <p className="text-xs text-zinc-400">
+              {isClosed ? "Waiting for result..." : `Closes ${getClosingTimeDisplay()}`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* H2H PENDING - CHALLENGER VIEW (waiting for response) */}
+      {isH2H && isPending && isChallenger && bet.picks && bet.picks[bet.challengerId] && (
+        <div className="mb-3 bg-purple-900/20 rounded-lg p-4 border border-purple-500/30 text-center">
+          <div className="bg-purple-500/20 border border-purple-500/40 rounded-full px-3 py-1.5 mb-2 inline-block">
+            <span className="text-xs sm:text-sm text-purple-400 font-medium">WAITING RESPONSE</span>
+          </div>
+          <p className="text-sm text-purple-300 mb-2">
+            You picked: <span className="font-bold">{bet.picks[bet.challengerId]}</span>
+          </p>
+          <p className="text-xs text-zinc-400">
+            Waiting for {bet.challengeeName} to respond...
+          </p>
+        </div>
+      )}
+
       {/* ACCEPT/REJECT BUTTONS - Only show for challengee when pending */}
       {bet.isH2H && bet.h2hStatus === "pending" && user?.uid === bet.challengeeId && (
-        <div className="flex gap-2 mb-3">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleAcceptChallenge();
-            }}
-            className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition-colors text-xs sm:text-sm"
-          >
-            Accept Challenge
-          </button>
+        <div className="mb-3 bg-zinc-800/50 rounded-lg p-3 border border-purple-500/30">
+          <div className="bg-purple-500/20 border border-purple-500/40 rounded-full px-3 py-1.5 mb-3 inline-block">
+            <span className="text-xs sm:text-sm text-purple-400 font-bold">RESPOND NOW</span>
+          </div>
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDeclineChallenge();
-            }}
-            className="flex-1 py-2.5 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg font-semibold transition-colors text-xs sm:text-sm"
-          >
-            Decline
-          </button>
+          {/* Show what challenger picked if they have picked */}
+          {bet.picks && bet.picks[bet.challengerId] && (
+            <div className="mb-3 p-2 bg-zinc-900 rounded-lg border border-purple-500/20">
+              <p className="text-xs sm:text-sm text-zinc-400">
+                {bet.challengerName} picked: <span className="text-purple-400 font-semibold">{bet.picks[bet.challengerId]}</span>
+              </p>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAcceptChallenge();
+              }}
+              className="flex-1 h-11 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold transition-colors text-sm sm:text-base"
+              style={{ backgroundColor: '#10B981' }}
+            >
+              ACCEPT
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeclineChallenge();
+              }}
+              className="flex-1 h-11 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold transition-colors text-sm sm:text-base"
+              style={{ backgroundColor: '#EF4444' }}
+            >
+              DECLINE
+            </button>
+          </div>
         </div>
       )}
 
@@ -578,7 +741,7 @@ function ActiveBetCard({
       )}
 
       {/* Betting Interface */}
-      {!isClosed && (!isH2H || bet.h2hStatus === "accepted") && (
+      {canVote && (
         <>
           {userHasPicked ? (
             <>
@@ -801,8 +964,8 @@ function ActiveBetCard({
         </div>
       )}
 
-      {/* Pick Modal for H2H Accept */}
-      {showPickModal && (
+      {/* Pick Modal for H2H Accept - CLOSEST_GUESS only */}
+      {showPickModal && bet.type === "CLOSEST_GUESS" && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
           onClick={() => setShowPickModal(false)}
@@ -812,31 +975,32 @@ function ActiveBetCard({
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold text-white mb-4">
-              Accept Challenge - Choose Your Side
+              Accept Challenge - Enter Your Guess
             </h3>
 
             <p className="text-zinc-400 text-sm mb-4">
               {bet.title}
             </p>
 
-            <div className="space-y-2 mb-6">
-              {bet.options?.map((option: string) => (
-                <button
-                  key={option}
-                  onClick={() => setSelectedPick(option)}
-                  className={`w-full p-3 rounded-lg border-2 transition-all ${
-                    selectedPick === option
-                      ? 'border-purple-500 bg-purple-500/10'
-                      : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
-                  }`}
-                >
-                  <span className={`font-semibold ${
-                    selectedPick === option ? 'text-purple-500' : 'text-white'
-                  }`}>
-                    {option}
-                  </span>
-                </button>
-              ))}
+            {/* Show challenger's guess if available */}
+            {bet.picks && bet.picks[bet.challengerId] && (
+              <div className="mb-4 p-2 bg-zinc-800 rounded-lg border border-purple-500/20">
+                <p className="text-xs text-zinc-400">
+                  {bet.challengerName}'s guess: <span className="text-purple-400 font-semibold">{bet.picks[bet.challengerId]}</span>
+                </p>
+              </div>
+            )}
+
+            <div className="mb-6">
+              <label className="block text-sm text-zinc-400 mb-2">Enter your guess:</label>
+              <input
+                type="text"
+                value={selectedPick}
+                onChange={(e) => setSelectedPick(e.target.value)}
+                placeholder="Enter a number..."
+                className="w-full p-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                autoFocus
+              />
             </div>
 
             <div className="flex gap-2">
@@ -852,7 +1016,7 @@ function ActiveBetCard({
 
               <button
                 onClick={submitH2HAccept}
-                disabled={!selectedPick}
+                disabled={!selectedPick || !selectedPick.trim()}
                 className="flex-1 py-3 bg-purple-500 hover:bg-purple-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white rounded-lg font-semibold transition-colors"
               >
                 Accept Challenge
