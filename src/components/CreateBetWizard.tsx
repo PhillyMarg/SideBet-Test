@@ -42,6 +42,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
   const [closingTime, setClosingTime] = useState("");
   const [multipleChoiceOptions, setMultipleChoiceOptions] = useState(["", ""]);
   const [overUnderLine, setOverUnderLine] = useState(0);
+  const [guessType, setGuessType] = useState(""); // Optional unit type for CLOSEST_GUESS (e.g., "points", "inches", "dollars")
 
   const [isCreating, setIsCreating] = useState(false);
 
@@ -253,7 +254,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
       if (betType === "YES_NO") {
         betData.options = ["YES", "NO"];
       } else if (betType === "CLOSEST_GUESS") {
-        betData.options = multipleChoiceOptions.filter(opt => opt.trim());
+        betData.guessType = guessType || null; // Save optional guess type
       } else if (betType === "OVER_UNDER") {
         betData.line = overUnderLine;
         betData.options = ["OVER", "UNDER"];
@@ -332,7 +333,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
       if (betType === "YES_NO") {
         betData.options = ["YES", "NO"];
       } else if (betType === "CLOSEST_GUESS") {
-        betData.options = multipleChoiceOptions.filter(opt => opt.trim());
+        betData.guessType = guessType || null; // Save optional guess type
       } else if (betType === "OVER_UNDER") {
         betData.line = overUnderLine;
         betData.options = ["OVER", "UNDER"];
@@ -857,35 +858,24 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
             />
           </div>
 
-          {/* Closest Guess Options */}
+          {/* Closest Guess - Unit Type (Optional) */}
           {betType === "CLOSEST_GUESS" && (
             <div className="mb-4">
               <label className="block text-sm font-medium text-white mb-2">
-                Options
+                Unit Type (Optional)
               </label>
-              {multipleChoiceOptions.map((option, index) => (
-                <div key={index} className="mb-2">
-                  <input
-                    type="text"
-                    value={option}
-                    onChange={(e) => {
-                      const newOptions = [...multipleChoiceOptions];
-                      newOptions[index] = e.target.value;
-                      setMultipleChoiceOptions(newOptions);
-                    }}
-                    placeholder={`Option ${index + 1}`}
-                    className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none ${
-                      themeColor === 'purple' ? 'focus:border-purple-500' : 'focus:border-orange-500'
-                    }`}
-                  />
-                </div>
-              ))}
-              <button
-                onClick={() => setMultipleChoiceOptions([...multipleChoiceOptions, ""])}
-                className={`${themeColor === 'purple' ? 'text-purple-500 hover:text-purple-600' : 'text-orange-500 hover:text-orange-600'} text-sm`}
-              >
-                + Add Option
-              </button>
+              <input
+                type="text"
+                value={guessType}
+                onChange={(e) => setGuessType(e.target.value)}
+                placeholder="e.g., points, inches, dollars"
+                className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none ${
+                  themeColor === 'purple' ? 'focus:border-purple-500' : 'focus:border-orange-500'
+                }`}
+              />
+              <p className="text-xs text-zinc-500 mt-1">
+                What are people guessing? (e.g., "points" for score, "inches" for distance)
+              </p>
             </div>
           )}
 

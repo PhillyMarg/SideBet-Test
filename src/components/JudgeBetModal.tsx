@@ -23,6 +23,7 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
       // Calculate winners based on bet type
       let winners: string[] = [];
       let correctValue = answer;
+      let guessesWithDistances: any[] | undefined;
 
       if (bet.type === "YES_NO" || bet.type === "OVER_UNDER") {
         // Winners are those who picked the correct answer
@@ -41,7 +42,7 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
         const guesses = Object.entries(bet.picks || {}).map(([userId, guess]) => ({
           userId,
           guess: parseFloat(guess as string),
-          diff: Math.abs(parseFloat(guess as string) - actualNumber),
+          distance: Math.abs(parseFloat(guess as string) - actualNumber),
         }));
 
         if (guesses.length === 0) {
@@ -51,9 +52,14 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
         }
 
         // Find minimum difference
-        const minDiff = Math.min(...guesses.map((g) => g.diff));
-        winners = guesses.filter((g) => g.diff === minDiff).map((g) => g.userId);
+        const minDiff = Math.min(...guesses.map((g) => g.distance));
+        winners = guesses.filter((g) => g.distance === minDiff).map((g) => g.userId);
         correctValue = actualNumber;
+
+        // Store guesses with distances for display in results
+        // Sort by distance (closest first)
+        guesses.sort((a, b) => a.distance - b.distance);
+        guessesWithDistances = guesses;
       }
 
       // Calculate payout per winner
@@ -65,13 +71,20 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
 
       // Update bet document
       const betRef = doc(db, "bets", bet.id);
-      batch.update(betRef, {
+      const betUpdate: any = {
         status: "JUDGED",
         correctAnswer: correctValue,
         winners: winners,
         judgedAt: new Date().toISOString(),
         payoutPerWinner: payoutPerWinner,
-      });
+      };
+
+      // Add guesses with distances for CLOSEST_GUESS bets
+      if (bet.type === "CLOSEST_GUESS" && guessesWithDistances) {
+        betUpdate.guessesWithDistances = guessesWithDistances;
+      }
+
+      batch.update(betRef, betUpdate);
 
       // Update leaderboard for all participants
       for (const userId of bet.participants || []) {
@@ -205,8 +218,34 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
         {/* CLOSEST GUESS */}
         {bet.type === "CLOSEST_GUESS" && (
           <div>
+            {/* Show all guesses */}
+            {bet.picks && Object.keys(bet.picks).length > 0 && (
+              <div className="mb-4 p-3 bg-zinc-800 rounded-lg">
+                <p className="text-sm font-semibold text-white mb-2">
+                  All Guesses:
+                </p>
+                <ul className="space-y-1 text-sm text-gray-300">
+                  {Object.entries(bet.picks)
+                    .sort(([, a]: any, [, b]: any) => {
+                      const numA = parseFloat(a);
+                      const numB = parseFloat(b);
+                      if (!isNaN(numA) && !isNaN(numB)) {
+                        return numA - numB;
+                      }
+                      return String(a).localeCompare(String(b));
+                    })
+                    .map(([userId, guess]: any) => (
+                      <li key={userId} className="flex justify-between items-center py-1 px-2 bg-zinc-900 rounded">
+                        <span className="text-gray-400">{userId.substring(0, 8)}...</span>
+                        <span className="font-bold text-orange-400">{guess}</span>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
+
             <label className="block text-sm text-gray-400 mb-2">
-              Enter the actual number:
+              Enter the actual result:
             </label>
             <input
               type="number"
@@ -214,14 +253,17 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
               placeholder="e.g. 42.5"
               value={correctAnswer}
               onChange={(e) => setCorrectAnswer(e.target.value)}
-              className="w-full bg-zinc-800 text-white p-3 rounded-lg border border-zinc-700 focus:outline-none focus:border-orange-500 mb-4"
+              className="w-full bg-zinc-800 text-white p-3 rounded-lg border border-zinc-700 focus:outline-none focus:border-orange-500 mb-2"
             />
+            {bet.guessType && (
+              <p className="text-xs text-zinc-500 mb-4">({bet.guessType})</p>
+            )}
             <button
               onClick={() => handleJudge(correctAnswer)}
               disabled={isSubmitting || !correctAnswer}
               className="w-full py-3 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition disabled:opacity-50"
             >
-              Submit Judgment
+              Declare Winner
             </button>
           </div>
         )}
