@@ -23,13 +23,75 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
       // Calculate winners based on bet type
       let winners: string[] = [];
       let correctValue = answer;
-      let guessesWithDistances: any[] | undefined;
+      let actualValue: number | undefined;
+      let winningChoice: string | undefined;
 
-      if (bet.type === "YES_NO" || bet.type === "OVER_UNDER") {
+      if (bet.type === "YES_NO") {
         // Winners are those who picked the correct answer
         winners = Object.entries(bet.picks || {})
           .filter(([_, pick]) => pick === answer)
           .map(([userId]) => userId);
+      } else if (bet.type === "OVER_UNDER") {
+        // For OVER_UNDER, answer is the actual numeric result
+        actualValue = parseFloat(answer as string);
+
+        if (isNaN(actualValue)) {
+          alert("Please enter a valid number");
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Check if result is exactly on the line (push)
+        if (actualValue === bet.line) {
+          alert("Result is exactly on the line. This is a push - all wagers will be returned.");
+
+          // Mark bet as void/push - return all wagers
+          const betRef = doc(db, "bets", bet.id);
+          await updateDoc(betRef, {
+            status: "VOID",
+            correctAnswer: "PUSH",
+            actualValue: actualValue,
+            line: bet.line,
+            winners: [],
+            judgedAt: new Date().toISOString(),
+            payoutPerWinner: 0,
+            voidReason: "Result exactly on line"
+          });
+
+          onClose();
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Determine if result is OVER or UNDER the line
+        winningChoice = actualValue > bet.line ? "OVER" : "UNDER";
+        correctValue = winningChoice;
+
+        // Winners are those who picked the winning side
+        winners = Object.entries(bet.picks || {})
+          .filter(([_, pick]) => pick === winningChoice)
+          .map(([userId]) => userId);
+
+        // If no one picked correctly, void the bet
+        if (winners.length === 0) {
+          alert("No one picked correctly. The bet will be voided and all wagers returned.");
+
+          const betRef = doc(db, "bets", bet.id);
+          await updateDoc(betRef, {
+            status: "VOID",
+            correctAnswer: winningChoice,
+            actualValue: actualValue,
+            line: bet.line,
+            winners: [],
+            judgedAt: new Date().toISOString(),
+            payoutPerWinner: 0,
+            voidReason: "No correct picks"
+          });
+
+          onClose();
+          setIsSubmitting(false);
+          return;
+        }
       } else if (bet.type === "CLOSEST_GUESS") {
         // Find the closest guess(es)
         const actualNumber = parseFloat(answer as string);
@@ -71,7 +133,7 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
 
       // Update bet document
       const betRef = doc(db, "bets", bet.id);
-      const betUpdate: any = {
+      const updateData: any = {
         status: "JUDGED",
         correctAnswer: correctValue,
         winners: winners,
@@ -79,12 +141,14 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
         payoutPerWinner: payoutPerWinner,
       };
 
-      // Add guesses with distances for CLOSEST_GUESS bets
-      if (bet.type === "CLOSEST_GUESS" && guessesWithDistances) {
-        betUpdate.guessesWithDistances = guessesWithDistances;
+      // For OVER_UNDER bets, store additional result data
+      if (bet.type === "OVER_UNDER" && actualValue !== undefined && winningChoice) {
+        updateData.actualValue = actualValue;
+        updateData.line = bet.line;
+        updateData.winningChoice = winningChoice;
       }
 
-      batch.update(betRef, betUpdate);
+      batch.update(betRef, updateData);
 
       // Update leaderboard for all participants
       for (const userId of bet.participants || []) {
@@ -193,24 +257,54 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
           </p>
         </div>
 
-        {/* YES/NO or OVER/UNDER */}
-        {(bet.type === "YES_NO" || bet.type === "OVER_UNDER") && (
+        {/* YES/NO */}
+        {bet.type === "YES_NO" && (
           <div className="flex gap-3">
             <button
-              onClick={() =>
-                handleJudge(bet.type === "YES_NO" ? "YES" : "OVER")
-              }
+              onClick={() => handleJudge("YES")}
               disabled={isSubmitting}
               className="flex-1 py-3 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition disabled:opacity-50"
             >
-              {bet.type === "YES_NO" ? "Yes" : "Over"}
+              Yes
             </button>
             <button
-              onClick={() => handleJudge(bet.type === "YES_NO" ? "NO" : "UNDER")}
+              onClick={() => handleJudge("NO")}
               disabled={isSubmitting}
               className="flex-1 py-3 rounded-lg text-sm font-semibold bg-white hover:bg-gray-200 text-black transition disabled:opacity-50"
             >
-              {bet.type === "YES_NO" ? "No" : "Under"}
+              No
+            </button>
+          </div>
+        )}
+
+        {/* OVER/UNDER - Enter Actual Result */}
+        {bet.type === "OVER_UNDER" && (
+          <div>
+            {/* Show the line */}
+            {bet.line !== undefined && (
+              <div className="mb-4 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg text-center">
+                <p className="text-sm text-gray-400 mb-1">O/U Line:</p>
+                <p className="text-2xl font-bold text-orange-500">{bet.line}</p>
+              </div>
+            )}
+
+            <label className="block text-sm text-gray-400 mb-2">
+              What was the actual result?
+            </label>
+            <input
+              type="number"
+              step="0.5"
+              placeholder={`Enter actual value (e.g., ${bet.line ? bet.line + 10 : '82'})`}
+              value={correctAnswer}
+              onChange={(e) => setCorrectAnswer(e.target.value)}
+              className="w-full bg-zinc-800 text-white p-3 rounded-lg border border-zinc-700 focus:outline-none focus:border-orange-500 mb-4 text-center text-lg"
+            />
+            <button
+              onClick={() => handleJudge(correctAnswer)}
+              disabled={isSubmitting || !correctAnswer}
+              className="w-full py-3 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition disabled:opacity-50"
+            >
+              Declare Winner
             </button>
           </div>
         )}
