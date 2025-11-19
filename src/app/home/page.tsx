@@ -24,11 +24,16 @@ import FloatingCreateBetButton from "../../components/FloatingCreateBetButton";
 import BetCardSkeleton from "../../components/BetCardSkeleton";
 import GroupCardSkeleton from "../../components/GroupCardSkeleton";
 import Footer from "../../components/Footer";
-import BetFilters, { FilterTab, SortOption } from "../../components/BetFilters";
 import { getTimeRemaining } from "../../utils/timeUtils";
 import { filterBets, sortBets, getEmptyStateMessage, searchBets } from "../../utils/betFilters";
 import { createActivity } from "../../lib/activityHelpers";
-import { Search, Users, Dices, Swords } from "lucide-react";
+
+// NEW: Import the Figma design components
+import HomeFeedHeader from "../../components/HomeFeedHeader";
+import NavigationTabs from "../../components/NavigationTabs";
+import FilterPills from "../../components/FilterPills";
+import FeedSearchBar from "../../components/FeedSearchBar";
+import FeedGroupCard from "../../components/FeedGroupCard";
 
 // Lazy load heavy wizard components
 const CreateBetWizard = lazy(() => import("../../components/CreateBetWizard"));
@@ -38,6 +43,8 @@ const OnboardingWizard = lazy(() => import("../../components/OnboardingWizard"))
 function getActiveBetCount(bets: any[], groupId: string) {
   return bets.filter((b) => b.groupId === groupId && b.status !== "JUDGED").length;
 }
+
+type FilterOption = "All" | "Open" | "Picks" | "Pending" | "Soon" | "H2H";
 
 export default function HomePage() {
   const router = useRouter();
@@ -55,12 +62,12 @@ export default function HomePage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true);
 
-  // Filter and sort state (for bets)
-  const [activeTab, setActiveTab] = useState<FilterTab>("all");
-  const [sortBy, setSortBy] = useState<SortOption>("closingSoon");
-  const [searchQuery, setSearchQuery] = useState("");
+  // NEW: Filter and sort state for bets (using FilterOption type)
+  const [activeFilter, setActiveFilter] = useState<FilterOption>("Open");
+  const [betSearchQuery, setBetSearchQuery] = useState("");
+  const [betSortOption, setBetSortOption] = useState("Closing Soon");
 
-  // Groups filtering state - simplified
+  // Groups filtering state
   const [groupSearchQuery, setGroupSearchQuery] = useState("");
   const [groupView, setGroupView] = useState("all"); // "all" | "recent"
   const [groupBetsMap, setGroupBetsMap] = useState<{ [groupId: string]: any[] }>({});
@@ -87,7 +94,6 @@ export default function HomePage() {
       console.error("Error updating onboarding status:", error);
     }
   };
-
 
   // 🔁 Countdown force re-render (only if there are active bets with countdowns)
   useEffect(() => {
@@ -268,15 +274,28 @@ export default function HomePage() {
   // Include JUDGED bets in active section so users can see results
   const activeBets = bets;
 
+  // Map FilterOption to existing FilterTab types for compatibility
+  const mapFilterToTab = (filter: FilterOption): string => {
+    const mapping: Record<FilterOption, string> = {
+      "All": "all",
+      "Open": "open",
+      "Picks": "picks",
+      "Pending": "pending",
+      "Soon": "soon",
+      "H2H": "h2h",
+    };
+    return mapping[filter];
+  };
+
   // Apply filters and sorting
   const filteredAndSortedBets = useMemo(() => {
     if (!user) return [];
     // 1. Filter by active tab
-    const tabFiltered = filterBets(activeBets, activeTab, user.uid);
+    const tabFiltered = filterBets(activeBets, mapFilterToTab(activeFilter) as any, user.uid);
     // 2. Apply search filter
-    const searchFiltered = searchBets(tabFiltered, searchQuery);
+    const searchFiltered = searchBets(tabFiltered, betSearchQuery);
     // 3. Apply sort
-    const sorted = sortBets(searchFiltered, sortBy, groups);
+    const sorted = sortBets(searchFiltered, betSortOption as any, groups);
 
     // 4. CRITICAL: Prioritize pending H2H challenges for this user at the TOP
     const pendingChallenges = sorted.filter(
@@ -289,7 +308,7 @@ export default function HomePage() {
     console.log("Pending H2H challenges for user:", pendingChallenges.length);
 
     return [...pendingChallenges, ...otherBets];
-  }, [activeBets, activeTab, searchQuery, sortBy, user, groups]);
+  }, [activeBets, activeFilter, betSearchQuery, betSortOption, user, groups]);
 
   // Track last active bet time per group
   const getLastBetTime = (groupId: string): number => {
@@ -478,267 +497,176 @@ export default function HomePage() {
 
   return (
     <>
+      {/* NEW: Figma Design Header */}
+      <HomeFeedHeader userId={user?.uid} />
+
+      {/* NEW: Navigation Tabs */}
+      <NavigationTabs />
+
       <main
-        className="min-h-screen bg-black text-white flex flex-col pb-16 sm:pb-20 pt-20 relative overflow-y-auto"
-        style={{ "--content-width": "500px" } as React.CSSProperties}
+        style={{
+          minHeight: "100vh",
+          backgroundColor: "#1E1E1E",
+          color: "white",
+          paddingTop: "140px", // 80px header + 60px nav tabs
+          paddingBottom: "80px",
+          paddingLeft: "24px",
+          paddingRight: "24px",
+          fontFamily: "'Montserrat', sans-serif",
+        }}
       >
-        {/* Active Bets */}
-      <section className="flex flex-col items-center text-center mt-4">
-        <h2 className="text-lg font-semibold mb-3 text-white px-4">Active Bets</h2>
-
-        {loading ? (
-          <ul
-            className="space-y-2 sm:space-y-3 w-[95%] sm:w-[92%] mx-auto px-4"
-            style={{ maxWidth: "var(--content-width)" }}
-          >
-            {[...Array(3)].map((_, i) => (
-              <BetCardSkeleton key={i} />
-            ))}
-          </ul>
-        ) : activeBets.length > 0 ? (
-          <>
-            {/* Bet Filters - Tabs, Search, and Sort */}
-            {user && (
-              <BetFilters
-                bets={activeBets}
-                userId={user.uid}
-                groups={groups}
-                activeTab={activeTab}
-                sortBy={sortBy}
-                onTabChange={setActiveTab}
-                onSortChange={setSortBy}
-                showGroupSort={true}
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-              />
-            )}
-
-            {/* Filtered and Sorted Bets */}
-            {filteredAndSortedBets.length > 0 ? (
-              <>
-                <ul
-                  className="space-y-2 sm:space-y-3 w-[95%] sm:w-[92%] mx-auto px-4 mt-4"
-                  style={{ maxWidth: "var(--content-width)" }}
-                >
-                  {(showAllBets ? filteredAndSortedBets : filteredAndSortedBets.slice(0, 5)).map((bet) => (
-                    <li key={bet.id}>
-                      <ActiveBetCard
-                        bet={bet}
-                        user={user}
-                        onPick={handleUserPick}
-                        onJudge={setJudgingBet}
-                        groupName={getGroupName(bet.groupId)}
-                      />
-                    </li>
-                  ))}
-                </ul>
-                {filteredAndSortedBets.length > 5 && (
-                  <button
-                    onClick={() => setShowAllBets(!showAllBets)}
-                    className="mt-5 text-sm text-orange-500 hover:text-orange-400 font-medium transition"
-                  >
-                    {showAllBets ? "Show Less" : `Show All (${filteredAndSortedBets.length})`}
-                  </button>
-                )}
-              </>
-            ) : (
-              <div className="text-center mt-6 px-4">
-                {searchQuery.trim() ? (
-                  <>
-                    <p className="text-zinc-400 text-sm">
-                      No bets found for "{searchQuery}"
-                    </p>
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="mt-2 text-orange-500 text-sm hover:text-orange-400 transition"
-                    >
-                      Clear search
-                    </button>
-                  </>
-                ) : activeTab === "h2h" ? (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-purple-500/20 rounded-full flex items-center justify-center">
-                      <Swords className="w-8 h-8 text-purple-500" />
-                    </div>
-                    <p className="text-zinc-400 text-sm mb-2">
-                      No head-to-head bets yet
-                    </p>
-                    <p className="text-zinc-500 text-xs mb-4">
-                      Challenge your friends to 1v1 bets!
-                    </p>
-                    <button
-                      onClick={() => router.push("/friends")}
-                      className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition-colors"
-                    >
-                      View Friends
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-sm">
-                    {getEmptyStateMessage(activeTab)}
-                  </p>
-                )}
-              </div>
-            )}
-          </>
-        ) : (
-          <p className="text-gray-500 text-sm px-4">
-            No active bets found. Create a new one!
-          </p>
-        )}
-      </section>
-
-      {/* Groups Section */}
-      <section className="p-4 flex flex-col items-center text-center mt-6">
-        <h2 className="text-lg font-semibold mb-3 text-white">Groups</h2>
-
-        {loading ? (
-          <ul
-            className="space-y-4 w-full mx-auto"
-            style={{ maxWidth: "var(--content-width)" }}
-          >
-            {[...Array(2)].map((_, i) => (
-              <GroupCardSkeleton key={i} />
-            ))}
-          </ul>
-        ) : groups.length > 0 ? (
-          <>
-            {/* Single Row: Search (60%) + Dropdown (40%) */}
-            <div
-              className="flex items-center gap-1.5 sm:gap-2 mb-4 w-full mx-auto"
-              style={{ maxWidth: "var(--content-width)" }}
+        <div
+          style={{
+            maxWidth: "393px",
+            margin: "0 auto",
+          }}
+        >
+          {/* ACTIVE BETS Section */}
+          <section style={{ marginTop: "24px" }}>
+            <h2
+              style={{
+                fontSize: "12px",
+                fontWeight: "600",
+                color: "#FFFFFF",
+                textAlign: "center",
+                marginBottom: "12px",
+              }}
             >
-              {/* Search Bar - 60% width */}
-              <div className="flex-1 max-w-[60%]">
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-                  <input
-                    type="text"
-                    value={groupSearchQuery}
-                    onChange={(e) => setGroupSearchQuery(e.target.value)}
-                    placeholder="Search..."
-                    className="w-full pl-7 pr-2 py-1.5 sm:py-2 text-xs sm:text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+              ACTIVE BETS
+            </h2>
+
+            {loading ? (
+              <div>
+                {[...Array(3)].map((_, i) => (
+                  <BetCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : (
+              <>
+                {/* Filter Pills */}
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
+                  <FilterPills
+                    activeFilter={activeFilter}
+                    onFilterChange={setActiveFilter}
                   />
                 </div>
-              </div>
 
-              {/* View Dropdown - 40% width */}
-              <div className="flex-shrink-0 max-w-[40%] w-full">
-                <select
-                  value={groupView}
-                  onChange={(e) => setGroupView(e.target.value)}
-                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-orange-500"
-                >
-                  <option value="all">All</option>
-                  <option value="recent">Recent</option>
-                </select>
-              </div>
-            </div>
+                {/* Search Bar */}
+                <FeedSearchBar
+                  searchQuery={betSearchQuery}
+                  onSearchChange={setBetSearchQuery}
+                  sortOption={betSortOption}
+                  onSortChange={setBetSortOption}
+                />
 
-            {/* Groups List */}
-            {filteredAndSortedGroups.length === 0 ? (
-              <div className="text-center py-12 px-4">
-                {groupSearchQuery.trim() ? (
-                  <>
-                    <p className="text-zinc-400 text-sm mb-2">
-                      No groups found for "{groupSearchQuery}"
-                    </p>
-                    <button
-                      onClick={() => setGroupSearchQuery("")}
-                      className="text-orange-500 text-sm hover:text-orange-600"
-                    >
-                      Clear search
-                    </button>
-                  </>
-                ) : groupView === "recent" ? (
-                  <p className="text-zinc-400 text-sm">
-                    No groups with recent bet activity
-                  </p>
+                {/* Bet Cards */}
+                {filteredAndSortedBets.length > 0 ? (
+                  <div>
+                    {(showAllBets ? filteredAndSortedBets : filteredAndSortedBets.slice(0, 5)).map((bet) => (
+                      <div key={bet.id} style={{ marginBottom: "12px" }}>
+                        <ActiveBetCard
+                          bet={bet}
+                          user={user}
+                          onPick={handleUserPick}
+                          onJudge={setJudgingBet}
+                          groupName={getGroupName(bet.groupId)}
+                        />
+                      </div>
+                    ))}
+                    {filteredAndSortedBets.length > 5 && (
+                      <button
+                        onClick={() => setShowAllBets(!showAllBets)}
+                        style={{
+                          display: "block",
+                          margin: "16px auto 0",
+                          fontSize: "12px",
+                          color: "#FF6B35",
+                          backgroundColor: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          fontWeight: "600",
+                        }}
+                      >
+                        {showAllBets ? "Show Less" : `Show All (${filteredAndSortedBets.length})`}
+                      </button>
+                    )}
+                  </div>
                 ) : (
-                  <p className="text-zinc-400 text-sm">
-                    No groups yet. Create or join one to get started!
+                  <p
+                    style={{
+                      textAlign: "center",
+                      fontSize: "12px",
+                      color: "#888",
+                      marginTop: "24px",
+                    }}
+                  >
+                    {betSearchQuery.trim()
+                      ? `No bets found for "${betSearchQuery}"`
+                      : getEmptyStateMessage(mapFilterToTab(activeFilter) as any)}
                   </p>
                 )}
+              </>
+            )}
+          </section>
+
+          {/* MY GROUPS Section */}
+          <section style={{ marginTop: "32px" }}>
+            <h2
+              style={{
+                fontSize: "12px",
+                fontWeight: "600",
+                color: "#FFFFFF",
+                textAlign: "center",
+                marginBottom: "12px",
+              }}
+            >
+              My Groups
+            </h2>
+
+            {loading ? (
+              <div>
+                {[...Array(2)].map((_, i) => (
+                  <GroupCardSkeleton key={i} />
+                ))}
               </div>
             ) : (
-              <ul
-                className="space-y-4 w-full mx-auto"
-                style={{ maxWidth: "var(--content-width)" }}
-              >
-                {filteredAndSortedGroups.map((group) => {
-                  const activeCount = bets.filter(
-                    (bet) => bet.groupId === group.id && bet.status !== "JUDGED"
-                  ).length;
+              <>
+                {/* Search Bar */}
+                <FeedSearchBar
+                  searchQuery={groupSearchQuery}
+                  onSearchChange={setGroupSearchQuery}
+                />
 
-                  return (
-                    <li
-                      key={group.id}
-                      onClick={() => router.push(`/groups/${group.id}`)}
-                      className="
-                        relative
-                        rounded-2xl
-                        p-4 sm:p-5
-                        min-h-[88px] sm:min-h-[90px]
-                        cursor-pointer
-                        transition-all duration-200
-                        hover:scale-[1.02]
-                        hover:shadow-lg hover:shadow-orange-500/20
-                        active:scale-[0.98]
-                        bg-gradient-to-b from-orange-500/20 via-orange-500/10 to-black
-                        flex flex-col justify-center
-                        gap-2 sm:gap-3
-                      "
-                    >
-                      {/* Row 1: Group Name (left) + Members (right) */}
-                      <div className="flex items-center justify-between">
-                        {/* Group Name */}
-                        <h3 className="text-base sm:text-lg font-bold text-white truncate flex-1 mr-3">
-                          {group.name}
-                        </h3>
-
-                        {/* Members Count */}
-                        <div className="flex items-center gap-1 text-xs sm:text-sm text-zinc-300 flex-shrink-0">
-                          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                          <span className="font-medium">{group.memberIds?.length || 0}</span>
-                        </div>
-                      </div>
-
-                      {/* Row 2: Wager Range (left) + Active Bets (right) */}
-                      <div className="flex items-center justify-between">
-                        {/* Wager Range */}
-                        <div className="text-xs sm:text-sm text-zinc-400">
-                          ${group.settings?.min_bet || 0} - ${group.settings?.max_bet || 0}
-                        </div>
-
-                        {/* Active Bets - Conditional styling and text */}
-                        <div className={`flex items-center gap-1 text-xs sm:text-sm flex-shrink-0 ${
-                          activeCount > 0 ? 'text-orange-500' : 'text-zinc-400'
-                        }`}>
-                          <Dices className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                          <span className="font-medium">
-                            {activeCount > 0 ? activeCount : 'No active bets'}
-                          </span>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+                {/* Group Cards */}
+                {filteredAndSortedGroups.length > 0 ? (
+                  <div>
+                    {filteredAndSortedGroups.map((group) => (
+                      <FeedGroupCard
+                        key={group.id}
+                        group={group}
+                        activeBets={getActiveBetCount(bets, group.id)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p
+                    style={{
+                      textAlign: "center",
+                      fontSize: "12px",
+                      color: "#888",
+                      marginTop: "24px",
+                    }}
+                  >
+                    {groupSearchQuery.trim()
+                      ? `No groups found for "${groupSearchQuery}"`
+                      : "You haven't joined any groups yet."}
+                  </p>
+                )}
+              </>
             )}
-          </>
-        ) : (
-          <p className="text-gray-500 text-sm">
-            You haven't joined any groups yet.
-          </p>
-        )}
-
-        <button
-          onClick={() => setShowCreateGroup(true)}
-          className="mt-6 bg-orange-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-orange-600 hover:shadow-[0_0_10px_2px_rgba(38,38,38,0.5)] transition duration-200"
-        >
-          Create Group
-        </button>
-      </section>
+          </section>
+        </div>
+      </main>
 
       {showOnboarding && (
         <Suspense fallback={null}>
@@ -926,7 +854,6 @@ export default function HomePage() {
         groups={groups}
         onCreateBet={handleCreateBet}
       />
-      </main>
     </>
   );
 }
