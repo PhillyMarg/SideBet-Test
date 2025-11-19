@@ -1003,6 +1003,12 @@ function ActiveBetCard({
               />
             </div>
 
+            {bet.type !== "CLOSEST_GUESS" && (
+              <p className="text-xs text-zinc-500 mb-4 text-center">
+                💡 Tip: Pick the opposite side to compete head-to-head!
+              </p>
+            )}
+
             <div className="flex gap-2">
               <button
                 onClick={() => {
