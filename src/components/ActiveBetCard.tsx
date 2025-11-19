@@ -520,12 +520,61 @@ function ActiveBetCard({
 
       {/* Judge Button */}
       {needsJudging && (
-        <button
-          onClick={() => onJudge(bet)}
-          className="w-full py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-sm font-bold bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white mb-1.5 sm:mb-3 shadow-lg transition"
-        >
-          ⚖️ Judge This Bet
-        </button>
+        <div className="mb-3">
+          <div className="bg-amber-900 text-white text-center py-2 px-4 rounded-lg mb-3 font-bold text-xs sm:text-sm">
+            JUDGE BET!
+          </div>
+          <button
+            onClick={() => onJudge(bet)}
+            className="w-full py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-lg transition"
+          >
+            ⚖️ Select Winner
+          </button>
+        </div>
+      )}
+
+      {/* Winner/Loser Display - Show after bet is judged */}
+      {bet.status === "JUDGED" && user?.uid && (
+        <div className="mt-2">
+          {(() => {
+            const isWinner = bet.winners?.includes(user.uid);
+            const payout = bet.payoutPerWinner;
+
+            if (isWinner) {
+              return (
+                <div className="bg-emerald-900/50 border-2 border-green-500 rounded-xl p-4">
+                  <div className="text-center mb-2">
+                    <div className="text-lg sm:text-xl font-bold text-white mb-1">
+                      🏆 YOU WON! 🏆
+                    </div>
+                    <div className="text-2xl sm:text-3xl font-bold text-green-500 mb-2">
+                      +${payout?.toFixed(2)}
+                    </div>
+                    <div className="text-xs sm:text-sm text-gray-300">
+                      Final Result: <span className="font-semibold text-white">{bet.correctAnswer}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            } else {
+              return (
+                <div className="bg-red-900/50 border-2 border-red-500 rounded-xl p-4">
+                  <div className="text-center mb-2">
+                    <div className="text-sm sm:text-base text-gray-300 mb-1">
+                      Better luck next time
+                    </div>
+                    <div className="text-2xl sm:text-3xl font-bold text-red-500 mb-2">
+                      -${wager.toFixed(2)}
+                    </div>
+                    <div className="text-xs sm:text-sm text-gray-300">
+                      Final Result: <span className="font-semibold text-white">{bet.correctAnswer}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+          })()}
+        </div>
       )}
 
       {/* Betting Interface */}
