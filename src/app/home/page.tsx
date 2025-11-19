@@ -265,7 +265,8 @@ export default function HomePage() {
     setGroupBetsMap(betsMap);
   }, [groups, bets]);
 
-  const activeBets = bets.filter((bet) => bet.status !== "JUDGED");
+  // Include JUDGED bets in active section so users can see results
+  const activeBets = bets;
 
   // Apply filters and sorting
   const filteredAndSortedBets = useMemo(() => {

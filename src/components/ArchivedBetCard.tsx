@@ -75,73 +75,40 @@ function ArchivedBetCard({ bet, user }: ArchivedBetCardProps) {
           {/* H2H vs Group Display */}
           {isH2H ? (
             <>
-              <div className="flex justify-between text-gray-300 mb-2">
-                <span className="text-purple-400 font-semibold">
-                  {bet.challengerName} v {bet.challengeeName}
-                </span>
-              </div>
-              <div className="flex justify-between mt-2">
-                <span>Wager: ${wager.toFixed(2)}</span>
-                <span>Pot: ${pot.toFixed(2)}</span>
-              </div>
-
-              {/* H2H Judged Results */}
-              {bet.status === "JUDGED" && (
+              {/* For OVER_UNDER bets, show detailed breakdown */}
+              {bet.type === "OVER_UNDER" && bet.actualValue !== undefined && bet.line !== undefined ? (
                 <>
-                  <div className="flex justify-between mt-2">
-                    <span>Final Result:</span>
-                    <span className="font-bold text-purple-400">
-                      {bet.winningChoice || bet.actualValue}
-                    </span>
-                  </div>
-
-                  {/* Show picks with checkmark */}
-                  <div className="mt-3 space-y-1">
-                    <div className={`flex justify-between px-2 py-1 rounded ${
-                      bet.winnerId === user.uid ? 'bg-green-900/30' : 'bg-zinc-800/30'
-                    }`}>
-                      <span className="text-xs">You Picked: {bet.picks?.[user.uid]}</span>
-                      {bet.winnerId === user.uid && (
-                        <span className="text-green-500 font-bold">✓</span>
-                      )}
+                  <div className="mt-3 bg-white/5 rounded-lg p-2 space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">Line:</span>
+                      <span className="font-semibold text-orange-400">{bet.line}</span>
                     </div>
-
-                    <div className={`flex justify-between px-2 py-1 rounded ${
-                      bet.winnerId !== user.uid ? 'bg-green-900/30' : 'bg-zinc-800/30'
-                    }`}>
-                      <span className="text-xs">
-                        They Picked: {bet.picks?.[bet.winnerId === bet.challengerId ? bet.challengeeId : bet.challengerId]}
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">Actual:</span>
+                      <span className="font-semibold text-white">{bet.actualValue}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">Result:</span>
+                      <span className={`font-semibold ${isWinner ? 'text-green-400' : 'text-red-400'}`}>
+                        {bet.winningChoice}
                       </span>
-                      {bet.winnerId !== user.uid && (
-                        <span className="text-green-500 font-bold">✓</span>
-                      )}
                     </div>
                   </div>
-
-                  {/* Payout Display */}
+                  <div className="flex justify-between mt-2">
+                    <span>Winners:</span>
+                    <span className="font-bold">{bet.winners?.length || 0}</span>
+                  </div>
                   {isWinner && (
                     <div className="flex justify-between mt-2">
                       <span>Your Payout:</span>
                       <span className="font-bold text-green-400">
-                        +${bet.winnerPayout?.toFixed(2) || '0.00'}
+                        +${bet.payoutPerWinner?.toFixed(2)}
                       </span>
                     </div>
                   )}
                 </>
-              )}
-            </>
-          ) : (
-            <>
-              {/* Group Bet Display */}
-              <div className="flex justify-between text-gray-300">
-                <span>By {bet.creatorId?.substring(0, 8)}</span>
-                <span>{countdownText}</span>
-              </div>
-              <div className="flex justify-between mt-2">
-                <span>Wager: ${wager.toFixed(2)}</span>
-                <span>Pot: ${pot.toFixed(2)}</span>
-              </div>
-              {bet.status === "JUDGED" && (
+              ) : (
+                /* For other bet types, show simple result */
                 <>
                   <div className="flex justify-between mt-2">
                     <span>Correct Answer:</span>
@@ -164,6 +131,27 @@ function ArchivedBetCard({ bet, user }: ArchivedBetCardProps) {
                 </>
               )}
             </>
+          )}
+
+          {/* Show void status */}
+          {bet.status === "VOID" && (
+            <div className="mt-2 p-2 bg-zinc-700/30 rounded-lg">
+              <p className="text-xs text-zinc-400 text-center">
+                Bet Voided - {bet.voidReason || "All wagers returned"}
+              </p>
+              {bet.type === "OVER_UNDER" && bet.actualValue !== undefined && bet.line !== undefined && (
+                <div className="mt-2 space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">Line:</span>
+                    <span className="font-semibold text-orange-400">{bet.line}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">Actual:</span>
+                    <span className="font-semibold text-white">{bet.actualValue}</span>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

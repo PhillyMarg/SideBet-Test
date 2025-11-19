@@ -29,6 +29,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
   const [h2hOdds, setH2hOdds] = useState({ challenger: 1, challengee: 1 });
   const [h2hInGroup, setH2hInGroup] = useState(false);
   const [h2hGroupSelection, setH2hGroupSelection] = useState<any>(null);
+  const [challengerPick, setChallengerPick] = useState<string>(""); // Challenger's side (YES/NO, OVER/UNDER, etc.)
 
   // STEP 2: Bet Type - NOW SECOND
   const [betType, setBetType] = useState<"YES_NO" | "CLOSEST_GUESS" | "OVER_UNDER">("YES_NO");
@@ -114,6 +115,11 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
     }
   }, [preSelectedFriend]);
 
+  // Reset challenger pick when bet type changes
+  useEffect(() => {
+    setChallengerPick("");
+  }, [betType]);
+
   const createH2HBet = async () => {
     if (!user || !selectedFriend) {
       alert("Please select a friend to challenge");
@@ -127,6 +133,12 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
 
     if (!closingDate || !closingTime) {
       alert("Please set a closing date and time");
+      return;
+    }
+
+    // Validate challenger pick for YES_NO and OVER_UNDER
+    if (betType !== "CLOSEST_GUESS" && !challengerPick) {
+      alert("Please pick your side (YES/NO or OVER/UNDER)");
       return;
     }
 
@@ -207,6 +219,12 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
         challengeeName: challengeeDisplayName
       });
 
+      // Build picks object - for YES_NO and OVER_UNDER, challenger picks during creation
+      const initialPicks: any = {};
+      if (betType !== "CLOSEST_GUESS" && challengerPick) {
+        initialPicks[user.uid] = challengerPick;
+      }
+
       const betData: any = {
         title: betTitle,
         description: betDescription,
@@ -227,7 +245,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
 
         groupId: h2hInGroup && h2hGroupSelection ? h2hGroupSelection.id : null,
 
-        picks: {},
+        picks: initialPicks, // Challenger's pick is saved here for YES_NO/OVER_UNDER
         participants: [user.uid], // Challenger is automatically a participant
         winners: []
       };
@@ -875,18 +893,21 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
           {betType === "OVER_UNDER" && (
             <div className="mb-4">
               <label className="block text-sm font-medium text-white mb-2">
-                Line
+                Line *
               </label>
               <input
                 type="number"
-                value={overUnderLine}
+                value={overUnderLine || ""}
                 onChange={(e) => setOverUnderLine(Number(e.target.value))}
-                placeholder="e.g., 50.5"
+                placeholder="e.g., 75.5"
                 step="0.5"
                 className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none ${
                   themeColor === 'purple' ? 'focus:border-purple-500' : 'focus:border-orange-500'
                 }`}
               />
+              <p className="text-xs text-gray-400 mt-1">
+                Set the over/under line (e.g., points scored, golf score, etc.)
+              </p>
             </div>
           )}
 
@@ -920,6 +941,91 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
             />
           </div>
 
+          {/* Challenger Pick (H2H Only) */}
+          {betDestination === "h2h" && betType !== "CLOSEST_GUESS" && (
+            <div className="mb-6 p-4 rounded-xl border-2 border-purple-500/30 bg-purple-500/5">
+              <label className="block text-sm font-medium text-white mb-3">
+                <span className="text-purple-400">Your Pick</span> - What do you think will happen? *
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                {betType === "YES_NO" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setChallengerPick("YES")}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        challengerPick === "YES"
+                          ? "border-purple-500 bg-purple-500/20"
+                          : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                      }`}
+                    >
+                      <p className={`text-sm font-semibold ${
+                        challengerPick === "YES" ? "text-purple-400" : "text-white"
+                      }`}>
+                        I think YES
+                      </p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChallengerPick("NO")}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        challengerPick === "NO"
+                          ? "border-purple-500 bg-purple-500/20"
+                          : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                      }`}
+                    >
+                      <p className={`text-sm font-semibold ${
+                        challengerPick === "NO" ? "text-purple-400" : "text-white"
+                      }`}>
+                        I think NO
+                      </p>
+                    </button>
+                  </>
+                )}
+
+                {betType === "OVER_UNDER" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setChallengerPick("OVER")}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        challengerPick === "OVER"
+                          ? "border-purple-500 bg-purple-500/20"
+                          : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                      }`}
+                    >
+                      <p className={`text-sm font-semibold ${
+                        challengerPick === "OVER" ? "text-purple-400" : "text-white"
+                      }`}>
+                        I think OVER
+                      </p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChallengerPick("UNDER")}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        challengerPick === "UNDER"
+                          ? "border-purple-500 bg-purple-500/20"
+                          : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                      }`}
+                    >
+                      <p className={`text-sm font-semibold ${
+                        challengerPick === "UNDER" ? "text-purple-400" : "text-white"
+                      }`}>
+                        I think UNDER
+                      </p>
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <p className="text-xs text-zinc-500 mt-2">
+                Choose your side for this H2H challenge
+              </p>
+            </div>
+          )}
+
           {/* Navigation */}
           <div className="flex gap-3">
             <button
@@ -930,8 +1036,22 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
             </button>
 
             <button
-              onClick={handleSubmit}
-              disabled={isCreating || !betTitle || !closingDate || !closingTime}
+              onClick={() => {
+                // Validate line for OVER_UNDER bets
+                if (betType === "OVER_UNDER" && (!overUnderLine || overUnderLine === 0)) {
+                  alert("Please set a line for the Over/Under bet");
+                  return;
+                }
+                handleSubmit();
+              }}
+              disabled={
+                isCreating ||
+                !betTitle ||
+                !closingDate ||
+                !closingTime ||
+                (betDestination === "h2h" && betType !== "CLOSEST_GUESS" && !challengerPick) ||
+                (betType === "OVER_UNDER" && (!overUnderLine || overUnderLine === 0))
+              }
               className={`flex-1 py-3 ${themeColor === 'purple' ? 'bg-purple-500 hover:bg-purple-600' : 'bg-orange-500 hover:bg-orange-600'} disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-lg font-semibold transition-colors`}
             >
               {isCreating ? "Creating..." : "Create Bet"}
