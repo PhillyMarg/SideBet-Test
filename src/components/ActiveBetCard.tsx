@@ -696,12 +696,47 @@ function ActiveBetCard({
         </div>
       )}
 
+      {/* Void/Push Display - Show when bet is voided */}
+      {bet.status === "VOID" && user?.uid && (
+        <div className="mt-2">
+          <div className="bg-zinc-800/50 border-2 border-zinc-600 rounded-xl p-4">
+            <div className="text-center">
+              <div className="text-lg sm:text-xl font-bold text-zinc-400 mb-1">
+                BET VOIDED
+              </div>
+              <div className="text-sm text-gray-400 mb-2">
+                {bet.voidReason || "All wagers returned"}
+              </div>
+
+              {/* For OVER_UNDER push, show the details */}
+              {bet.type === "OVER_UNDER" && bet.actualValue !== undefined && bet.line !== undefined && (
+                <div className="mt-3 bg-white/5 rounded-lg p-3 space-y-2">
+                  <div className="flex justify-between items-center text-xs sm:text-sm">
+                    <span className="text-gray-400">Line:</span>
+                    <span className="font-semibold text-orange-400">{bet.line}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs sm:text-sm">
+                    <span className="text-gray-400">Actual:</span>
+                    <span className="font-semibold text-white">{bet.actualValue}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs sm:text-sm">
+                    <span className="text-gray-400">Result:</span>
+                    <span className="font-semibold text-zinc-400">PUSH</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Winner/Loser Display - Show after bet is judged */}
       {bet.status === "JUDGED" && user?.uid && (
         <div className="mt-2">
           {(() => {
             const isWinner = bet.winners?.includes(user.uid);
             const payout = bet.payoutPerWinner;
+            const userPick = bet.picks?.[user.uid];
 
             if (isWinner) {
               return (
@@ -713,9 +748,36 @@ function ActiveBetCard({
                     <div className="text-2xl sm:text-3xl font-bold text-green-500 mb-2">
                       +${payout?.toFixed(2)}
                     </div>
-                    <div className="text-xs sm:text-sm text-gray-300">
-                      Final Result: <span className="font-semibold text-white">{bet.correctAnswer}</span>
-                    </div>
+
+                    {/* For OVER_UNDER bets, show detailed results */}
+                    {bet.type === "OVER_UNDER" && bet.actualValue !== undefined && bet.line !== undefined && (
+                      <div className="mt-3 bg-white/5 rounded-lg p-3 space-y-2">
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
+                          <span className="text-gray-400">Line:</span>
+                          <span className="font-semibold text-orange-400">{bet.line}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
+                          <span className="text-gray-400">Actual:</span>
+                          <span className="font-semibold text-white">{bet.actualValue}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
+                          <span className="text-gray-400">Result:</span>
+                          <span className="font-semibold text-green-400">{bet.winningChoice}</span>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-white/10">
+                          <p className="text-xs text-gray-300">
+                            You Voted: <span className="text-green-400 font-semibold">{userPick} ✓</span>
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* For other bet types, show simple result */}
+                    {bet.type !== "OVER_UNDER" && (
+                      <div className="text-xs sm:text-sm text-gray-300">
+                        Final Result: <span className="font-semibold text-white">{bet.correctAnswer}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -729,9 +791,36 @@ function ActiveBetCard({
                     <div className="text-2xl sm:text-3xl font-bold text-red-500 mb-2">
                       -${wager.toFixed(2)}
                     </div>
-                    <div className="text-xs sm:text-sm text-gray-300">
-                      Final Result: <span className="font-semibold text-white">{bet.correctAnswer}</span>
-                    </div>
+
+                    {/* For OVER_UNDER bets, show detailed results */}
+                    {bet.type === "OVER_UNDER" && bet.actualValue !== undefined && bet.line !== undefined && (
+                      <div className="mt-3 bg-white/5 rounded-lg p-3 space-y-2">
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
+                          <span className="text-gray-400">Line:</span>
+                          <span className="font-semibold text-orange-400">{bet.line}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
+                          <span className="text-gray-400">Actual:</span>
+                          <span className="font-semibold text-white">{bet.actualValue}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
+                          <span className="text-gray-400">Result:</span>
+                          <span className="font-semibold text-red-400">{bet.winningChoice}</span>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-white/10">
+                          <p className="text-xs text-gray-300">
+                            You Voted: <span className="text-red-400 font-semibold">{userPick}</span>
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* For other bet types, show simple result */}
+                    {bet.type !== "OVER_UNDER" && (
+                      <div className="text-xs sm:text-sm text-gray-300">
+                        Final Result: <span className="font-semibold text-white">{bet.correctAnswer}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
