@@ -34,6 +34,7 @@ import NavigationTabs from "../../components/NavigationTabs";
 import FilterPills from "../../components/FilterPills";
 import FeedSearchBar from "../../components/FeedSearchBar";
 import FeedGroupCard from "../../components/FeedGroupCard";
+import ActiveBetsSection from "../../components/ActiveBetsSection";
 
 // Lazy load heavy wizard components
 const CreateBetWizard = lazy(() => import("../../components/CreateBetWizard"));
@@ -523,18 +524,6 @@ export default function HomePage() {
         >
           {/* ACTIVE BETS Section */}
           <section style={{ marginTop: "24px" }}>
-            <h2
-              style={{
-                fontSize: "12px",
-                fontWeight: "600",
-                color: "#FFFFFF",
-                textAlign: "center",
-                marginBottom: "12px",
-              }}
-            >
-              ACTIVE BETS
-            </h2>
-
             {loading ? (
               <div>
                 {[...Array(3)].map((_, i) => (
@@ -543,20 +532,28 @@ export default function HomePage() {
               </div>
             ) : (
               <>
-                {/* Filter Pills */}
-                <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
-                  <FilterPills
-                    activeFilter={activeFilter}
-                    onFilterChange={setActiveFilter}
-                  />
-                </div>
-
-                {/* Search Bar */}
-                <FeedSearchBar
+                {/* Active Bets Section with Title, Filter Pills, and Search */}
+                <ActiveBetsSection
+                  activeFilter={
+                    activeFilter === "All" ? "ALL" :
+                    activeFilter === "Open" ? "OPEN" :
+                    activeFilter === "Picks" ? "MY PICKS" :
+                    activeFilter === "Pending" ? "PENDING" :
+                    activeFilter === "Soon" ? "SOON" :
+                    "H2H"
+                  }
+                  onFilterChange={(filter) => {
+                    const mapped =
+                      filter === "ALL" ? "All" :
+                      filter === "OPEN" ? "Open" :
+                      filter === "MY PICKS" ? "Picks" :
+                      filter === "PENDING" ? "Pending" :
+                      filter === "SOON" ? "Soon" :
+                      "H2H";
+                    setActiveFilter(mapped as FilterOption);
+                  }}
                   searchQuery={betSearchQuery}
                   onSearchChange={setBetSearchQuery}
-                  sortOption={betSortOption}
-                  onSortChange={setBetSortOption}
                 />
 
                 {/* Bet Cards */}
