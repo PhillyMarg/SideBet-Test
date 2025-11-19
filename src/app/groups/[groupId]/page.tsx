@@ -550,7 +550,7 @@ export default function GroupDetailPage() {
         {/* 🔶 ACTIVITY FEED */}
         <div className="mt-6">
           <ActivityFeed groupId={group.id} groupName={group.name} />
-        </div>
+        </section>
 
         {/* 🎯 ACTIVE BETS */}
         <section className="mt-6">
