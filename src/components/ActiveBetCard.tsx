@@ -50,6 +50,10 @@ function ActiveBetCard({
   const [selectedPick, setSelectedPick] = useState("");
   const [showDeclineConfirm, setShowDeclineConfirm] = useState(false);
 
+  // Change Vote state
+  const [showChangeVoteModal, setShowChangeVoteModal] = useState(false);
+  const [newVoteChoice, setNewVoteChoice] = useState("");
+
   const { isClosed } = getTimeRemaining(bet.closingAt);
   const isH2H = bet.isH2H === true;
   const wager = bet.perUserWager ?? bet.betAmount ?? 0;
@@ -341,6 +345,30 @@ function ActiveBetCard({
     }
   };
 
+  // Change Vote Handler
+  const handleChangeVote = async () => {
+    if (!newVoteChoice || !user?.uid) return;
+
+    try {
+      const betRef = doc(db, "bets", bet.id);
+
+      // Update user's vote
+      await updateDoc(betRef, {
+        [`picks.${user.uid}`]: newVoteChoice,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log("Vote changed successfully");
+      setShowChangeVoteModal(false);
+      setNewVoteChoice("");
+      if (onPickMade) onPickMade();
+
+    } catch (error) {
+      console.error("Error changing vote:", error);
+      alert("Failed to change vote");
+    }
+  };
+
   return (
     <li
       className={`
@@ -506,49 +534,58 @@ function ActiveBetCard({
           {userHasPicked ? (
             <>
               {bet.type === "YES_NO" || bet.type === "OVER_UNDER" ? (
-                <div className="mt-1">
-                  {/* Wager → Winnings Display */}
-                  {winnings && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`text-[10px] sm:text-xs font-semibold ${isH2H ? 'text-purple-400' : 'text-orange-400'}`}>
-                        ${winnings.wager.toFixed(2)}
-                      </span>
-                      <span className="text-[10px] sm:text-xs text-zinc-500">→</span>
-                      <span className="text-[10px] sm:text-xs font-semibold text-green-500">
-                        ${winnings.potentialWin.toFixed(2)}
-                      </span>
-                      <span className="text-[9px] sm:text-[10px] text-zinc-500">
-                        ({winnings.pick})
+                <div className="mt-1 space-y-2">
+                  {/* You Voted Indicator with Checkmark */}
+                  <div className="bg-emerald-900/40 border border-emerald-700 rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="text-sm font-semibold text-white">
+                        You Voted: <span className={`${isH2H ? 'text-purple-400' : 'text-orange-400'}`}>
+                          {bet.picks[user?.uid]}
+                        </span>
                       </span>
                     </div>
-                  )}
+                  </div>
 
-                  {/* Progress Bar - PURPLE for H2H, ORANGE for Group */}
-                  <div className="bg-zinc-800 rounded-lg overflow-hidden h-4 sm:h-5 flex items-center relative">
+                  {/* Current Results Label */}
+                  <p className="text-xs text-gray-400 font-medium">Current Results:</p>
+
+                  {/* Progress Bar - ORANGE for YES side */}
+                  <div className="bg-zinc-800 rounded-lg overflow-hidden h-6 flex items-center relative">
                     {/* YES/OVER Side */}
                     <div
-                      className={`${isH2H ? 'bg-purple-500' : 'bg-orange-500'} h-full flex items-center justify-start px-1 sm:px-2 transition-all duration-500 min-w-0`}
+                      className="bg-[#FF6B35] h-full flex items-center justify-start px-2 transition-all duration-500 min-w-0"
                       style={{ width: `${yes}%` }}
                     >
                       {yes >= 10 && (
-                        <span className="text-white text-[9px] sm:text-[10px] font-bold whitespace-nowrap">
-                          {bet.type === "YES_NO" ? "Yes" : "Over"} {yes}%
+                        <span className="text-white text-xs font-bold whitespace-nowrap">
+                          {bet.type === "YES_NO" ? "YES" : "OVER"} {yes}%
                         </span>
                       )}
                     </div>
 
                     {/* NO/UNDER Side */}
                     <div
-                      className="bg-white h-full flex items-center justify-end px-1 sm:px-2 transition-all duration-500 min-w-0"
+                      className="bg-zinc-700 h-full flex items-center justify-end px-2 transition-all duration-500 min-w-0"
                       style={{ width: `${no}%` }}
                     >
                       {no >= 10 && (
-                        <span className="text-black text-[9px] sm:text-[10px] font-bold whitespace-nowrap">
-                          {bet.type === "YES_NO" ? "No" : "Under"} {no}%
+                        <span className="text-white text-xs font-bold whitespace-nowrap">
+                          {bet.type === "YES_NO" ? "NO" : "UNDER"} {no}%
                         </span>
                       )}
                     </div>
                   </div>
+
+                  {/* Change Vote Button */}
+                  <button
+                    onClick={() => setShowChangeVoteModal(true)}
+                    className="w-full py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg font-semibold transition-colors text-sm"
+                  >
+                    Change Vote
+                  </button>
                 </div>
               ) : bet.type === "CLOSEST_GUESS" ? (
                 <div className="mt-1 flex flex-col items-center">
@@ -807,6 +844,131 @@ function ActiveBetCard({
                 className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold"
               >
                 Decline Challenge
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Vote Modal */}
+      {showChangeVoteModal && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+          onClick={() => setShowChangeVoteModal(false)}
+        >
+          <div
+            className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 max-w-md w-full relative z-[101]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Change Your Vote
+            </h3>
+
+            <p className="text-zinc-400 text-sm mb-4">
+              {bet.title}
+            </p>
+
+            <p className="text-sm text-zinc-400 mb-4">
+              Current vote: <span className={`font-semibold ${isH2H ? 'text-purple-400' : 'text-orange-400'}`}>
+                {bet.picks[user?.uid]}
+              </span>
+            </p>
+
+            <div className="space-y-2 mb-6">
+              {bet.type === "YES_NO" ? (
+                <>
+                  <button
+                    onClick={() => setNewVoteChoice("YES")}
+                    className={`w-full p-3 rounded-lg border-2 transition-all ${
+                      newVoteChoice === "YES"
+                        ? `${isH2H ? 'border-purple-500 bg-purple-500/10' : 'border-orange-500 bg-orange-500/10'}`
+                        : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
+                    }`}
+                  >
+                    <span className={`font-semibold ${
+                      newVoteChoice === "YES"
+                        ? (isH2H ? 'text-purple-500' : 'text-orange-500')
+                        : 'text-white'
+                    }`}>
+                      YES
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setNewVoteChoice("NO")}
+                    className={`w-full p-3 rounded-lg border-2 transition-all ${
+                      newVoteChoice === "NO"
+                        ? `${isH2H ? 'border-purple-500 bg-purple-500/10' : 'border-orange-500 bg-orange-500/10'}`
+                        : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
+                    }`}
+                  >
+                    <span className={`font-semibold ${
+                      newVoteChoice === "NO"
+                        ? (isH2H ? 'text-purple-500' : 'text-orange-500')
+                        : 'text-white'
+                    }`}>
+                      NO
+                    </span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setNewVoteChoice("OVER")}
+                    className={`w-full p-3 rounded-lg border-2 transition-all ${
+                      newVoteChoice === "OVER"
+                        ? `${isH2H ? 'border-purple-500 bg-purple-500/10' : 'border-orange-500 bg-orange-500/10'}`
+                        : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
+                    }`}
+                  >
+                    <span className={`font-semibold ${
+                      newVoteChoice === "OVER"
+                        ? (isH2H ? 'text-purple-500' : 'text-orange-500')
+                        : 'text-white'
+                    }`}>
+                      OVER
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setNewVoteChoice("UNDER")}
+                    className={`w-full p-3 rounded-lg border-2 transition-all ${
+                      newVoteChoice === "UNDER"
+                        ? `${isH2H ? 'border-purple-500 bg-purple-500/10' : 'border-orange-500 bg-orange-500/10'}`
+                        : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
+                    }`}
+                  >
+                    <span className={`font-semibold ${
+                      newVoteChoice === "UNDER"
+                        ? (isH2H ? 'text-purple-500' : 'text-orange-500')
+                        : 'text-white'
+                    }`}>
+                      UNDER
+                    </span>
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowChangeVoteModal(false);
+                  setNewVoteChoice("");
+                }}
+                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-semibold"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleChangeVote}
+                disabled={!newVoteChoice}
+                className={`flex-1 py-3 ${
+                  isH2H
+                    ? 'bg-purple-500 hover:bg-purple-600 disabled:bg-zinc-800'
+                    : 'bg-orange-500 hover:bg-orange-600 disabled:bg-zinc-800'
+                } disabled:text-zinc-500 text-white rounded-lg font-semibold transition-colors`}
+              >
+                Confirm Change
               </button>
             </div>
           </div>
