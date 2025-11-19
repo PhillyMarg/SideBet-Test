@@ -733,25 +733,55 @@ function ActiveBetCard({
               {bet.title}
             </p>
 
+            {/* Show what challenger picked */}
+            {bet.picks && bet.picks[bet.challengerId] && (
+              <div className="mb-4 p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                <p className="text-xs text-purple-400 mb-1">
+                  {bet.challengerName} picked:
+                </p>
+                <p className="text-sm font-semibold text-purple-300">
+                  {bet.picks[bet.challengerId]}
+                </p>
+              </div>
+            )}
+
             <div className="space-y-2 mb-6">
-              {bet.options?.map((option: string) => (
-                <button
-                  key={option}
-                  onClick={() => setSelectedPick(option)}
-                  className={`w-full p-3 rounded-lg border-2 transition-all ${
-                    selectedPick === option
-                      ? 'border-purple-500 bg-purple-500/10'
-                      : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
-                  }`}
-                >
-                  <span className={`font-semibold ${
-                    selectedPick === option ? 'text-purple-500' : 'text-white'
-                  }`}>
-                    {option}
-                  </span>
-                </button>
-              ))}
+              {bet.options?.map((option: string) => {
+                // For YES_NO and OVER_UNDER, check if this is the challenger's pick
+                const isChallengerPick = bet.picks && bet.picks[bet.challengerId] === option;
+
+                return (
+                  <button
+                    key={option}
+                    onClick={() => setSelectedPick(option)}
+                    className={`w-full p-3 rounded-lg border-2 transition-all ${
+                      selectedPick === option
+                        ? 'border-purple-500 bg-purple-500/10'
+                        : isChallengerPick
+                          ? 'border-zinc-700 bg-zinc-800/50 opacity-60'
+                          : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
+                    }`}
+                  >
+                    <span className={`font-semibold ${
+                      selectedPick === option
+                        ? 'text-purple-500'
+                        : isChallengerPick
+                          ? 'text-zinc-500'
+                          : 'text-white'
+                    }`}>
+                      {option}
+                      {isChallengerPick && ' (Challenger)'}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
+
+            {bet.type !== "CLOSEST_GUESS" && (
+              <p className="text-xs text-zinc-500 mb-4 text-center">
+                💡 Tip: Pick the opposite side to compete head-to-head!
+              </p>
+            )}
 
             <div className="flex gap-2">
               <button
