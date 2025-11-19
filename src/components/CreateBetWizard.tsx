@@ -893,18 +893,21 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
           {betType === "OVER_UNDER" && (
             <div className="mb-4">
               <label className="block text-sm font-medium text-white mb-2">
-                Line
+                Line *
               </label>
               <input
                 type="number"
-                value={overUnderLine}
+                value={overUnderLine || ""}
                 onChange={(e) => setOverUnderLine(Number(e.target.value))}
-                placeholder="e.g., 50.5"
+                placeholder="e.g., 75.5"
                 step="0.5"
                 className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none ${
                   themeColor === 'purple' ? 'focus:border-purple-500' : 'focus:border-orange-500'
                 }`}
               />
+              <p className="text-xs text-gray-400 mt-1">
+                Set the over/under line (e.g., points scored, golf score, etc.)
+              </p>
             </div>
           )}
 
@@ -1033,13 +1036,21 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
             </button>
 
             <button
-              onClick={handleSubmit}
+              onClick={() => {
+                // Validate line for OVER_UNDER bets
+                if (betType === "OVER_UNDER" && (!overUnderLine || overUnderLine === 0)) {
+                  alert("Please set a line for the Over/Under bet");
+                  return;
+                }
+                handleSubmit();
+              }}
               disabled={
                 isCreating ||
                 !betTitle ||
                 !closingDate ||
                 !closingTime ||
-                (betDestination === "h2h" && betType !== "CLOSEST_GUESS" && !challengerPick)
+                (betDestination === "h2h" && betType !== "CLOSEST_GUESS" && !challengerPick) ||
+                (betType === "OVER_UNDER" && (!overUnderLine || overUnderLine === 0))
               }
               className={`flex-1 py-3 ${themeColor === 'purple' ? 'bg-purple-500 hover:bg-purple-600' : 'bg-orange-500 hover:bg-orange-600'} disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-lg font-semibold transition-colors`}
             >

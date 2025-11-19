@@ -66,25 +66,83 @@ function ArchivedBetCard({ bet, user }: ArchivedBetCardProps) {
           </div>
           {bet.status === "JUDGED" && (
             <>
-              <div className="flex justify-between mt-2">
-                <span>Correct Answer:</span>
-                <span className="font-bold text-orange-400">
-                  {bet.correctAnswer}
-                </span>
-              </div>
-              <div className="flex justify-between mt-2">
-                <span>Winners:</span>
-                <span className="font-bold">{bet.winners?.length || 0}</span>
-              </div>
-              {isWinner && (
-                <div className="flex justify-between mt-2">
-                  <span>Your Payout:</span>
-                  <span className="font-bold text-green-400">
-                    +${bet.payoutPerWinner?.toFixed(2)}
-                  </span>
-                </div>
+              {/* For OVER_UNDER bets, show detailed breakdown */}
+              {bet.type === "OVER_UNDER" && bet.actualValue !== undefined && bet.line !== undefined ? (
+                <>
+                  <div className="mt-3 bg-white/5 rounded-lg p-2 space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">Line:</span>
+                      <span className="font-semibold text-orange-400">{bet.line}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">Actual:</span>
+                      <span className="font-semibold text-white">{bet.actualValue}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">Result:</span>
+                      <span className={`font-semibold ${isWinner ? 'text-green-400' : 'text-red-400'}`}>
+                        {bet.winningChoice}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between mt-2">
+                    <span>Winners:</span>
+                    <span className="font-bold">{bet.winners?.length || 0}</span>
+                  </div>
+                  {isWinner && (
+                    <div className="flex justify-between mt-2">
+                      <span>Your Payout:</span>
+                      <span className="font-bold text-green-400">
+                        +${bet.payoutPerWinner?.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* For other bet types, show simple result */
+                <>
+                  <div className="flex justify-between mt-2">
+                    <span>Correct Answer:</span>
+                    <span className="font-bold text-orange-400">
+                      {bet.correctAnswer}
+                    </span>
+                  </div>
+                  <div className="flex justify-between mt-2">
+                    <span>Winners:</span>
+                    <span className="font-bold">{bet.winners?.length || 0}</span>
+                  </div>
+                  {isWinner && (
+                    <div className="flex justify-between mt-2">
+                      <span>Your Payout:</span>
+                      <span className="font-bold text-green-400">
+                        +${bet.payoutPerWinner?.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
             </>
+          )}
+
+          {/* Show void status */}
+          {bet.status === "VOID" && (
+            <div className="mt-2 p-2 bg-zinc-700/30 rounded-lg">
+              <p className="text-xs text-zinc-400 text-center">
+                Bet Voided - {bet.voidReason || "All wagers returned"}
+              </p>
+              {bet.type === "OVER_UNDER" && bet.actualValue !== undefined && bet.line !== undefined && (
+                <div className="mt-2 space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">Line:</span>
+                    <span className="font-semibold text-orange-400">{bet.line}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">Actual:</span>
+                    <span className="font-semibold text-white">{bet.actualValue}</span>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
