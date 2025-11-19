@@ -20,7 +20,141 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
     setIsSubmitting(true);
 
     try {
-      // Calculate winners based on bet type
+      const isH2H = bet.isH2H === true;
+
+      // H2H BET JUDGING
+      if (isH2H) {
+        const challengerPick = bet.picks?.[bet.challengerId];
+        const challengeePick = bet.picks?.[bet.challengeeId];
+
+        if (!challengerPick || !challengeePick) {
+          alert("Both participants must have picks to judge this bet");
+          setIsSubmitting(false);
+          return;
+        }
+
+        let winnerId: string | null = null;
+        let loserId: string | null = null;
+
+        if (bet.type === "YES_NO" || bet.type === "OVER_UNDER") {
+          // Determine winner based on correct pick
+          if (challengerPick === answer) {
+            winnerId = bet.challengerId;
+            loserId = bet.challengeeId;
+          } else if (challengeePick === answer) {
+            winnerId = bet.challengeeId;
+            loserId = bet.challengerId;
+          } else {
+            // Neither picked correctly - void the bet
+            const betRef = doc(db, "bets", bet.id);
+            await updateDoc(betRef, {
+              status: "VOID",
+              h2hStatus: "VOID",
+              voidReason: "No one picked correctly",
+              voidedBy: bet.creatorId,
+              voidedAt: new Date().toISOString()
+            });
+            alert("Bet voided: No one picked correctly. All wagers returned.");
+            onClose();
+            setIsSubmitting(false);
+            return;
+          }
+        } else if (bet.type === "CLOSEST_GUESS") {
+          const actualNumber = parseFloat(answer as string);
+          if (isNaN(actualNumber)) {
+            alert("Please enter a valid number");
+            setIsSubmitting(false);
+            return;
+          }
+
+          const challengerGuess = parseFloat(challengerPick as string);
+          const challengeeGuess = parseFloat(challengeePick as string);
+
+          const challengerDistance = Math.abs(actualNumber - challengerGuess);
+          const challengeeDistance = Math.abs(actualNumber - challengeeGuess);
+
+          if (challengerDistance < challengeeDistance) {
+            winnerId = bet.challengerId;
+            loserId = bet.challengeeId;
+          } else if (challengeeDistance < challengerDistance) {
+            winnerId = bet.challengeeId;
+            loserId = bet.challengerId;
+          } else {
+            // Exact tie - void the bet
+            const betRef = doc(db, "bets", bet.id);
+            await updateDoc(betRef, {
+              status: "VOID",
+              h2hStatus: "VOID",
+              voidReason: "Exact tie - both equally close",
+              voidedBy: bet.creatorId,
+              voidedAt: new Date().toISOString(),
+              actualValue: actualNumber,
+              challengerDistance: challengerDistance,
+              challengeeDistance: challengeeDistance
+            });
+            alert("Bet voided: Exact tie - both equally close. All wagers returned.");
+            onClose();
+            setIsSubmitting(false);
+            return;
+          }
+
+          // Update bet with closest guess results
+          const totalPot = (bet.betAmount || 0) * 2; // Both participants' stakes
+          const betRef = doc(db, "bets", bet.id);
+          await updateDoc(betRef, {
+            status: "JUDGED",
+            h2hStatus: "JUDGED",
+            actualValue: actualNumber,
+            challengerDistance: challengerDistance,
+            challengeeDistance: challengeeDistance,
+            winnerId: winnerId,
+            loserId: loserId,
+            winnerPayout: totalPot,
+            judgedAt: new Date().toISOString()
+          });
+
+          // Send notifications
+          if (winnerId) {
+            await notifyBetResult(winnerId, bet.id, bet.title, true, totalPot);
+          }
+          if (loserId) {
+            await notifyBetResult(loserId, bet.id, bet.title, false, undefined);
+          }
+
+          alert(`✅ H2H Bet judged! Winner receives $${totalPot.toFixed(2)}`);
+          onClose();
+          setIsSubmitting(false);
+          return;
+        }
+
+        // For YES/NO and OVER/UNDER H2H bets
+        const totalPot = (bet.betAmount || 0) * 2;
+        const betRef = doc(db, "bets", bet.id);
+        await updateDoc(betRef, {
+          status: "JUDGED",
+          h2hStatus: "JUDGED",
+          winningChoice: answer,
+          winnerId: winnerId,
+          loserId: loserId,
+          winnerPayout: totalPot,
+          judgedAt: new Date().toISOString()
+        });
+
+        // Send notifications
+        if (winnerId) {
+          await notifyBetResult(winnerId, bet.id, bet.title, true, totalPot);
+        }
+        if (loserId) {
+          await notifyBetResult(loserId, bet.id, bet.title, false, undefined);
+        }
+
+        alert(`✅ H2H Bet judged! Winner receives $${totalPot.toFixed(2)}`);
+        onClose();
+        setIsSubmitting(false);
+        return;
+      }
+
+      // GROUP BET JUDGING (existing logic)
       let winners: string[] = [];
       let correctValue = answer;
 
@@ -153,6 +287,12 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
     }
   };
 
+  const isH2H = bet.isH2H === true;
+  const challengerPick = bet.picks?.[bet.challengerId];
+  const challengeePick = bet.picks?.[bet.challengeeId];
+  const borderColor = isH2H ? "border-purple-500" : "border-orange-500";
+  const primaryColor = isH2H ? "purple" : "orange";
+
   return (
     <div
       className="fixed inset-0 flex justify-center items-center z-[200] bg-black/70"
@@ -160,7 +300,7 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-[95%] sm:max-w-md bg-zinc-900 border border-orange-500 rounded-2xl shadow-xl px-6 py-6"
+        className={`w-[95%] sm:max-w-md bg-zinc-900 border-2 ${borderColor} rounded-2xl shadow-xl px-6 py-6`}
       >
         <h3 className="text-xl font-bold mb-4 text-center text-white">
           Judge Bet
@@ -170,34 +310,70 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
           <p className="text-sm text-gray-300 mb-2">
             <span className="font-semibold text-white">Bet:</span> {bet.title}
           </p>
-          <p className="text-sm text-gray-300 mb-2">
-            <span className="font-semibold text-white">Participants:</span>{" "}
-            {bet.participants?.length || 0}
-          </p>
-          <p className="text-sm text-gray-300 mb-4">
-            <span className="font-semibold text-white">Total Pot:</span> $
-            {(bet.perUserWager * (bet.participants?.length || 0)).toFixed(2)}
-          </p>
+
+          {isH2H ? (
+            <>
+              {/* H2H Picks Summary */}
+              <div className="bg-zinc-800 rounded-lg p-3 mb-3 border border-purple-500/30">
+                <p className="text-xs text-purple-400 font-semibold mb-2">Participants & Picks:</p>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-300">{bet.challengerName}</span>
+                    <span className="text-sm font-bold text-purple-400">{challengerPick}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-300">{bet.challengeeName}</span>
+                    <span className="text-sm font-bold text-purple-400">{challengeePick}</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-300 mb-4">
+                <span className="font-semibold text-white">Pot:</span> $
+                {((bet.betAmount || 0) * 2).toFixed(2)}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-gray-300 mb-2">
+                <span className="font-semibold text-white">Participants:</span>{" "}
+                {bet.participants?.length || 0}
+              </p>
+              <p className="text-sm text-gray-300 mb-4">
+                <span className="font-semibold text-white">Total Pot:</span> $
+                {(bet.perUserWager * (bet.participants?.length || 0)).toFixed(2)}
+              </p>
+            </>
+          )}
         </div>
+
+        <p className="text-center text-white text-sm mb-4 font-medium">
+          What actually happened?
+        </p>
 
         {/* YES/NO or OVER/UNDER */}
         {(bet.type === "YES_NO" || bet.type === "OVER_UNDER") && (
           <div className="flex gap-3">
             <button
               onClick={() =>
-                handleJudge(bet.type === "YES_NO" ? "YES" : "OVER")
+                handleJudge(bet.type === "YES_NO" ? "NO" : "UNDER")
               }
-              disabled={isSubmitting}
-              className="flex-1 py-3 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition disabled:opacity-50"
-            >
-              {bet.type === "YES_NO" ? "Yes" : "Over"}
-            </button>
-            <button
-              onClick={() => handleJudge(bet.type === "YES_NO" ? "NO" : "UNDER")}
               disabled={isSubmitting}
               className="flex-1 py-3 rounded-lg text-sm font-semibold bg-white hover:bg-gray-200 text-black transition disabled:opacity-50"
             >
               {bet.type === "YES_NO" ? "No" : "Under"}
+            </button>
+            <button
+              onClick={() =>
+                handleJudge(bet.type === "YES_NO" ? "YES" : "OVER")
+              }
+              disabled={isSubmitting}
+              className={`flex-1 py-3 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50 ${
+                isH2H
+                  ? 'bg-purple-500 hover:bg-purple-600'
+                  : 'bg-orange-500 hover:bg-orange-600'
+              }`}
+            >
+              {bet.type === "YES_NO" ? "Yes" : "Over"}
             </button>
           </div>
         )}
@@ -214,12 +390,18 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
               placeholder="e.g. 42.5"
               value={correctAnswer}
               onChange={(e) => setCorrectAnswer(e.target.value)}
-              className="w-full bg-zinc-800 text-white p-3 rounded-lg border border-zinc-700 focus:outline-none focus:border-orange-500 mb-4"
+              className={`w-full bg-zinc-800 text-white p-3 rounded-lg border border-zinc-700 focus:outline-none mb-4 ${
+                isH2H ? 'focus:border-purple-500' : 'focus:border-orange-500'
+              }`}
             />
             <button
               onClick={() => handleJudge(correctAnswer)}
               disabled={isSubmitting || !correctAnswer}
-              className="w-full py-3 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition disabled:opacity-50"
+              className={`w-full py-3 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50 ${
+                isH2H
+                  ? 'bg-purple-500 hover:bg-purple-600'
+                  : 'bg-orange-500 hover:bg-orange-600'
+              }`}
             >
               Submit Judgment
             </button>

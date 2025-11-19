@@ -528,6 +528,78 @@ function ActiveBetCard({
         </button>
       )}
 
+      {/* H2H Result Display - Winner/Loser */}
+      {isH2H && bet.status === "JUDGED" && bet.winnerId && (
+        <div className={`rounded-xl p-4 mb-3 border-2 ${
+          bet.winnerId === user?.uid
+            ? 'bg-emerald-900/40 border-green-500'
+            : 'bg-red-900/30 border-red-500'
+        }`}>
+          {/* Winner/Loser Banner */}
+          {bet.winnerId === user?.uid ? (
+            <>
+              <div className="text-center mb-3">
+                <p className="text-lg sm:text-xl font-bold text-white mb-1">
+                  🏆 YOU WON! 🏆
+                </p>
+                <p className="text-2xl sm:text-3xl font-bold text-green-500">
+                  +${bet.winnerPayout?.toFixed(2) || '0.00'}
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-center mb-3">
+                <p className="text-sm sm:text-base text-red-300 mb-1">
+                  Better luck next time
+                </p>
+                <p className="text-2xl sm:text-3xl font-bold text-red-500">
+                  -${(bet.betAmount || 0).toFixed(2)}
+                </p>
+              </div>
+            </>
+          )}
+
+          {/* Final Result Section */}
+          <div className="mt-4 pt-3 border-t border-white/10">
+            <p className="text-xs sm:text-sm text-gray-300 font-semibold mb-2">
+              Final Result: <span className="text-purple-400">
+                {bet.winningChoice || bet.actualValue}
+              </span>
+            </p>
+
+            {/* Both Picks with Checkmark */}
+            <div className="space-y-1.5">
+              <div className={`flex justify-between items-center px-3 py-2 rounded-lg ${
+                bet.winnerId === user?.uid ? 'bg-green-900/30' : 'bg-zinc-800/50'
+              }`}>
+                <span className="text-xs sm:text-sm text-gray-300">
+                  You Picked: <span className="font-bold text-white">
+                    {bet.picks?.[user?.uid]}
+                  </span>
+                </span>
+                {bet.winnerId === user?.uid && (
+                  <span className="text-green-500 text-base sm:text-lg font-bold">✓</span>
+                )}
+              </div>
+
+              <div className={`flex justify-between items-center px-3 py-2 rounded-lg ${
+                bet.winnerId !== user?.uid ? 'bg-green-900/30' : 'bg-zinc-800/50'
+              }`}>
+                <span className="text-xs sm:text-sm text-gray-300">
+                  They Picked: <span className="font-bold text-white">
+                    {bet.picks?.[bet.winnerId === bet.challengerId ? bet.challengeeId : bet.challengerId]}
+                  </span>
+                </span>
+                {bet.winnerId !== user?.uid && (
+                  <span className="text-green-500 text-base sm:text-lg font-bold">✓</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Betting Interface */}
       {!isClosed && (!isH2H || bet.h2hStatus === "accepted") && (
         <>
