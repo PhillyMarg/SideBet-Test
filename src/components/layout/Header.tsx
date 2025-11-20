@@ -288,7 +288,7 @@ export function Header({ userId }: HeaderProps) {
         }
 
         setShowCreateBet(false);
-        router.push(`/bets/${docRef.id}`);
+        router.push('/home');
       } else {
         // Create H2H bet
         // Get challengee info
@@ -335,7 +335,7 @@ export function Header({ userId }: HeaderProps) {
         });
 
         setShowCreateBet(false);
-        router.push(`/bets/${docRef.id}`);
+        router.push('/home');
       }
     } catch (error: any) {
       console.error("Error creating bet:", error);
