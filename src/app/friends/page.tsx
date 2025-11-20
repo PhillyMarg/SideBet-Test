@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   collection,
@@ -26,9 +26,7 @@ import {
 } from "lucide-react";
 import { notifyFriendRequest, notifyFriendRequestAccepted } from "@/lib/notifications";
 import { Header } from "@/components/layout/Header";
-
-// Lazy load CreateBetWizard
-const CreateBetWizard = lazy(() => import("@/components/CreateBetWizard"));
+import { BetWizard, WizardData } from "@/components/wizard/BetWizard";
 
 interface User {
   uid: string;
@@ -455,6 +453,40 @@ export default function FriendsPage() {
     await declineFriendRequest(friendId); // Same logic
   };
 
+  // Handle wizard completion - create bet in Firebase
+  const handleWizardComplete = async (wizardData: WizardData) => {
+    try {
+      console.log('Creating bet:', wizardData);
+
+      const betDoc = {
+        title: wizardData.title,
+        description: wizardData.description || '',
+        type: wizardData.betType,
+        creatorId: user?.uid,
+        groupId: null,
+        friendId: wizardData.targetId,
+        wagerAmount: wizardData.wagerAmount,
+        totalPot: wizardData.wagerAmount,
+        closingDate: wizardData.closingDate,
+        line: wizardData.line,
+        playerCount: 1,
+        votes: {},
+        result: null,
+        createdAt: new Date(),
+      };
+
+      await addDoc(collection(db, 'bets'), betDoc);
+
+      setShowCreateBet(false);
+      setPreSelectedFriend(null);
+      router.push('/home');
+
+    } catch (error) {
+      console.error('Error creating bet:', error);
+      alert('Failed to create bet. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -848,32 +880,22 @@ export default function FriendsPage() {
         </div>
       )}
 
-      {/* Create Bet Wizard Modal */}
-      {showCreateBet && (
-        <div
-          className="fixed inset-0 flex justify-center items-center z-[60] bg-black/60 backdrop-blur-sm p-4"
-          onClick={() => {
-            setShowCreateBet(false);
-            setPreSelectedFriend(null);
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto p-5"
-          >
-            <Suspense fallback={<div className="text-white text-center py-8">Loading...</div>}>
-              <CreateBetWizard
-                user={user}
-                preSelectedFriend={preSelectedFriend}
-                onClose={() => {
-                  setShowCreateBet(false);
-                  setPreSelectedFriend(null);
-                }}
-              />
-            </Suspense>
-          </div>
-        </div>
-      )}
+      {/* NEW BET WIZARD */}
+      <BetWizard
+        isOpen={showCreateBet}
+        onClose={() => {
+          setShowCreateBet(false);
+          setPreSelectedFriend(null);
+        }}
+        onComplete={handleWizardComplete}
+        userId={user?.uid}
+
+        // Skip to Step 2 with friend pre-selected
+        initialStep={2}
+        initialTheme="friend"
+        initialTargetId={preSelectedFriend?.uid}
+        initialTargetName={preSelectedFriend?.displayName || `${preSelectedFriend?.firstName || ''} ${preSelectedFriend?.lastName || ''}`.trim()}
+      />
       </div>
     </>
   );

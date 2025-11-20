@@ -11,6 +11,8 @@ interface Step2Props {
   onNext: (data: Partial<WizardData>) => void;
   onBack: () => void;
   userId?: string;
+  initialTargetId?: string;      // Pre-select specific friend/group
+  initialTargetName?: string;    // Friend/group name
 }
 
 interface SelectOption {
@@ -18,14 +20,28 @@ interface SelectOption {
   name: string;
 }
 
-export function Step2SelectTarget({ theme, onNext, onBack, userId }: Step2Props) {
+export function Step2SelectTarget({
+  theme,
+  onNext,
+  onBack,
+  userId,
+  initialTargetId,
+  initialTargetName
+}: Step2Props) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selected, setSelected] = useState<string>('');
+  const [selected, setSelected] = useState<string>(initialTargetId || '');
   const [options, setOptions] = useState<SelectOption[]>([]);
   const [loading, setLoading] = useState(true);
 
   const themeColor = theme === 'group' ? '#FF6B35' : '#A855F7';
   const label = theme === 'group' ? 'Choose a Group' : 'Choose a Friend';
+
+  // Pre-fill selected option if provided
+  useEffect(() => {
+    if (initialTargetId) {
+      setSelected(initialTargetId);
+    }
+  }, [initialTargetId]);
 
   // Fetch groups or friends
   useEffect(() => {
@@ -48,6 +64,13 @@ export function Step2SelectTarget({ theme, onNext, onBack, userId }: Step2Props)
             id: d.id,
             name: d.data().name || 'Unnamed Group'
           }));
+          // Ensure initial target is in the list
+          if (initialTargetId && initialTargetName) {
+            const exists = groupsData.find(o => o.id === initialTargetId);
+            if (!exists) {
+              groupsData.unshift({ id: initialTargetId, name: initialTargetName });
+            }
+          }
           setOptions(groupsData);
         } else {
           // Fetch user's friends
@@ -86,6 +109,13 @@ export function Step2SelectTarget({ theme, onNext, onBack, userId }: Step2Props)
               friendsData.push({ id: friendId, name });
             }
           }
+          // Ensure initial target is in the list
+          if (initialTargetId && initialTargetName) {
+            const exists = friendsData.find(o => o.id === initialTargetId);
+            if (!exists) {
+              friendsData.unshift({ id: initialTargetId, name: initialTargetName });
+            }
+          }
           setOptions(friendsData);
         }
       } catch (error) {
@@ -96,7 +126,7 @@ export function Step2SelectTarget({ theme, onNext, onBack, userId }: Step2Props)
     };
 
     fetchOptions();
-  }, [theme, userId]);
+  }, [theme, userId, initialTargetId, initialTargetName]);
 
   const selectedOption = options.find(o => o.id === selected);
 
