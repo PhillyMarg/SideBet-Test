@@ -13,7 +13,7 @@ export function SearchBar({ value, onChange, placeholder = "Search Bets..." }: S
     <div
       style={{
         padding: "12px 16px",
-        backgroundColor: "#000000",
+        backgroundColor: "#0a0a0a",
       }}
     >
       <div

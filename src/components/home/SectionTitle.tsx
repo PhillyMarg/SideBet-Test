@@ -14,7 +14,7 @@ export function SectionTitle({ children }: SectionTitleProps) {
         justifyContent: "center",
         alignItems: "center",
         padding: "12px 16px",
-        backgroundColor: "#000000",
+        backgroundColor: "#0a0a0a",
         borderTop: "1px solid #27272A",
         borderBottom: "1px solid #27272A",
       }}

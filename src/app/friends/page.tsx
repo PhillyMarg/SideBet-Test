@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import Footer from "@/components/Footer";
 import { notifyFriendRequest, notifyFriendRequestAccepted } from "@/lib/notifications";
+import { Header } from "@/components/layout/Header";
 
 // Lazy load CreateBetWizard
 const CreateBetWizard = lazy(() => import("@/components/CreateBetWizard"));
@@ -465,8 +466,9 @@ export default function FriendsPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-black pb-20 pt-16">
-      {/* Header */}
+      <Header userId={user?.uid} />
+      <div className="min-h-screen bg-[#0a0a0a] pb-20" style={{ paddingTop: "100px" }}>
+      {/* Page Title */}
       <div className="px-4 sm:px-6 py-4 border-b border-zinc-800">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-white">Friends</h1>

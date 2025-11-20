@@ -11,8 +11,8 @@ export function FilterTabs({ selected, onSelect }: FilterTabsProps) {
   return (
     <div
       style={{
-        backgroundColor: "#18181B",
-        padding: "0 24px",
+        backgroundColor: "#0a0a0a",
+        padding: "0 16px",
       }}
     >
       <div
