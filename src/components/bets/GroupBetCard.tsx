@@ -53,7 +53,7 @@ export interface GroupBetCardProps {
 
 // ============ HELPER FUNCTIONS ============
 
-function determineCardState(bet: Bet, userId: string): CardState {
+export function determineCardState(bet: Bet, userId: string): CardState {
   const isCreator = bet.creatorId === userId;
   const isClosed = new Date() >= new Date(bet.closingAt);
 

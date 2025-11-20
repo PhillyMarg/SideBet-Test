@@ -19,8 +19,10 @@ import {
 } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import JudgeBetModal from "../../components/JudgeBetModal";
-import { GroupBetCard } from "../../components/bets/GroupBetCard";
+import { GroupBetCard, determineCardState } from "../../components/bets/GroupBetCard";
 import FloatingCreateBetButton from "../../components/FloatingCreateBetButton";
+import { SeeMoreButton } from "../../components/ui/SeeMoreButton";
+import { ArchivedFilterTabs } from "../../components/home/ArchivedFilterTabs";
 import BetCardSkeleton from "../../components/BetCardSkeleton";
 import GroupCardSkeleton from "../../components/GroupCardSkeleton";
 import { getTimeRemaining } from "../../utils/timeUtils";
@@ -52,7 +54,6 @@ export default function HomePage() {
   const [bets, setBets] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAllBets, setShowAllBets] = useState(false);
   const [showCreateBet, setShowCreateBet] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showJoinGroup, setShowJoinGroup] = useState(false);
@@ -61,10 +62,17 @@ export default function HomePage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true);
 
-  // NEW: Filter and sort state for bets
+  // Active bets state
   const [activeFilter, setActiveFilter] = useState<FilterOption>("ALL");
-  const [betSearchQuery, setBetSearchQuery] = useState("");
-  const [betSortOption, setBetSortOption] = useState("Closing Soon");
+  const [activeSearchQuery, setActiveSearchQuery] = useState("");
+  const [activeExpanded, setActiveExpanded] = useState(false);
+  const [activeDisplayCount, setActiveDisplayCount] = useState(3);
+
+  // Archived bets state
+  const [archivedFilter, setArchivedFilter] = useState<string>("ALL");
+  const [archivedSearchQuery, setArchivedSearchQuery] = useState("");
+  const [archivedExpanded, setArchivedExpanded] = useState(false);
+  const [archivedDisplayCount, setArchivedDisplayCount] = useState(3);
 
   // Groups filtering state
   const [groupSearchQuery, setGroupSearchQuery] = useState("");
@@ -267,9 +275,6 @@ export default function HomePage() {
     setGroupBetsMap(betsMap);
   }, [groups, bets]);
 
-  // Include JUDGED bets in active section so users can see results
-  const activeBets = bets;
-
   // Map FilterOption to existing FilterTab types for compatibility
   const mapFilterToTab = (filter: FilterOption): string => {
     const mapping: Record<FilterOption, string> = {
@@ -283,17 +288,39 @@ export default function HomePage() {
     return mapping[filter];
   };
 
-  // Apply filters and sorting
-  const filteredAndSortedBets = useMemo(() => {
+  // Separate bets into active and archived based on card state
+  const { activeBets, archivedBets } = useMemo(() => {
+    if (!user) return { activeBets: [], archivedBets: [] };
+
+    const active: any[] = [];
+    const archived: any[] = [];
+
+    bets.forEach(bet => {
+      const state = determineCardState(bet, user.uid);
+      if (['ACTIVE', 'PLACED', 'JUDGE', 'WAITING_JUDGEMENT'].includes(state)) {
+        active.push(bet);
+      } else if (['WON', 'LOST'].includes(state)) {
+        archived.push(bet);
+      }
+    });
+
+    return { activeBets: active, archivedBets: archived };
+  }, [bets, user]);
+
+  // Filter and sort active bets
+  const filteredAndSortedActiveBets = useMemo(() => {
     if (!user) return [];
+
     // 1. Filter by active tab
     const tabFiltered = filterBets(activeBets, mapFilterToTab(activeFilter) as any, user.uid);
     // 2. Apply search filter
-    const searchFiltered = searchBets(tabFiltered, betSearchQuery);
-    // 3. Apply sort
-    const sorted = sortBets(searchFiltered, betSortOption as any, groups);
+    const searchFiltered = searchBets(tabFiltered, activeSearchQuery);
+    // 3. Sort by closing soonest first
+    const sorted = [...searchFiltered].sort((a, b) =>
+      new Date(a.closingAt).getTime() - new Date(b.closingAt).getTime()
+    );
 
-    // 4. CRITICAL: Prioritize pending H2H challenges for this user at the TOP
+    // 4. Prioritize pending H2H challenges for this user at the TOP
     const pendingChallenges = sorted.filter(
       bet => bet.isH2H && bet.h2hStatus === "pending" && bet.challengeeId === user.uid
     );
@@ -301,10 +328,95 @@ export default function HomePage() {
       bet => !(bet.isH2H && bet.h2hStatus === "pending" && bet.challengeeId === user.uid)
     );
 
-    console.log("Pending H2H challenges for user:", pendingChallenges.length);
-
     return [...pendingChallenges, ...otherBets];
-  }, [activeBets, activeFilter, betSearchQuery, betSortOption, user, groups]);
+  }, [activeBets, activeFilter, activeSearchQuery, user]);
+
+  // Filter and sort archived bets
+  const filteredAndSortedArchivedBets = useMemo(() => {
+    if (!user) return [];
+
+    // 1. Apply filter
+    let filtered = archivedBets;
+
+    if (archivedFilter === 'WON') {
+      filtered = archivedBets.filter(bet => determineCardState(bet, user.uid) === 'WON');
+    } else if (archivedFilter === 'LOST') {
+      filtered = archivedBets.filter(bet => determineCardState(bet, user.uid) === 'LOST');
+    } else if (archivedFilter === 'H2H') {
+      filtered = archivedBets.filter(bet => bet.isH2H || bet.playerCount === 2);
+    }
+
+    // 2. Apply search
+    const searchFiltered = searchBets(filtered, archivedSearchQuery);
+
+    // 3. Sort by most recently judged first
+    const sorted = [...searchFiltered].sort((a, b) => {
+      const aTime = new Date(a.judgedAt || a.closingAt || 0).getTime();
+      const bTime = new Date(b.judgedAt || b.closingAt || 0).getTime();
+      return bTime - aTime;
+    });
+
+    return sorted;
+  }, [archivedBets, archivedFilter, archivedSearchQuery, user]);
+
+  // Determine what to display based on pagination
+  const activeToShow = useMemo(() => {
+    return filteredAndSortedActiveBets.slice(0, activeDisplayCount);
+  }, [filteredAndSortedActiveBets, activeDisplayCount]);
+
+  const archivedToShow = useMemo(() => {
+    return filteredAndSortedArchivedBets.slice(0, archivedDisplayCount);
+  }, [filteredAndSortedArchivedBets, archivedDisplayCount]);
+
+  // Handlers for expanding/collapsing
+  const handleActiveSeeMore = () => {
+    if (activeExpanded) {
+      // Collapse back to 3
+      setActiveExpanded(false);
+      setActiveDisplayCount(3);
+    } else {
+      // Expand by 3 more
+      setActiveDisplayCount(prev => prev + 3);
+      setActiveExpanded(true);
+    }
+  };
+
+  const handleArchivedSeeMore = () => {
+    if (archivedExpanded) {
+      // Collapse back to 3
+      setArchivedExpanded(false);
+      setArchivedDisplayCount(3);
+    } else {
+      // Expand by 3 more
+      setArchivedDisplayCount(prev => prev + 3);
+      setArchivedExpanded(true);
+    }
+  };
+
+  // Reset display count when filters/search change
+  const handleActiveFilterChange = (filter: string) => {
+    setActiveFilter(filter as FilterOption);
+    setActiveDisplayCount(3);
+    setActiveExpanded(false);
+  };
+
+  const handleActiveSearchChange = (query: string) => {
+    setActiveSearchQuery(query);
+    setActiveDisplayCount(3);
+    setActiveExpanded(false);
+  };
+
+  const handleArchivedFilterChange = (filter: string) => {
+    setArchivedFilter(filter);
+    setArchivedDisplayCount(3);
+    setArchivedExpanded(false);
+  };
+
+  const handleArchivedSearchChange = (query: string) => {
+    setArchivedSearchQuery(query);
+    setArchivedDisplayCount(3);
+    setArchivedExpanded(false);
+  };
 
   // Track last active bet time per group
   const getLastBetTime = (groupId: string): number => {
@@ -507,23 +619,23 @@ export default function HomePage() {
           color: "white",
         }}
       >
-        {/* ACTIVE BETS Section */}
+        {/* ============ ACTIVE BETS SECTION ============ */}
         <SectionTitle>ACTIVE BETS</SectionTitle>
 
-        {/* Filter Tabs */}
+        {/* Active Filter Tabs */}
         <FilterTabs
           selected={activeFilter}
-          onSelect={(filter) => setActiveFilter(filter as FilterOption)}
+          onSelect={handleActiveFilterChange}
         />
 
-        {/* Search Bar */}
+        {/* Active Search Bar */}
         <SearchBar
-          value={betSearchQuery}
-          onChange={setBetSearchQuery}
-          placeholder="Search Bets..."
+          value={activeSearchQuery}
+          onChange={handleActiveSearchChange}
+          placeholder="Search Active Bets..."
         />
 
-        {/* Bet Cards */}
+        {/* Active Bet Cards */}
         <section style={{ padding: "0 16px" }}>
           {loading ? (
             <div>
@@ -533,9 +645,9 @@ export default function HomePage() {
             </div>
           ) : (
             <>
-              {filteredAndSortedBets.length > 0 ? (
+              {activeToShow.length > 0 ? (
                 <div>
-                  {(showAllBets ? filteredAndSortedBets : filteredAndSortedBets.slice(0, 5)).map((bet) => (
+                  {activeToShow.map((bet) => (
                     <div key={bet.id} style={{ marginBottom: "12px" }}>
                       <GroupBetCard
                         bet={bet}
@@ -564,23 +676,6 @@ export default function HomePage() {
                       />
                     </div>
                   ))}
-                  {filteredAndSortedBets.length > 5 && (
-                    <button
-                      onClick={() => setShowAllBets(!showAllBets)}
-                      style={{
-                        display: "block",
-                        margin: "16px auto 0",
-                        fontSize: "12px",
-                        color: "#FF6B35",
-                        backgroundColor: "transparent",
-                        border: "none",
-                        cursor: "pointer",
-                        fontWeight: "600",
-                      }}
-                    >
-                      {showAllBets ? "Show Less" : `Show All (${filteredAndSortedBets.length})`}
-                    </button>
-                  )}
                 </div>
               ) : (
                 <p
@@ -591,14 +686,88 @@ export default function HomePage() {
                     marginTop: "24px",
                   }}
                 >
-                  {betSearchQuery.trim()
-                    ? `No bets found for "${betSearchQuery}"`
+                  {activeSearchQuery.trim()
+                    ? `No active bets found for "${activeSearchQuery}"`
                     : getEmptyStateMessage(mapFilterToTab(activeFilter) as any)}
                 </p>
               )}
             </>
           )}
         </section>
+
+        {/* Active SEE MORE Button */}
+        {!loading && (
+          <SeeMoreButton
+            expanded={activeExpanded}
+            onClick={handleActiveSeeMore}
+            hasMore={filteredAndSortedActiveBets.length > activeToShow.length}
+          />
+        )}
+
+        {/* ============ ARCHIVED BETS SECTION ============ */}
+        <SectionTitle>ARCHIVED BETS</SectionTitle>
+
+        {/* Archived Filter Tabs */}
+        <ArchivedFilterTabs
+          selected={archivedFilter}
+          onSelect={handleArchivedFilterChange}
+        />
+
+        {/* Archived Search Bar */}
+        <SearchBar
+          value={archivedSearchQuery}
+          onChange={handleArchivedSearchChange}
+          placeholder="Search Archived Bets..."
+        />
+
+        {/* Archived Bet Cards */}
+        <section style={{ padding: "0 16px" }}>
+          {loading ? (
+            <div>
+              {[...Array(3)].map((_, i) => (
+                <BetCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : (
+            <>
+              {archivedToShow.length > 0 ? (
+                <div>
+                  {archivedToShow.map((bet) => (
+                    <div key={bet.id} style={{ marginBottom: "12px" }}>
+                      <GroupBetCard
+                        bet={bet}
+                        currentUserId={user?.uid || ''}
+                        groupName={getGroupName(bet.groupId)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p
+                  style={{
+                    textAlign: "center",
+                    fontSize: "12px",
+                    color: "#71717A",
+                    marginTop: "24px",
+                  }}
+                >
+                  {archivedSearchQuery.trim()
+                    ? `No archived bets found for "${archivedSearchQuery}"`
+                    : "No archived bets yet"}
+                </p>
+              )}
+            </>
+          )}
+        </section>
+
+        {/* Archived SEE MORE Button */}
+        {!loading && (
+          <SeeMoreButton
+            expanded={archivedExpanded}
+            onClick={handleArchivedSeeMore}
+            hasMore={filteredAndSortedArchivedBets.length > archivedToShow.length}
+          />
+        )}
 
         {/* MY GROUPS Section */}
         <section style={{ marginTop: "32px" }}>
