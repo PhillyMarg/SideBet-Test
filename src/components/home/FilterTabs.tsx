@@ -37,33 +37,17 @@ export function FilterTabs({ selected, onSelect }: FilterTabsProps) {
             <button
               key={filter}
               onClick={() => onSelect(filter)}
-              className="relative"
               style={{
                 padding: "6px 12px",
                 borderRadius: "8px",
-                border: "2px dashed #A855F7",
+                border: isSelected ? "2px solid #FF6B35" : "2px solid transparent",
                 backgroundColor: "transparent",
                 cursor: "pointer",
                 flexShrink: 0,
-                position: "relative",
               }}
             >
-              {/* Inner border for selected state */}
-              {isSelected && (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: "3px",
-                    border: "2px solid #FF6B35",
-                    borderRadius: "4px",
-                    pointerEvents: "none",
-                  }}
-                />
-              )}
               <span
                 style={{
-                  position: "relative",
-                  zIndex: 10,
                   fontSize: "12px",
                   fontWeight: "600",
                   color: isSelected ? "#FF6B35" : "#FFFFFF",
