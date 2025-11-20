@@ -24,6 +24,7 @@ import {
 import JudgeBetModal from "../../../components/JudgeBetModal";
 import { GroupBetCard } from "../../../components/bets/GroupBetCard";
 import ArchivedBetCard from "../../../components/ArchivedBetCard";
+import { Header } from "../../../components/layout/Header";
 import BetFilters, { FilterTab, SortOption } from "../../../components/BetFilters";
 import { SeeMoreButton } from "../../../components/ui/SeeMoreButton";
 import ActivityFeed from "../../../components/ActivityFeed";
@@ -515,23 +516,32 @@ export default function GroupDetailPage() {
 
   if (loading)
     return (
-      <main className="flex items-center justify-center min-h-screen bg-black text-white">
-        Loading...
-      </main>
+      <div className="min-h-screen bg-black">
+        <Header userId={user?.uid} />
+        <main className="flex items-center justify-center min-h-screen bg-black text-white">
+          Loading...
+        </main>
+      </div>
     );
 
   if (!group)
     return (
-      <main className="flex items-center justify-center min-h-screen bg-black text-white">
-        Group not found.
-      </main>
+      <div className="min-h-screen bg-black">
+        <Header userId={user?.uid} />
+        <main className="flex items-center justify-center min-h-screen bg-black text-white">
+          Group not found.
+        </main>
+      </div>
     );
 
   if (!user) {
     return (
-      <main className="flex items-center justify-center min-h-screen bg-black text-white">
-        Authenticating...
-      </main>
+      <div className="min-h-screen bg-black">
+        <Header />
+        <main className="flex items-center justify-center min-h-screen bg-black text-white">
+          Authenticating...
+        </main>
+      </div>
     );
   }
 
@@ -539,8 +549,10 @@ export default function GroupDetailPage() {
   const seasonEnd = group.settings?.season_end_date;
 
   return (
-    <main className="min-h-screen bg-black text-white flex flex-col items-center pt-20 relative overflow-y-auto">
-      <div className="w-full max-w-2xl px-4">
+    <>
+      <Header userId={user?.uid} />
+      <main className="min-h-screen bg-black text-white flex flex-col items-center relative overflow-y-auto" style={{ paddingTop: "100px" }}>
+        <div className="w-full max-w-2xl px-4">
         {/* 🧩 GROUP INFO */}
         <section className="w-full mt-6 px-2">
           <div className="flex items-center justify-between mb-4">
@@ -938,5 +950,6 @@ export default function GroupDetailPage() {
         </div>
       )}
     </main>
+    </>
   );
 }
