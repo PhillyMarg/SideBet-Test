@@ -33,6 +33,25 @@ import { removeUserFromGroupBets } from "../../../utils/groupHelpers";
 import { createActivity } from "../../../lib/activityHelpers";
 import { LogOut, X, Trash2 } from "lucide-react";
 
+// Utility function to safely format currency amounts for leaderboard
+function formatLeaderboardBalance(balance: number | undefined | null): string {
+  // Handle undefined, null, or NaN
+  if (balance === undefined || balance === null || isNaN(balance)) {
+    return '0.00';
+  }
+
+  // Convert to number if it's somehow a string
+  const numBalance = typeof balance === 'string' ? parseFloat(balance) : balance;
+
+  // Handle NaN after conversion
+  if (isNaN(numBalance)) {
+    return '0.00';
+  }
+
+  // Return formatted with 2 decimal places
+  return numBalance.toFixed(2);
+}
+
 export default function GroupDetailPage() {
   const { groupId } = useParams();
   const router = useRouter();
@@ -716,10 +735,10 @@ export default function GroupDetailPage() {
                         <div className="flex gap-5 text-right">
                           <span
                             className={`font-semibold ${
-                              leaderUser.balance >= 0 ? "text-green-400" : "text-red-400"
+                              (leaderUser.balance || 0) >= 0 ? "text-green-400" : "text-red-400"
                             }`}
                           >
-                            ${leaderUser.balance?.toFixed(2) || "0.00"}
+                            ${formatLeaderboardBalance(leaderUser.balance)}
                           </span>
                           <span className="text-gray-300">
                             {leaderUser.wins || 0}-{leaderUser.losses || 0}
