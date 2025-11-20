@@ -22,6 +22,34 @@ interface ActivityFeedProps {
   groupName: string;
 }
 
+// Utility function to safely format currency amounts
+function formatCurrency(amount: number | undefined | null): string {
+  // Handle undefined, null, or NaN
+  if (amount === undefined || amount === null || isNaN(amount)) {
+    return '$0.00';
+  }
+
+  // Convert to number if it's somehow a string
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+
+  // Handle NaN after conversion
+  if (isNaN(numAmount)) {
+    return '$0.00';
+  }
+
+  // Format with 2 decimal places
+  const formatted = Math.abs(numAmount).toFixed(2);
+
+  // Return with appropriate sign
+  if (numAmount > 0) {
+    return `+$${formatted}`;
+  } else if (numAmount < 0) {
+    return `-$${formatted}`;
+  } else {
+    return `$${formatted}`;
+  }
+}
+
 export default function ActivityFeed({ groupId, groupName }: ActivityFeedProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -169,7 +197,7 @@ export default function ActivityFeed({ groupId, groupName }: ActivityFeedProps) 
           <>
             <span className="text-orange-500 font-semibold">{activity.userName}</span>
             <span className="text-white"> won </span>
-            <span className="text-green-500 font-semibold">${activity.winAmount?.toFixed(2)}</span>
+            <span className="text-green-500 font-semibold">{formatCurrency(activity.winAmount)}</span>
             <span className="text-white"> on</span>
             <div className="text-zinc-300 text-sm mt-1 italic">"{activity.betTitle}"</div>
           </>
