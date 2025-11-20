@@ -55,19 +55,74 @@ export interface GroupBetCardProps {
 
 function determineCardState(bet: Bet, userId: string): CardState {
   const isCreator = bet.creatorId === userId;
-  const hasVoted = bet.picks && bet.picks[userId] !== undefined;
-  const isClosed = bet.status === "CLOSED" || (bet.closingAt && new Date(bet.closingAt).getTime() <= Date.now());
-  const hasResult = bet.status === "JUDGED";
+  const isClosed = new Date() >= new Date(bet.closingAt);
 
-  if (hasResult) {
-    const userWon = bet.winners?.includes(userId);
-    return userWon ? "WON" : "LOST";
+  // Check if bet has been judged (result exists)
+  const hasJudgment =
+    (bet.correctAnswer !== undefined && bet.correctAnswer !== null) ||
+    (bet.winningChoice !== undefined && bet.winningChoice !== null) ||
+    (bet.actualValue !== undefined && bet.actualValue !== null);
+
+  // Check if current user has voted
+  const userPick = bet.picks?.[userId];
+  const hasVoted = userPick !== undefined && userPick !== null;
+
+  // ============ JUDGED STATES ============
+  // Bet has been judged - show WON or LOST
+  if (hasJudgment) {
+    let userWon = false;
+
+    if (bet.type === 'YES_NO') {
+      // For YES/NO: match user's vote with correctAnswer
+      userWon = userPick === bet.correctAnswer;
+    } else if (bet.type === 'OVER_UNDER') {
+      // For OVER/UNDER: match user's vote with winningChoice
+      userWon = userPick === bet.winningChoice;
+    } else if (bet.type === 'CLOSEST_GUESS') {
+      // For CLOSEST_GUESS: check if user is in winners array
+      // If winners array exists, use it; otherwise calculate closest guess
+      if (bet.winners && bet.winners.length > 0) {
+        userWon = bet.winners.includes(userId);
+      } else if (bet.actualValue !== undefined && bet.picks) {
+        // Fallback: calculate closest guess to actualValue
+        const guesses = Object.entries(bet.picks);
+        if (guesses.length > 0) {
+          const closestEntry = guesses.reduce((closest, [oddsUserId, guess]) => {
+            const currentDiff = Math.abs(Number(guess) - Number(bet.actualValue));
+            const closestDiff = Math.abs(Number(closest.guess) - Number(bet.actualValue));
+            return currentDiff < closestDiff ? { oddsUserId, guess } : closest;
+          }, { oddsUserId: guesses[0][0], guess: guesses[0][1] });
+
+          userWon = closestEntry.oddsUserId === userId;
+        }
+      }
+    }
+
+    return userWon ? 'WON' : 'LOST';
   }
 
-  if (isClosed && isCreator && bet.status !== "JUDGED") return "JUDGE";
-  if (isClosed && !isCreator && bet.status !== "JUDGED") return "WAITING_JUDGEMENT";
-  if (hasVoted) return "PLACED";
-  return "ACTIVE";
+  // ============ CLOSED BUT NOT JUDGED ============
+  // Bet is closed but creator hasn't judged yet
+  if (isClosed) {
+    // Creator sees JUDGE (can judge even if they voted)
+    if (isCreator) {
+      return 'JUDGE';
+    }
+
+    // Participants see WAITING_JUDGEMENT
+    return 'WAITING_JUDGEMENT';
+  }
+
+  // ============ OPEN STATES ============
+  // Bet is still open for voting
+
+  // User has voted - show PLACED
+  if (hasVoted) {
+    return 'PLACED';
+  }
+
+  // User hasn't voted yet - show ACTIVE
+  return 'ACTIVE';
 }
 
 function formatDate(dateString: string): string {
