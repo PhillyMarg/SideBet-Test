@@ -66,10 +66,6 @@ export default function HomePage() {
   const [activeExpanded, setActiveExpanded] = useState(false);
   const [activeDisplayCount, setActiveDisplayCount] = useState(3);
 
-  // H2H bets state
-  const [h2hExpanded, setH2hExpanded] = useState(false);
-  const [h2hDisplayCount, setH2hDisplayCount] = useState(3);
-
   // Groups filtering state
   const [groupSearchQuery, setGroupSearchQuery] = useState("");
   const [groupView, setGroupView] = useState("all");
@@ -284,17 +280,17 @@ export default function HomePage() {
     return mapping[filter];
   };
 
-  // Filter for active bets only
+  // Filter for active bets only (both group and H2H)
   const activeBets = useMemo(() => {
     if (!user) return [];
 
     return bets.filter(bet => {
       const state = determineCardState(bet, user.uid);
-      return ['ACTIVE', 'PLACED', 'JUDGE', 'WAITING_JUDGEMENT'].includes(state);
+      return ['ACTIVE', 'PLACED', 'CHALLENGED', 'PENDING', 'JUDGE', 'WAITING_JUDGEMENT'].includes(state);
     });
   }, [bets, user]);
 
-  // Filter and sort active bets
+  // Filter and sort active bets (group and H2H combined)
   const filteredAndSortedActiveBets = useMemo(() => {
     if (!user) return [];
 
@@ -302,47 +298,9 @@ export default function HomePage() {
     const tabFiltered = filterBets(activeBets, mapFilterToTab(activeFilter) as any, user.uid);
     // 2. Apply search filter
     const searchFiltered = searchBets(tabFiltered, activeSearchQuery);
-    // 3. Sort by closing soonest first
-    const sorted = [...searchFiltered].sort((a, b) =>
-      new Date(a.closingAt).getTime() - new Date(b.closingAt).getTime()
-    );
 
-    // 4. Prioritize pending H2H challenges for this user at the TOP
-    const pendingChallenges = sorted.filter(
-      bet => bet.isH2H && bet.h2hStatus === "pending" && bet.challengeeId === user.uid
-    );
-    const otherBets = sorted.filter(
-      bet => !(bet.isH2H && bet.h2hStatus === "pending" && bet.challengeeId === user.uid)
-    );
-
-    return [...pendingChallenges, ...otherBets];
-  }, [activeBets, activeFilter, activeSearchQuery, user]);
-
-
-  // Determine what to display based on pagination
-  const activeToShow = useMemo(() => {
-    return filteredAndSortedActiveBets.slice(0, activeDisplayCount);
-  }, [filteredAndSortedActiveBets, activeDisplayCount]);
-
-  // Filter H2H bets (separate from group bets)
-  const h2hBets = useMemo(() => {
-    if (!user) return [];
-
-    return bets.filter(bet => {
-      // Only H2H bets
-      if (!bet.isH2H) return false;
-
-      const state = determineCardState(bet, user.uid);
-      // Include active H2H states (including CHALLENGED, PENDING)
-      return ['ACTIVE', 'PLACED', 'CHALLENGED', 'PENDING', 'JUDGE', 'WAITING_JUDGEMENT'].includes(state);
-    });
-  }, [bets, user]);
-
-  // Sort H2H bets (challenges first, then closing soonest)
-  const sortedH2HBets = useMemo(() => {
-    if (!user) return [];
-
-    return [...h2hBets].sort((a, b) => {
+    // 3. Sort: CHALLENGED first, PENDING second, then by closing time
+    const sorted = [...searchFiltered].sort((a, b) => {
       const stateA = determineCardState(a, user.uid);
       const stateB = determineCardState(b, user.uid);
 
@@ -354,43 +312,18 @@ export default function HomePage() {
       if (stateA === 'PENDING' && stateB !== 'PENDING') return -1;
       if (stateA !== 'PENDING' && stateB === 'PENDING') return 1;
 
-      // Then sort by closing time
+      // Then sort by closing time (soonest first)
       return new Date(a.closingAt).getTime() - new Date(b.closingAt).getTime();
     });
-  }, [h2hBets, user]);
-
-  // Determine what H2H bets to display based on pagination
-  const h2hToShow = useMemo(() => {
-    return sortedH2HBets.slice(0, h2hDisplayCount);
-  }, [sortedH2HBets, h2hDisplayCount]);
-
-  // Filter group bets only (exclude H2H)
-  const groupOnlyActiveBets = useMemo(() => {
-    if (!user) return [];
-
-    return activeBets.filter(bet => !bet.isH2H);
-  }, [activeBets, user]);
-
-  // Filtered and sorted group bets (excluding H2H)
-  const filteredAndSortedGroupBets = useMemo(() => {
-    if (!user) return [];
-
-    // 1. Filter by active tab
-    const tabFiltered = filterBets(groupOnlyActiveBets, mapFilterToTab(activeFilter) as any, user.uid);
-    // 2. Apply search filter
-    const searchFiltered = searchBets(tabFiltered, activeSearchQuery);
-    // 3. Sort by closing soonest first
-    const sorted = [...searchFiltered].sort((a, b) =>
-      new Date(a.closingAt).getTime() - new Date(b.closingAt).getTime()
-    );
 
     return sorted;
-  }, [groupOnlyActiveBets, activeFilter, activeSearchQuery, user]);
+  }, [activeBets, activeFilter, activeSearchQuery, user]);
 
-  // Group bets to show
-  const groupBetsToShow = useMemo(() => {
-    return filteredAndSortedGroupBets.slice(0, activeDisplayCount);
-  }, [filteredAndSortedGroupBets, activeDisplayCount]);
+
+  // Determine what to display based on pagination
+  const activeToShow = useMemo(() => {
+    return filteredAndSortedActiveBets.slice(0, activeDisplayCount);
+  }, [filteredAndSortedActiveBets, activeDisplayCount]);
 
   // Handlers for expanding/collapsing
   const handleActiveSeeMore = () => {
@@ -617,18 +550,6 @@ export default function HomePage() {
     }
   };
 
-  // H2H See More handler
-  const handleH2HSeeMore = () => {
-    if (h2hExpanded) {
-      setH2hExpanded(false);
-      setH2hDisplayCount(3);
-    } else {
-      const newCount = h2hDisplayCount + 3;
-      setH2hDisplayCount(newCount);
-      setH2hExpanded(true);
-    }
-  };
-
   const handleCreateGroup = async (groupData: any) => {
     if (!user) {
       alert("You must be signed in to create a group.");
@@ -692,84 +613,6 @@ export default function HomePage() {
           color: "white",
         }}
       >
-        {/* ============ H2H SECTION ============ */}
-        {sortedH2HBets.length > 0 && (
-          <>
-            <SectionTitle>H2H</SectionTitle>
-
-            {/* H2H Bet Cards */}
-            <section style={{ padding: "0 16px" }}>
-              {h2hToShow.length > 0 ? (
-                <div>
-                  {h2hToShow.map((bet) => (
-                    <div key={bet.id} style={{ marginBottom: "12px" }}>
-                      <GroupBetCard
-                        bet={bet}
-                        currentUserId={user?.uid || ''}
-                        groupName={bet.groupId ? getGroupName(bet.groupId) : undefined}
-                        onVote={(betId, vote) => {
-                          const targetBet = bets.find(b => b.id === betId);
-                          if (targetBet) handleUserPick(targetBet, vote);
-                        }}
-                        onSubmitGuess={(betId, guess) => {
-                          const targetBet = bets.find(b => b.id === betId);
-                          if (targetBet) handleUserPick(targetBet, guess);
-                        }}
-                        onChangeVote={(betId) => {
-                          console.log('Change vote:', betId);
-                        }}
-                        onJudge={(betId, result) => {
-                          setJudgingBet(bet);
-                        }}
-                        onDeclareWinner={async (betId, winnerId) => {
-                          try {
-                            console.log('Declaring winner:', { betId, winnerId });
-
-                            const betRef = doc(db, 'bets', betId);
-                            const betSnap = await getDoc(betRef);
-
-                            if (!betSnap.exists()) {
-                              console.error('Bet not found');
-                              return;
-                            }
-
-                            const betData = betSnap.data();
-                            const winnerGuess = betData.picks?.[winnerId];
-
-                            await updateDoc(betRef, {
-                              actualValue: winnerGuess,
-                              winners: [winnerId],
-                              status: 'JUDGED',
-                              judgedAt: new Date().toISOString(),
-                              judgedBy: user?.uid,
-                            });
-
-                            console.log('Winner declared successfully');
-                          } catch (error) {
-                            console.error('Error declaring winner:', error);
-                          }
-                        }}
-                        onDelete={async (betId) => {
-                          console.log('Delete bet:', betId);
-                        }}
-                        onAcceptChallenge={handleAcceptChallenge}
-                        onDeclineChallenge={handleDeclineChallenge}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </section>
-
-            {/* H2H SEE MORE Button */}
-            <SeeMoreButton
-              expanded={h2hExpanded}
-              onClick={handleH2HSeeMore}
-              hasMore={sortedH2HBets.length > h2hToShow.length}
-            />
-          </>
-        )}
-
         {/* ============ ACTIVE BETS SECTION ============ */}
         <SectionTitle>ACTIVE BETS</SectionTitle>
 
@@ -796,14 +639,14 @@ export default function HomePage() {
             </div>
           ) : (
             <>
-              {groupBetsToShow.length > 0 ? (
+              {activeToShow.length > 0 ? (
                 <div>
-                  {groupBetsToShow.map((bet) => (
+                  {activeToShow.map((bet) => (
                     <div key={bet.id} style={{ marginBottom: "12px" }}>
                       <GroupBetCard
                         bet={bet}
                         currentUserId={user?.uid || ''}
-                        groupName={getGroupName(bet.groupId)}
+                        groupName={bet.groupId ? getGroupName(bet.groupId) : undefined}
                         onVote={(betId, vote) => {
                           const targetBet = bets.find(b => b.id === betId);
                           if (targetBet) handleUserPick(targetBet, vote);
@@ -880,7 +723,7 @@ export default function HomePage() {
           <SeeMoreButton
             expanded={activeExpanded}
             onClick={handleActiveSeeMore}
-            hasMore={filteredAndSortedGroupBets.length > groupBetsToShow.length}
+            hasMore={filteredAndSortedActiveBets.length > activeToShow.length}
           />
         )}
 
