@@ -105,6 +105,7 @@ export function GroupBetCard({
   const [participantNames, setParticipantNames] = useState<{ [userId: string]: string }>({});
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [creatorName, setCreatorName] = useState<string>("");
 
   // Determine state
   const isCreator = bet.creatorId === currentUserId;
@@ -132,6 +133,18 @@ export function GroupBetCard({
       fetchNames();
     }
   }, [bet.participants, bet.type, cardState]);
+
+  // Fetch creator name for won/lost states
+  useEffect(() => {
+    const fetchCreator = async () => {
+      const userData = await fetchUserData(bet.creatorId);
+      setCreatorName(getUserDisplayName(userData));
+    };
+
+    if (cardState === "WON" || cardState === "LOST") {
+      fetchCreator();
+    }
+  }, [bet.creatorId, cardState]);
 
   // Calculate payout
   const calculatePayout = (): number => {
@@ -170,63 +183,68 @@ export function GroupBetCard({
     }
   };
 
+  // Get background class based on state
+  const getBgClass = (): string => {
+    if (cardState === "JUDGE" || cardState === "WAITING_JUDGEMENT") {
+      return "bg-[#612914]"; // dark brown
+    }
+    return "bg-[#18181B]"; // zinc-900
+  };
+
   // Get border class based on state
   const getBorderClass = (): string => {
     switch (cardState) {
       case "ACTIVE":
       case "PLACED":
-        return "border-2 border-[#ff6b35]";
+        return "border-2 border-[#FF6B35]";
       case "JUDGE":
       case "WAITING_JUDGEMENT":
-        return "border border-[#78350f]";
+        return "border border-[#FF6B35]";
       case "WON":
-        return "border-2 border-[#10b981]";
+        return "border-2 border-[#0ABF00]";
       case "LOST":
-        return "border-2 border-[#ef4444]";
+        return "border-2 border-[#C21717]";
       default:
-        return "border-2 border-[#ff6b35]";
+        return "border-2 border-[#FF6B35]";
     }
   };
+
+  // Get padding class based on state
+  const getPaddingClass = (): string => {
+    if (cardState === "WON" || cardState === "LOST") {
+      return "px-[12px] py-[6px]";
+    }
+    return "p-[12px]";
+  };
+
+  // Text shadow class (used on all text)
+  const textShadow = "[text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]";
 
   // Render status badge
   const renderStatusBadge = () => {
     switch (cardState) {
       case "ACTIVE":
-        return (
-          <span className="text-[8px] font-semibold text-white">
-            Closes: {formatDate(bet.closingAt)}
-          </span>
-        );
       case "PLACED":
         return (
-          <span className="text-[8px] font-semibold text-white">
+          <span className={`text-[8px] font-semibold text-white ${textShadow}`}>
             Closes: {formatDate(bet.closingAt)}
           </span>
         );
       case "JUDGE":
         return (
-          <span className="text-[10px] font-semibold text-[#ff6b35] bg-[#78350f] px-2 py-0.5 rounded">
+          <span className={`text-[10px] font-extrabold text-white bg-[#FF6B35] px-2 py-0.5 rounded ${textShadow}`}>
             JUDGE BET!
           </span>
         );
       case "WAITING_JUDGEMENT":
         return (
-          <span className="text-[8px] font-semibold text-[#a1a1aa]">
+          <span className={`text-[8px] font-semibold text-white ${textShadow}`}>
             Waiting Judgement
           </span>
         );
       case "WON":
-        return (
-          <span className="text-[10px] font-semibold text-white bg-[#10b981] px-2 py-0.5 rounded">
-            YOU WON!
-          </span>
-        );
       case "LOST":
-        return (
-          <span className="text-[10px] font-semibold text-white bg-[#ef4444] px-2 py-0.5 rounded">
-            YOU LOST!
-          </span>
-        );
+        return null; // Won/Lost shows creator and closed info instead
       default:
         return null;
     }
@@ -236,16 +254,16 @@ export function GroupBetCard({
   const renderVotingButtons = () => {
     if (bet.type === "YES_NO") {
       return (
-        <div className="flex gap-[10px]">
+        <div className="h-[40px] px-[3px] py-[5px] flex gap-[10px]">
           <button
             onClick={() => onVote?.(bet.id, "YES")}
-            className="flex-1 h-[20px] bg-[#ff6b35] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center"
+            className={`flex-1 h-[20px] px-[37px] py-0 bg-[#FF6B35] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${textShadow}`}
           >
             YES
           </button>
           <button
             onClick={() => onVote?.(bet.id, "NO")}
-            className="flex-1 h-[20px] bg-white text-zinc-900 rounded-[6px] text-[10px] font-semibold flex items-center justify-center"
+            className={`flex-1 h-[20px] px-[37px] py-0 bg-white text-[#18181B] rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${textShadow}`}
           >
             NO
           </button>
@@ -255,16 +273,16 @@ export function GroupBetCard({
 
     if (bet.type === "OVER_UNDER") {
       return (
-        <div className="flex gap-[10px]">
+        <div className="h-[40px] px-[3px] py-[5px] flex gap-[10px]">
           <button
             onClick={() => onVote?.(bet.id, "OVER")}
-            className="flex-1 h-[20px] bg-[#ff6b35] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center"
+            className={`flex-1 h-[20px] px-[37px] py-0 bg-[#FF6B35] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${textShadow}`}
           >
             OVER
           </button>
           <button
             onClick={() => onVote?.(bet.id, "UNDER")}
-            className="flex-1 h-[20px] bg-white text-zinc-900 rounded-[6px] text-[10px] font-semibold flex items-center justify-center"
+            className={`flex-1 h-[20px] px-[37px] py-0 bg-white text-[#18181B] rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${textShadow}`}
           >
             UNDER
           </button>
@@ -280,7 +298,7 @@ export function GroupBetCard({
             value={guessInput}
             onChange={(e) => setGuessInput(e.target.value)}
             placeholder="Enter guess"
-            className="flex-1 h-[20px] bg-[#1c1917] text-white rounded-[6px] text-[10px] px-2 border border-[#78350f]"
+            className="flex-1 h-[20px] bg-[#18181B] text-white rounded-[6px] text-[10px] px-2 border border-[#FF6B35]"
           />
           <button
             onClick={() => {
@@ -289,7 +307,7 @@ export function GroupBetCard({
                 setGuessInput("");
               }
             }}
-            className="h-[20px] bg-[#ff6b35] text-white rounded-[6px] text-[10px] font-semibold px-4 flex items-center justify-center"
+            className={`h-[20px] bg-[#FF6B35] text-white rounded-[6px] text-[10px] font-semibold px-4 flex items-center justify-center ${textShadow}`}
           >
             SUBMIT
           </button>
@@ -306,24 +324,36 @@ export function GroupBetCard({
 
     return (
       <>
-        <div className="text-[8px] font-semibold">
-          <span className="text-white">You Voted: {displayPick} | </span>
-          <span className="text-[#ff6b35]">Payout: {formatCurrency(calculatePayout())}</span>
+        <div className={`text-[8px] font-semibold ${textShadow}`}>
+          <span className="text-white">You Voted: </span>
+          <span className="text-[#FF6B35]">{displayPick}</span>
+          <span className="text-white"> | </span>
+          <span className="text-[#FF6B35]">Payout: {formatCurrency(calculatePayout())}</span>
         </div>
 
-        {/* Progress bar for YES_NO and OVER_UNDER */}
+        {/* Progress bar buttons for YES_NO and OVER_UNDER */}
         {(bet.type === "YES_NO" || bet.type === "OVER_UNDER") && (
-          <div className="mt-2">
-            <div className="flex justify-between text-[8px] font-semibold mb-1">
-              <span className="text-white">{bet.type === "YES_NO" ? "YES" : "OVER"} {formatPercent(yes)}</span>
-              <span className="text-white">{bet.type === "YES_NO" ? "NO" : "UNDER"} {formatPercent(no)}</span>
-            </div>
-            <div className="h-1 bg-[#3f3f3f] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-[#ff6b35]"
-                style={{ width: `${yes}%` }}
-              />
-            </div>
+          <div className="h-[40px] px-[3px] py-[5px] flex gap-[10px] mt-1">
+            <button
+              disabled
+              className={`flex-1 h-[20px] px-[37px] py-0 rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${
+                (userPick === "YES" || userPick === "OVER")
+                  ? "bg-[#FF6B35] text-white"
+                  : "bg-white text-[#18181B]"
+              } ${textShadow}`}
+            >
+              {bet.type === "YES_NO" ? "YES" : "OVER"} {formatPercent(yes)}
+            </button>
+            <button
+              disabled
+              className={`flex-1 h-[20px] px-[37px] py-0 rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${
+                (userPick === "NO" || userPick === "UNDER")
+                  ? "bg-[#FF6B35] text-white"
+                  : "bg-white text-[#18181B]"
+              } ${textShadow}`}
+            >
+              {bet.type === "YES_NO" ? "NO" : "UNDER"} {formatPercent(no)}
+            </button>
           </div>
         )}
       </>
@@ -334,18 +364,18 @@ export function GroupBetCard({
   const renderJudgeContent = () => {
     if (bet.type === "YES_NO") {
       return (
-        <div className="flex gap-[10px]">
-          <button
-            onClick={() => onJudge?.(bet.id, { correctAnswer: "YES" })}
-            className="flex-1 h-[40px] bg-[#10b981] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center"
-          >
-            YES
-          </button>
+        <div className="h-[40px] px-[3px] py-[5px] flex gap-[10px]">
           <button
             onClick={() => onJudge?.(bet.id, { correctAnswer: "NO" })}
-            className="flex-1 h-[40px] bg-[#ef4444] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center"
+            className={`flex-1 h-[20px] px-[37px] py-0 bg-[#C21717] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center shadow-[4px_4px_4px_0px_rgba(0,0,0,0.25)] ${textShadow}`}
           >
             NO
+          </button>
+          <button
+            onClick={() => onJudge?.(bet.id, { correctAnswer: "YES" })}
+            className={`flex-1 h-[20px] px-[37px] py-0 bg-[#0ABF00] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center shadow-[4px_4px_4px_0px_rgba(0,0,0,0.25)] ${textShadow}`}
+          >
+            YES
           </button>
         </div>
       );
@@ -353,18 +383,18 @@ export function GroupBetCard({
 
     if (bet.type === "OVER_UNDER") {
       return (
-        <div className="flex gap-[10px]">
-          <button
-            onClick={() => onJudge?.(bet.id, { winningChoice: "OVER" })}
-            className="flex-1 h-[40px] bg-[#10b981] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center"
-          >
-            OVER
-          </button>
+        <div className="h-[40px] px-[3px] py-[5px] flex gap-[10px]">
           <button
             onClick={() => onJudge?.(bet.id, { winningChoice: "UNDER" })}
-            className="flex-1 h-[40px] bg-[#ef4444] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center"
+            className={`flex-1 h-[20px] px-[37px] py-0 bg-[#C21717] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center shadow-[4px_4px_4px_0px_rgba(0,0,0,0.25)] ${textShadow}`}
           >
             UNDER
+          </button>
+          <button
+            onClick={() => onJudge?.(bet.id, { winningChoice: "OVER" })}
+            className={`flex-1 h-[20px] px-[37px] py-0 bg-[#0ABF00] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center shadow-[4px_4px_4px_0px_rgba(0,0,0,0.25)] ${textShadow}`}
+          >
+            OVER
           </button>
         </div>
       );
@@ -382,7 +412,7 @@ export function GroupBetCard({
         <>
           <button
             onClick={() => setExpanded(!expanded)}
-            className="w-full h-[31px] bg-[#1c1917] border-2 border-[#ff6b35] rounded-[6px] text-white text-[12px] font-semibold flex items-center justify-center gap-2"
+            className={`w-full h-[31px] bg-[#18181B] border-2 border-[#FF6B35] rounded-[6px] text-white text-[12px] font-semibold flex items-center justify-center gap-2 ${textShadow}`}
           >
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             {expanded ? "HIDE GUESSES" : "SEE GUESSES"}
@@ -402,17 +432,17 @@ export function GroupBetCard({
                         onClick={() => setSelectedWinner(entry.id)}
                         className={`w-4 h-4 rounded border flex items-center justify-center ${
                           selectedWinner === entry.id
-                            ? "bg-[#ff6b35] border-[#ff6b35]"
-                            : "border-[#78350f]"
+                            ? "bg-[#FF6B35] border-[#FF6B35]"
+                            : "border-[#FF6B35]"
                         }`}
                       >
                         {selectedWinner === entry.id && <Check size={10} className="text-white" />}
                       </button>
-                      <span className={`font-semibold ${entry.id === currentUserId ? "text-[#ff6b35]" : "text-white"}`}>
+                      <span className={`font-semibold ${textShadow} ${entry.id === currentUserId ? "text-[#FF6B35]" : "text-white"}`}>
                         {entry.name}
                       </span>
                     </div>
-                    <span className={`font-semibold ${entry.id === currentUserId ? "text-[#ff6b35]" : "text-white"}`}>
+                    <span className={`font-semibold ${textShadow} ${entry.id === currentUserId ? "text-[#FF6B35]" : "text-white"}`}>
                       {entry.guess}
                     </span>
                   </div>
@@ -421,7 +451,7 @@ export function GroupBetCard({
               {selectedWinner && (
                 <button
                   onClick={() => onDeclareWinner?.(bet.id, selectedWinner)}
-                  className="mt-3 w-full h-[31px] bg-[#10b981] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center"
+                  className={`mt-3 w-full h-[31px] bg-[#0ABF00] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center shadow-[4px_4px_4px_0px_rgba(0,0,0,0.25)] ${textShadow}`}
                 >
                   DECLARE WINNER
                 </button>
@@ -447,12 +477,12 @@ export function GroupBetCard({
 
       return (
         <>
-          <div className="text-[8px] font-semibold text-[#a1a1aa]">
+          <div className={`text-[8px] font-semibold text-white ${textShadow}`}>
             Your Guess: {bet.picks?.[currentUserId] || "N/A"}
           </div>
           <button
             onClick={() => setExpanded(!expanded)}
-            className="w-full h-[31px] bg-[#1c1917] border-2 border-[#ff6b35] rounded-[6px] text-white text-[12px] font-semibold flex items-center justify-center gap-2"
+            className={`w-full h-[31px] bg-[#18181B] border-2 border-[#FF6B35] rounded-[6px] text-white text-[12px] font-semibold flex items-center justify-center gap-2 ${textShadow}`}
           >
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             {expanded ? "HIDE GUESSES" : "SEE GUESSES"}
@@ -465,12 +495,12 @@ export function GroupBetCard({
                 {guesses.map((entry) => (
                   <div
                     key={entry.id}
-                    className="flex items-center justify-between text-[8px] font-semibold"
+                    className={`flex items-center justify-between text-[8px] font-semibold ${textShadow}`}
                   >
-                    <span className={entry.id === currentUserId ? "text-[#ff6b35]" : "text-white"}>
+                    <span className={entry.id === currentUserId ? "text-[#FF6B35]" : "text-white"}>
                       {entry.name}
                     </span>
-                    <span className={entry.id === currentUserId ? "text-[#ff6b35]" : "text-white"}>
+                    <span className={entry.id === currentUserId ? "text-[#FF6B35]" : "text-white"}>
                       {entry.guess}
                     </span>
                   </div>
@@ -484,9 +514,11 @@ export function GroupBetCard({
 
     // YES_NO and OVER_UNDER
     return (
-      <div className="text-[8px] font-semibold">
-        <span className="text-white">You Voted: {userPick as string} | </span>
-        <span className="text-[#ff6b35]">Payout: {formatCurrency(calculatePayout())}</span>
+      <div className={`text-[8px] font-semibold ${textShadow}`}>
+        <span className="text-white">You Voted: </span>
+        <span className="text-[#FF6B35]">{userPick as string}</span>
+        <span className="text-white"> | </span>
+        <span className="text-[#FF6B35]">Payout: {formatCurrency(calculatePayout())}</span>
       </div>
     );
   };
@@ -494,6 +526,8 @@ export function GroupBetCard({
   // Render won/lost state
   const renderResultContent = () => {
     const didWin = cardState === "WON";
+    const payout = bet.payoutPerWinner || calculatePayout();
+    const profit = payout - wager;
 
     if (bet.type === "CLOSEST_GUESS") {
       // Get sorted guesses with rankings
@@ -511,15 +545,15 @@ export function GroupBetCard({
 
       return (
         <>
-          <div className="text-[8px] font-semibold">
+          <div className={`text-[8px] font-semibold ${textShadow}`}>
             <span className="text-white">Your Guess: {bet.picks?.[currentUserId]} | </span>
-            <span className={didWin ? "text-[#10b981]" : "text-[#ef4444]"}>
-              {didWin ? `Won: ${formatCurrency(bet.payoutPerWinner || pot)}` : "Lost"}
+            <span className={didWin ? "text-[#0ABF00]" : "text-[#C21717]"}>
+              {didWin ? `+ ${formatCurrency(profit)}` : "Lost"}
             </span>
           </div>
           <button
             onClick={() => setExpanded(!expanded)}
-            className="w-full h-[31px] bg-[#1c1917] border-2 border-[#ff6b35] rounded-[6px] text-white text-[12px] font-semibold flex items-center justify-center gap-2"
+            className={`w-full h-[31px] bg-[#18181B] border-2 border-[#FF6B35] rounded-[6px] text-white text-[12px] font-semibold flex items-center justify-center gap-2 ${textShadow}`}
           >
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             {expanded ? "HIDE RESULTS" : "SEE RESULTS"}
@@ -532,12 +566,12 @@ export function GroupBetCard({
                 {guesses.map((entry, index) => (
                   <div
                     key={entry.id}
-                    className="flex items-center justify-between text-[8px] font-semibold"
+                    className={`flex items-center justify-between text-[8px] font-semibold ${textShadow}`}
                   >
-                    <span className={entry.id === currentUserId ? "text-[#ff6b35]" : "text-white"}>
+                    <span className={entry.id === currentUserId ? "text-[#FF6B35]" : "text-white"}>
                       {index + 1}. {entry.name} {entry.isWinner && "🏆"}
                     </span>
-                    <span className={entry.id === currentUserId ? "text-[#ff6b35]" : "text-white"}>
+                    <span className={entry.id === currentUserId ? "text-[#FF6B35]" : "text-white"}>
                       {entry.guess}
                     </span>
                   </div>
@@ -549,44 +583,99 @@ export function GroupBetCard({
       );
     }
 
-    // YES_NO and OVER_UNDER
+    // YES_NO and OVER_UNDER - show percentage buttons with won/lost colors
+    const userVotedYes = userPick === "YES" || userPick === "OVER";
+    const userVotedNo = userPick === "NO" || userPick === "UNDER";
+
+    // Determine which side won
+    const correctAnswer = bet.correctAnswer || bet.winningChoice;
+    const yesWon = correctAnswer === "YES" || correctAnswer === "OVER";
+
     return (
-      <div className="text-[8px] font-semibold">
-        <span className="text-white">You Voted: {userPick as string} | </span>
-        <span className={didWin ? "text-[#10b981]" : "text-[#ef4444]"}>
-          {didWin ? `Won: ${formatCurrency(bet.payoutPerWinner || calculatePayout())}` : "Lost"}
-        </span>
-      </div>
+      <>
+        {/* Wager line with payout */}
+        <div className={`text-[8px] font-semibold ${textShadow}`}>
+          <span className="text-white">Wager: {formatCurrency(wager)} | </span>
+          <span className={didWin ? "text-[#0ABF00]" : "text-[#C21717]"}>
+            {didWin ? `+ ${formatCurrency(profit)}` : `- ${formatCurrency(wager)}`}
+          </span>
+        </div>
+
+        {/* You Voted line */}
+        <div className={`text-[8px] font-semibold ${textShadow}`}>
+          <span className="text-white">You Voted: </span>
+          <span className={didWin ? "text-[#0ABF00]" : "text-[#C21717]"}>
+            {userPick as string}
+          </span>
+        </div>
+
+        {/* Display buttons showing results */}
+        <div className="h-[40px] px-[3px] py-[5px] flex gap-[10px]">
+          <button
+            disabled
+            className={`flex-1 h-[20px] px-[37px] py-0 rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${
+              yesWon
+                ? (userVotedYes ? "bg-[#0B4508] text-[#0ABF00]" : "bg-[#0B4508] text-[#0ABF00]")
+                : (userVotedYes ? "bg-[#691616] text-[#C21717]" : "bg-[#691616] text-[#C21717]")
+            } ${textShadow}`}
+          >
+            {bet.type === "YES_NO" ? "YES" : "OVER"} {formatPercent(yes)}
+          </button>
+          <button
+            disabled
+            className={`flex-1 h-[20px] px-[37px] py-0 rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${
+              !yesWon
+                ? (userVotedNo ? "bg-[#0B4508] text-[#0ABF00]" : "bg-[#0B4508] text-[#0ABF00]")
+                : (userVotedNo ? "bg-[#691616] text-[#C21717]" : "bg-[#691616] text-[#C21717]")
+            } ${textShadow}`}
+          >
+            {bet.type === "YES_NO" ? "NO" : "UNDER"} {formatPercent(no)}
+          </button>
+        </div>
+
+        {/* YOU WON! or YOU LOST! text */}
+        <div className="text-center mt-1">
+          {didWin ? (
+            <span className={`text-[10px] font-bold text-[#0ABF00] ${textShadow}`}>
+              YOU WON!
+            </span>
+          ) : (
+            <span className={`text-[10px] font-bold text-[#C21717] ${textShadow}`}>
+              YOU LOST!
+            </span>
+          )}
+        </div>
+      </>
     );
   };
 
   // Main render
   return (
     <div
-      className={`relative w-full max-w-[393px] bg-[#18181b] rounded-[6px] p-3 ${getBorderClass()}`}
+      className={`relative w-full max-w-[393px] ${getBgClass()} rounded-[6px] ${getPaddingClass()} ${getBorderClass()} flex flex-col gap-[4px]`}
       style={{ fontFamily: "'Montserrat', sans-serif" }}
     >
       {/* Delete button */}
       {isCreator && !["WON", "LOST"].includes(cardState) && (
         <button
           onClick={() => setShowDeleteModal(true)}
-          className="absolute top-2 right-2 text-white hover:text-[#ef4444] transition-colors"
+          className="absolute top-2 right-2 text-white hover:text-[#C21717] transition-colors"
         >
           <Trash2 size={16} />
         </button>
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-2 mb-1">
-        <div className="flex-1">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 flex flex-col gap-[4px]">
           {/* Group badge */}
           {groupName && (
-            <span className="text-[8px] font-semibold text-[#ff6b35]">
+            <span className={`text-[8px] font-semibold text-[#FF6B35] ${textShadow}`}>
               {groupName}
             </span>
           )}
           {/* Title */}
-          <h3 className="text-[12px] font-semibold text-white leading-tight">
+          <h3 className={`text-[12px] font-semibold text-white leading-tight ${textShadow}`}>
             {bet.title}
           </h3>
         </div>
@@ -596,20 +685,34 @@ export function GroupBetCard({
         </div>
       </div>
 
-      {/* Wager info */}
-      <div className="text-[8px] font-semibold mb-1">
-        <span className="text-white">Wager: {formatCurrency(wager)} | </span>
-        <span className="text-[#ff6b35]">Total Pot: {formatCurrency(pot)}</span>
-      </div>
+      {/* Won/Lost state - show creator and closed info */}
+      {(cardState === "WON" || cardState === "LOST") && (
+        <div className="flex flex-col gap-[4px]">
+          <span className={`text-[8px] font-semibold text-[#58585A] ${textShadow}`}>
+            Creator: {creatorName || "Unknown"}
+          </span>
+          <span className={`text-[8px] font-semibold text-[#58585A] ${textShadow}`}>
+            Closed: {formatDate(bet.judgedAt || bet.closingAt)}
+          </span>
+        </div>
+      )}
+
+      {/* Wager info - different for won/lost */}
+      {cardState !== "WON" && cardState !== "LOST" && (
+        <div className={`text-[8px] font-semibold ${textShadow}`}>
+          <span className="text-white">Wager: {formatCurrency(wager)} | </span>
+          <span className="text-[#FF6B35]">Total Pot: {formatCurrency(pot)}</span>
+        </div>
+      )}
 
       {/* Players count */}
-      <div className="text-[8px] font-semibold text-white mb-2">
+      <div className={`text-[8px] font-semibold text-white ${textShadow}`}>
         Players: {people}
       </div>
 
       {/* O/U Line for OVER_UNDER type */}
       {bet.type === "OVER_UNDER" && bet.line !== undefined && (
-        <div className="text-[8px] font-extrabold text-[#ff6b35] mb-2">
+        <div className={`text-[8px] font-extrabold text-[#FF6B35] ${textShadow}`}>
           O/U Line: {bet.line}
         </div>
       )}
@@ -624,22 +727,22 @@ export function GroupBetCard({
       {/* Delete Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[#18181b] rounded-lg p-4 max-w-sm mx-4 border border-[#78350f]">
-            <h4 className="text-white font-semibold mb-2">Delete Bet?</h4>
-            <p className="text-[#a1a1aa] text-sm mb-4">
+          <div className="bg-[#18181B] rounded-lg p-4 max-w-sm mx-4 border border-[#FF6B35]">
+            <h4 className={`text-white font-semibold mb-2 ${textShadow}`}>Delete Bet?</h4>
+            <p className={`text-[#a1a1aa] text-sm mb-4 ${textShadow}`}>
               Are you sure you want to delete this bet? This action cannot be undone.
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="flex-1 py-2 bg-[#3f3f3f] text-white rounded-lg text-sm font-semibold"
+                className={`flex-1 py-2 bg-[#3f3f3f] text-white rounded-lg text-sm font-semibold ${textShadow}`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="flex-1 py-2 bg-[#ef4444] text-white rounded-lg text-sm font-semibold disabled:opacity-50"
+                className={`flex-1 py-2 bg-[#C21717] text-white rounded-lg text-sm font-semibold disabled:opacity-50 ${textShadow}`}
               >
                 {isDeleting ? "Deleting..." : "Delete"}
               </button>
