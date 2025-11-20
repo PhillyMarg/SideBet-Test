@@ -20,7 +20,6 @@ import {
 import { signOut } from "firebase/auth";
 import JudgeBetModal from "../../components/JudgeBetModal";
 import { GroupBetCard, determineCardState } from "../../components/bets/GroupBetCard";
-import FloatingCreateBetButton from "../../components/FloatingCreateBetButton";
 import { SeeMoreButton } from "../../components/ui/SeeMoreButton";
 import BetCardSkeleton from "../../components/BetCardSkeleton";
 import GroupCardSkeleton from "../../components/GroupCardSkeleton";
@@ -890,11 +889,6 @@ export default function HomePage() {
       {judgingBet && (
         <JudgeBetModal bet={judgingBet} onClose={() => setJudgingBet(null)} />
       )}
-
-      <FloatingCreateBetButton
-        groups={groups}
-        onCreateBet={handleCreateBet}
-      />
     </div>
   );
 }

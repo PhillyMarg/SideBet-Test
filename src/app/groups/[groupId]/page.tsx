@@ -24,7 +24,6 @@ import {
 import JudgeBetModal from "../../../components/JudgeBetModal";
 import { GroupBetCard } from "../../../components/bets/GroupBetCard";
 import ArchivedBetCard from "../../../components/ArchivedBetCard";
-import FloatingCreateBetButton from "../../../components/FloatingCreateBetButton";
 import Footer from "../../../components/Footer";
 import BetFilters, { FilterTab, SortOption } from "../../../components/BetFilters";
 import { SeeMoreButton } from "../../../components/ui/SeeMoreButton";
@@ -922,12 +921,6 @@ export default function GroupDetailPage() {
       )}
 
       <Footer />
-
-      {/* Floating Create Bet Button */}
-      <FloatingCreateBetButton
-        groups={groups}
-        onCreateBet={handleCreateBet}
-      />
     </main>
   );
 }
