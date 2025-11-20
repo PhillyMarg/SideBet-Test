@@ -7,7 +7,6 @@ import { auth, db } from "../../lib/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
-import Footer from "../../components/Footer";
 import { Header } from "../../components/layout/Header";
 
 export default function SettingsPage() {
@@ -62,7 +61,7 @@ export default function SettingsPage() {
     <>
       <Header userId={user?.uid} />
       <main
-        className="min-h-screen bg-[#0a0a0a] text-white pb-20 flex flex-col items-center"
+        className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center"
         style={{ "--content-width": "500px", paddingTop: "100px" } as React.CSSProperties}
       >
       <div
@@ -128,9 +127,6 @@ export default function SettingsPage() {
           </section>
         </motion.div>
       </div>
-
-      {/* Footer */}
-      <Footer />
 
       {/* Floating Create Bet Button - Navigate to home */}
       <button
