@@ -19,7 +19,7 @@ import {
 } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import JudgeBetModal from "../../components/JudgeBetModal";
-import ActiveBetCard from "../../components/ActiveBetCard";
+import { GroupBetCard } from "../../components/bets/GroupBetCard";
 import FloatingCreateBetButton from "../../components/FloatingCreateBetButton";
 import BetCardSkeleton from "../../components/BetCardSkeleton";
 import GroupCardSkeleton from "../../components/GroupCardSkeleton";
@@ -561,12 +561,30 @@ export default function HomePage() {
                   <div>
                     {(showAllBets ? filteredAndSortedBets : filteredAndSortedBets.slice(0, 5)).map((bet) => (
                       <div key={bet.id} style={{ marginBottom: "12px" }}>
-                        <ActiveBetCard
+                        <GroupBetCard
                           bet={bet}
-                          user={user}
-                          onPick={handleUserPick}
-                          onJudge={setJudgingBet}
+                          currentUserId={user?.uid || ''}
                           groupName={getGroupName(bet.groupId)}
+                          onVote={(betId, vote) => {
+                            const targetBet = bets.find(b => b.id === betId);
+                            if (targetBet) handleUserPick(targetBet, vote);
+                          }}
+                          onSubmitGuess={(betId, guess) => {
+                            const targetBet = bets.find(b => b.id === betId);
+                            if (targetBet) handleUserPick(targetBet, guess);
+                          }}
+                          onChangeVote={(betId) => {
+                            console.log('Change vote:', betId);
+                          }}
+                          onJudge={(betId, result) => {
+                            setJudgingBet(bet);
+                          }}
+                          onDeclareWinner={(betId, winnerId) => {
+                            console.log('Declare winner:', betId, winnerId);
+                          }}
+                          onDelete={async (betId) => {
+                            console.log('Delete bet:', betId);
+                          }}
                         />
                       </div>
                     ))}

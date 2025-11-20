@@ -22,7 +22,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import JudgeBetModal from "../../../components/JudgeBetModal";
-import ActiveBetCard from "../../../components/ActiveBetCard";
+import { GroupBetCard } from "../../../components/bets/GroupBetCard";
 import ArchivedBetCard from "../../../components/ArchivedBetCard";
 import FloatingCreateBetButton from "../../../components/FloatingCreateBetButton";
 import Footer from "../../../components/Footer";
@@ -578,12 +578,22 @@ export default function GroupDetailPage() {
                 <ul className="space-y-4 w-full mt-4">
                   {filteredAndSortedBets.map((bet: any) => (
                     <li key={bet.id}>
-                      <ActiveBetCard
+                      <GroupBetCard
                         bet={bet}
-                        user={user}
-                        onPick={handleUserPick}
-                        onJudge={setJudgingBet}
+                        currentUserId={user?.uid || ''}
                         groupName={bet.isH2H ? undefined : group.name}
+                        onVote={(betId, vote) => {
+                          const targetBet = bets.find(b => b.id === betId);
+                          if (targetBet) handleUserPick(targetBet, vote);
+                        }}
+                        onSubmitGuess={(betId, guess) => {
+                          const targetBet = bets.find(b => b.id === betId);
+                          if (targetBet) handleUserPick(targetBet, guess);
+                        }}
+                        onChangeVote={(betId) => console.log('Change vote:', betId)}
+                        onJudge={(betId, result) => setJudgingBet(bet)}
+                        onDeclareWinner={(betId, winnerId) => console.log('Declare winner:', betId, winnerId)}
+                        onDelete={async (betId) => console.log('Delete bet:', betId)}
                       />
                     </li>
                   ))}
