@@ -12,7 +12,7 @@ import { useCountdown } from "../../hooks/useCountdown";
 // ============ TYPES ============
 export type BetType = "YES_NO" | "OVER_UNDER" | "CLOSEST_GUESS";
 export type BetStatus = "OPEN" | "CLOSED" | "JUDGED" | "VOID";
-export type CardState = "ACTIVE" | "PLACED" | "JUDGE" | "WAITING_JUDGEMENT" | "WON" | "LOST";
+export type CardState = "ACTIVE" | "PLACED" | "CHALLENGED" | "PENDING" | "JUDGE" | "WAITING_JUDGEMENT" | "WON" | "LOST";
 
 export interface Bet {
   id: string;
@@ -39,6 +39,13 @@ export interface Bet {
   judgedAt?: string;
   voidReason?: string;
   isH2H?: boolean;
+  // H2H specific fields
+  challengerId?: string;
+  challengeeId?: string;
+  challengerName?: string;
+  challengeeName?: string;
+  h2hStatus?: "pending" | "accepted" | "declined";
+  h2hOdds?: { challenger: number; challengee: number };
 }
 
 export interface GroupBetCardProps {
@@ -51,6 +58,8 @@ export interface GroupBetCardProps {
   onJudge?: (betId: string, result: any) => void;
   onDeclareWinner?: (betId: string, winnerId: string) => void;
   onDelete?: (betId: string) => void;
+  onAcceptChallenge?: (betId: string) => void;
+  onDeclineChallenge?: (betId: string) => void;
 }
 
 // ============ HELPER FUNCTIONS ============
@@ -58,6 +67,26 @@ export interface GroupBetCardProps {
 export function determineCardState(bet: Bet, userId: string): CardState {
   const isCreator = bet.creatorId === userId;
   const isClosed = new Date() >= new Date(bet.closingAt);
+  const isChallenged = bet.challengeeId === userId;
+  const isChallenger = bet.challengerId === userId;
+
+  // ============ H2H PENDING STATES ============
+  // Check if this is an H2H bet with pending status
+  if (bet.isH2H && bet.h2hStatus === "pending") {
+    // User is being challenged - show CHALLENGED state
+    if (isChallenged) {
+      return 'CHALLENGED';
+    }
+    // User is the challenger waiting for acceptance - show PENDING state
+    if (isChallenger) {
+      return 'PENDING';
+    }
+  }
+
+  // H2H bet was declined - show as LOST for visibility
+  if (bet.isH2H && bet.h2hStatus === "declined") {
+    return 'LOST';
+  }
 
   // Check if bet has been judged (result exists)
   const hasJudgment =
@@ -155,6 +184,8 @@ export function GroupBetCard({
   onJudge,
   onDeclareWinner,
   onDelete,
+  onAcceptChallenge,
+  onDeclineChallenge,
 }: GroupBetCardProps) {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
@@ -164,6 +195,8 @@ export function GroupBetCard({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [creatorName, setCreatorName] = useState<string>("");
+  const [challengerDisplayName, setChallengerDisplayName] = useState<string>("");
+  const [challengeeDisplayName, setChallengeeDisplayName] = useState<string>("");
 
   // Handler for group name click
   const handleGroupClick = (e: React.MouseEvent) => {
@@ -181,8 +214,8 @@ export function GroupBetCard({
   const isCreator = bet.creatorId === currentUserId;
   const cardState = determineCardState(bet, currentUserId);
 
-  // Add countdown hook for active/placed/judge/waiting states
-  const showCountdown = ['ACTIVE', 'PLACED', 'JUDGE', 'WAITING_JUDGEMENT'].includes(cardState);
+  // Add countdown hook for active/placed/judge/waiting/challenged/pending states
+  const showCountdown = ['ACTIVE', 'PLACED', 'CHALLENGED', 'PENDING', 'JUDGE', 'WAITING_JUDGEMENT'].includes(cardState);
   const { timeRemaining, isUnderOneHour, isUnder24Hours } = useCountdown(bet.closingAt);
 
   // Calculate values
@@ -219,6 +252,30 @@ export function GroupBetCard({
       fetchCreator();
     }
   }, [bet.creatorId, cardState]);
+
+  // Fetch challenger/challengee names for H2H states
+  useEffect(() => {
+    const fetchH2HNames = async () => {
+      // Use stored names if available, otherwise fetch
+      if (bet.challengerName) {
+        setChallengerDisplayName(bet.challengerName);
+      } else if (bet.challengerId) {
+        const userData = await fetchUserData(bet.challengerId);
+        setChallengerDisplayName(getUserDisplayName(userData));
+      }
+
+      if (bet.challengeeName) {
+        setChallengeeDisplayName(bet.challengeeName);
+      } else if (bet.challengeeId) {
+        const userData = await fetchUserData(bet.challengeeId);
+        setChallengeeDisplayName(getUserDisplayName(userData));
+      }
+    };
+
+    if (cardState === "CHALLENGED" || cardState === "PENDING") {
+      fetchH2HNames();
+    }
+  }, [bet.challengerId, bet.challengeeId, bet.challengerName, bet.challengeeName, cardState]);
 
   // Calculate payout
   const calculatePayout = (): number => {
@@ -733,6 +790,217 @@ export function GroupBetCard({
       </>
     );
   };
+
+  // Build H2H display name (e.g., "Phil v. Evan")
+  const h2hDisplayName = challengerDisplayName && challengeeDisplayName
+    ? `${challengerDisplayName.split(' ')[0]} v. ${challengeeDisplayName.split(' ')[0]}`
+    : bet.isH2H ? 'H2H Challenge' : '';
+
+  // === CHALLENGED STATE (User being challenged) ===
+  if (cardState === 'CHALLENGED') {
+    const themeColor = '#A855F7'; // Purple for H2H
+
+    return (
+      <div
+        className="bg-[#18181B] rounded-[6px] p-3 space-y-3 border-2"
+        style={{ borderColor: themeColor, fontFamily: "'Montserrat', sans-serif" }}
+      >
+        {/* Top Row */}
+        <div className="flex items-center justify-between">
+          <p
+            className={`font-semibold text-[8px] ${textShadow}`}
+            style={{ color: themeColor }}
+          >
+            {h2hDisplayName || 'Challenge'}
+          </p>
+
+          <p
+            className={`font-extrabold text-[10px] text-white ${textShadow}`}
+          >
+            NEW CHALLENGE!
+          </p>
+        </div>
+
+        {/* Bet Title */}
+        <div>
+          <p className={`font-semibold text-[12px] text-white ${textShadow}`}>
+            {bet.title}
+          </p>
+        </div>
+
+        {/* O/U Line (if applicable) */}
+        {bet.type === 'OVER_UNDER' && bet.line && (
+          <div>
+            <p
+              className={`font-extrabold text-[8px] ${textShadow}`}
+              style={{ color: themeColor }}
+            >
+              O/U Line: {bet.line}
+            </p>
+          </div>
+        )}
+
+        {/* Wager */}
+        <div>
+          <p className={`font-semibold text-[8px] ${textShadow}`}>
+            <span className="text-white">Wager: {formatCurrency(wager)}</span>
+          </p>
+        </div>
+
+        {/* Closes */}
+        <div>
+          <p
+            className={`font-semibold text-[8px] ${textShadow}`}
+            style={{ color: themeColor }}
+          >
+            Closes: {timeRemaining}
+          </p>
+        </div>
+
+        {/* Challenge Message */}
+        <div className="bg-[#1C1917] rounded-lg p-3">
+          <p className={`text-white text-[10px] text-center mb-2 ${textShadow}`}>
+            You've been challenged by {challengerDisplayName || 'a friend'}!
+          </p>
+          <p className={`text-zinc-400 text-[8px] text-center ${textShadow}`}>
+            Accept to join the bet or decline to pass
+          </p>
+        </div>
+
+        {/* Accept/Decline Buttons */}
+        <div className="flex gap-2">
+          {/* Decline Button (Red) */}
+          <button
+            onClick={() => onDeclineChallenge?.(bet.id)}
+            className={`
+              flex-1 h-[40px] bg-[#c21717] rounded-[6px]
+              text-white text-[14px] font-bold
+              hover:bg-[#d41f1f] transition-colors
+              shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)]
+              ${textShadow}
+            `}
+          >
+            Decline
+          </button>
+
+          {/* Accept Button (Green) */}
+          <button
+            onClick={() => onAcceptChallenge?.(bet.id)}
+            className={`
+              flex-1 h-[40px] bg-[#0abf00] rounded-[6px]
+              text-white text-[14px] font-bold
+              hover:bg-[#0cd902] transition-colors
+              shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)]
+              ${textShadow}
+            `}
+          >
+            Accept
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // === PENDING STATE (Creator waiting for acceptance) ===
+  if (cardState === 'PENDING') {
+    const themeColor = '#A855F7'; // Purple for H2H
+
+    return (
+      <div
+        className="bg-[#18181B] rounded-[6px] p-3 space-y-2 border-2 opacity-75"
+        style={{ borderColor: themeColor, fontFamily: "'Montserrat', sans-serif" }}
+      >
+        {/* Top Row */}
+        <div className="flex items-center justify-between">
+          <p
+            className={`font-semibold text-[8px] ${textShadow}`}
+            style={{ color: themeColor }}
+          >
+            {h2hDisplayName || 'Challenge Sent'}
+          </p>
+
+          {isCreator && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="text-white hover:text-[#ef4444] transition-colors"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+
+        {/* Bet Title */}
+        <div>
+          <p className={`font-semibold text-[12px] text-white ${textShadow}`}>
+            {bet.title}
+          </p>
+        </div>
+
+        {/* O/U Line (if applicable) */}
+        {bet.type === 'OVER_UNDER' && bet.line && (
+          <div>
+            <p
+              className={`font-extrabold text-[8px] ${textShadow}`}
+              style={{ color: themeColor }}
+            >
+              O/U Line: {bet.line}
+            </p>
+          </div>
+        )}
+
+        {/* Wager */}
+        <div>
+          <p className={`font-semibold text-[8px] ${textShadow}`}>
+            <span className="text-white">Wager: {formatCurrency(wager)}</span>
+          </p>
+        </div>
+
+        {/* Closes */}
+        <div>
+          <p
+            className={`font-semibold text-[8px] ${textShadow}`}
+            style={{ color: themeColor }}
+          >
+            Closes: {timeRemaining}
+          </p>
+        </div>
+
+        {/* Pending Message */}
+        <div className="bg-[#1C1917] rounded-lg p-3">
+          <p className={`text-zinc-400 text-[10px] text-center ${textShadow}`}>
+            ⏳ Waiting for {challengeeDisplayName || 'friend'} to accept...
+          </p>
+        </div>
+
+        {/* Delete Modal for PENDING state */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-[#18181B] rounded-lg p-4 max-w-sm mx-4 border border-[#A855F7]">
+              <h4 className={`text-white font-semibold mb-2 ${textShadow}`}>Cancel Challenge?</h4>
+              <p className={`text-[#a1a1aa] text-sm mb-4 ${textShadow}`}>
+                Are you sure you want to cancel this challenge? This action cannot be undone.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className={`flex-1 py-2 bg-[#3f3f3f] text-white rounded-lg text-sm font-semibold ${textShadow}`}
+                >
+                  Keep
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className={`flex-1 py-2 bg-[#C21717] text-white rounded-lg text-sm font-semibold disabled:opacity-50 ${textShadow}`}
+                >
+                  {isDeleting ? "Canceling..." : "Cancel"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // Main render
   return (

@@ -66,6 +66,10 @@ export default function HomePage() {
   const [activeExpanded, setActiveExpanded] = useState(false);
   const [activeDisplayCount, setActiveDisplayCount] = useState(3);
 
+  // H2H bets state
+  const [h2hExpanded, setH2hExpanded] = useState(false);
+  const [h2hDisplayCount, setH2hDisplayCount] = useState(3);
+
   // Groups filtering state
   const [groupSearchQuery, setGroupSearchQuery] = useState("");
   const [groupView, setGroupView] = useState("all");
@@ -320,6 +324,74 @@ export default function HomePage() {
     return filteredAndSortedActiveBets.slice(0, activeDisplayCount);
   }, [filteredAndSortedActiveBets, activeDisplayCount]);
 
+  // Filter H2H bets (separate from group bets)
+  const h2hBets = useMemo(() => {
+    if (!user) return [];
+
+    return bets.filter(bet => {
+      // Only H2H bets
+      if (!bet.isH2H) return false;
+
+      const state = determineCardState(bet, user.uid);
+      // Include active H2H states (including CHALLENGED, PENDING)
+      return ['ACTIVE', 'PLACED', 'CHALLENGED', 'PENDING', 'JUDGE', 'WAITING_JUDGEMENT'].includes(state);
+    });
+  }, [bets, user]);
+
+  // Sort H2H bets (challenges first, then closing soonest)
+  const sortedH2HBets = useMemo(() => {
+    if (!user) return [];
+
+    return [...h2hBets].sort((a, b) => {
+      const stateA = determineCardState(a, user.uid);
+      const stateB = determineCardState(b, user.uid);
+
+      // CHALLENGED always at top
+      if (stateA === 'CHALLENGED' && stateB !== 'CHALLENGED') return -1;
+      if (stateA !== 'CHALLENGED' && stateB === 'CHALLENGED') return 1;
+
+      // Then PENDING (creator waiting)
+      if (stateA === 'PENDING' && stateB !== 'PENDING') return -1;
+      if (stateA !== 'PENDING' && stateB === 'PENDING') return 1;
+
+      // Then sort by closing time
+      return new Date(a.closingAt).getTime() - new Date(b.closingAt).getTime();
+    });
+  }, [h2hBets, user]);
+
+  // Determine what H2H bets to display based on pagination
+  const h2hToShow = useMemo(() => {
+    return sortedH2HBets.slice(0, h2hDisplayCount);
+  }, [sortedH2HBets, h2hDisplayCount]);
+
+  // Filter group bets only (exclude H2H)
+  const groupOnlyActiveBets = useMemo(() => {
+    if (!user) return [];
+
+    return activeBets.filter(bet => !bet.isH2H);
+  }, [activeBets, user]);
+
+  // Filtered and sorted group bets (excluding H2H)
+  const filteredAndSortedGroupBets = useMemo(() => {
+    if (!user) return [];
+
+    // 1. Filter by active tab
+    const tabFiltered = filterBets(groupOnlyActiveBets, mapFilterToTab(activeFilter) as any, user.uid);
+    // 2. Apply search filter
+    const searchFiltered = searchBets(tabFiltered, activeSearchQuery);
+    // 3. Sort by closing soonest first
+    const sorted = [...searchFiltered].sort((a, b) =>
+      new Date(a.closingAt).getTime() - new Date(b.closingAt).getTime()
+    );
+
+    return sorted;
+  }, [groupOnlyActiveBets, activeFilter, activeSearchQuery, user]);
+
+  // Group bets to show
+  const groupBetsToShow = useMemo(() => {
+    return filteredAndSortedGroupBets.slice(0, activeDisplayCount);
+  }, [filteredAndSortedGroupBets, activeDisplayCount]);
+
   // Handlers for expanding/collapsing
   const handleActiveSeeMore = () => {
     if (activeExpanded) {
@@ -484,6 +556,79 @@ export default function HomePage() {
     }
   };
 
+  // Handle accepting H2H challenge
+  const handleAcceptChallenge = async (betId: string) => {
+    if (!user) return;
+
+    try {
+      console.log('Accepting challenge:', betId);
+
+      const betRef = doc(db, 'bets', betId);
+      const betSnap = await getDoc(betRef);
+
+      if (!betSnap.exists()) {
+        console.error('Bet not found');
+        alert('Challenge not found');
+        return;
+      }
+
+      const betData = betSnap.data();
+
+      // Update bet status to accepted and add challengee as participant
+      await updateDoc(betRef, {
+        h2hStatus: 'accepted',
+        acceptedAt: new Date().toISOString(),
+        participants: [...(betData.participants || []), user.uid],
+        updatedAt: new Date().toISOString(),
+      });
+
+      console.log('Challenge accepted!');
+
+    } catch (error) {
+      console.error('Error accepting challenge:', error);
+      alert('Failed to accept challenge. Please try again.');
+    }
+  };
+
+  // Handle declining H2H challenge
+  const handleDeclineChallenge = async (betId: string) => {
+    if (!user) return;
+
+    try {
+      console.log('Declining challenge:', betId);
+
+      const confirmed = confirm('Are you sure you want to decline this challenge?');
+      if (!confirmed) return;
+
+      const betRef = doc(db, 'bets', betId);
+
+      // Update bet status to declined
+      await updateDoc(betRef, {
+        h2hStatus: 'declined',
+        declinedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      console.log('Challenge declined');
+
+    } catch (error) {
+      console.error('Error declining challenge:', error);
+      alert('Failed to decline challenge. Please try again.');
+    }
+  };
+
+  // H2H See More handler
+  const handleH2HSeeMore = () => {
+    if (h2hExpanded) {
+      setH2hExpanded(false);
+      setH2hDisplayCount(3);
+    } else {
+      const newCount = h2hDisplayCount + 3;
+      setH2hDisplayCount(newCount);
+      setH2hExpanded(true);
+    }
+  };
+
   const handleCreateGroup = async (groupData: any) => {
     if (!user) {
       alert("You must be signed in to create a group.");
@@ -547,6 +692,84 @@ export default function HomePage() {
           color: "white",
         }}
       >
+        {/* ============ H2H SECTION ============ */}
+        {sortedH2HBets.length > 0 && (
+          <>
+            <SectionTitle>H2H</SectionTitle>
+
+            {/* H2H Bet Cards */}
+            <section style={{ padding: "0 16px" }}>
+              {h2hToShow.length > 0 ? (
+                <div>
+                  {h2hToShow.map((bet) => (
+                    <div key={bet.id} style={{ marginBottom: "12px" }}>
+                      <GroupBetCard
+                        bet={bet}
+                        currentUserId={user?.uid || ''}
+                        groupName={bet.groupId ? getGroupName(bet.groupId) : undefined}
+                        onVote={(betId, vote) => {
+                          const targetBet = bets.find(b => b.id === betId);
+                          if (targetBet) handleUserPick(targetBet, vote);
+                        }}
+                        onSubmitGuess={(betId, guess) => {
+                          const targetBet = bets.find(b => b.id === betId);
+                          if (targetBet) handleUserPick(targetBet, guess);
+                        }}
+                        onChangeVote={(betId) => {
+                          console.log('Change vote:', betId);
+                        }}
+                        onJudge={(betId, result) => {
+                          setJudgingBet(bet);
+                        }}
+                        onDeclareWinner={async (betId, winnerId) => {
+                          try {
+                            console.log('Declaring winner:', { betId, winnerId });
+
+                            const betRef = doc(db, 'bets', betId);
+                            const betSnap = await getDoc(betRef);
+
+                            if (!betSnap.exists()) {
+                              console.error('Bet not found');
+                              return;
+                            }
+
+                            const betData = betSnap.data();
+                            const winnerGuess = betData.picks?.[winnerId];
+
+                            await updateDoc(betRef, {
+                              actualValue: winnerGuess,
+                              winners: [winnerId],
+                              status: 'JUDGED',
+                              judgedAt: new Date().toISOString(),
+                              judgedBy: user?.uid,
+                            });
+
+                            console.log('Winner declared successfully');
+                          } catch (error) {
+                            console.error('Error declaring winner:', error);
+                          }
+                        }}
+                        onDelete={async (betId) => {
+                          console.log('Delete bet:', betId);
+                        }}
+                        onAcceptChallenge={handleAcceptChallenge}
+                        onDeclineChallenge={handleDeclineChallenge}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+
+            {/* H2H SEE MORE Button */}
+            <SeeMoreButton
+              expanded={h2hExpanded}
+              onClick={handleH2HSeeMore}
+              hasMore={sortedH2HBets.length > h2hToShow.length}
+            />
+          </>
+        )}
+
         {/* ============ ACTIVE BETS SECTION ============ */}
         <SectionTitle>ACTIVE BETS</SectionTitle>
 
@@ -573,9 +796,9 @@ export default function HomePage() {
             </div>
           ) : (
             <>
-              {activeToShow.length > 0 ? (
+              {groupBetsToShow.length > 0 ? (
                 <div>
-                  {activeToShow.map((bet) => (
+                  {groupBetsToShow.map((bet) => (
                     <div key={bet.id} style={{ marginBottom: "12px" }}>
                       <GroupBetCard
                         bet={bet}
@@ -628,6 +851,8 @@ export default function HomePage() {
                         onDelete={async (betId) => {
                           console.log('Delete bet:', betId);
                         }}
+                        onAcceptChallenge={handleAcceptChallenge}
+                        onDeclineChallenge={handleDeclineChallenge}
                       />
                     </div>
                   ))}
@@ -655,7 +880,7 @@ export default function HomePage() {
           <SeeMoreButton
             expanded={activeExpanded}
             onClick={handleActiveSeeMore}
-            hasMore={filteredAndSortedActiveBets.length > activeToShow.length}
+            hasMore={filteredAndSortedGroupBets.length > groupBetsToShow.length}
           />
         )}
 
