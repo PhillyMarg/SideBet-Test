@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, lazy, Suspense, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Bell } from "lucide-react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "../../lib/firebase/client";
@@ -30,6 +30,7 @@ interface HeaderProps {
 
 export function Header({ userId }: HeaderProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
 
   // Modal states
@@ -42,9 +43,10 @@ export function Header({ userId }: HeaderProps) {
   const navItems = [
     { label: "Create Group", action: "CREATE_GROUP" },
     { label: "Join Group", action: "JOIN_GROUP" },
-    { label: "My Groups", action: "MY_GROUPS" },
-    { label: "Friends", action: "FRIENDS" },
-    { label: "Account", action: "ACCOUNT" },
+    { label: "My Groups", path: "/groups" },
+    { label: "Past Bets", path: "/past-bets" },
+    { label: "Friends", path: "/friends" },
+    { label: "Account", path: "/settings" },
   ];
 
   // Fetch user and groups when userId is available
@@ -92,23 +94,18 @@ export function Header({ userId }: HeaderProps) {
     return () => unsubscribe();
   }, [userId]);
 
-  const handleNavClick = (action: string) => {
-    switch (action) {
-      case "CREATE_GROUP":
-        setShowCreateGroup(true);
-        break;
-      case "JOIN_GROUP":
-        setShowJoinGroup(true);
-        break;
-      case "MY_GROUPS":
-        router.push("/groups");
-        break;
-      case "FRIENDS":
-        router.push("/friends");
-        break;
-      case "ACCOUNT":
-        router.push("/settings");
-        break;
+  const handleNavClick = (item: { label: string; action?: string; path?: string }) => {
+    if (item.action) {
+      switch (item.action) {
+        case "CREATE_GROUP":
+          setShowCreateGroup(true);
+          break;
+        case "JOIN_GROUP":
+          setShowJoinGroup(true);
+          break;
+      }
+    } else if (item.path) {
+      router.push(item.path);
     }
   };
 
@@ -310,21 +307,29 @@ export function Header({ userId }: HeaderProps) {
         <div style={{ borderBottom: "1px solid #27272A" }}>
           <ScrollableNav className="px-4 py-2">
             <div className="flex items-center gap-2.5">
-              {navItems.map((item) => (
-                <button
-                  key={item.action}
-                  onClick={() => handleNavClick(item.action)}
-                  className="
-                    flex-shrink-0 px-3 py-0.5 rounded-lg
-                    font-montserrat font-semibold text-[12px] text-center whitespace-nowrap
-                    text-white border-2 border-transparent
-                    hover:text-[#ff6b35] transition-colors
-                    bg-transparent cursor-pointer
-                  "
-                >
-                  {item.label}
-                </button>
-              ))}
+              {navItems.map((item) => {
+                const isActive = item.path && pathname === item.path;
+
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => handleNavClick(item)}
+                    className={`
+                      flex-shrink-0 px-3 py-0.5 rounded-lg
+                      font-montserrat text-[12px] text-center whitespace-nowrap
+                      border-2 border-transparent
+                      transition-colors
+                      bg-transparent cursor-pointer
+                      ${isActive
+                        ? 'text-[#ff6b35] font-semibold'
+                        : 'text-white font-semibold hover:text-[#ff6b35]'
+                      }
+                    `}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
             </div>
           </ScrollableNav>
         </div>
