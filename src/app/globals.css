@@ -198,3 +198,19 @@ footer .active {
                 0 0 30px rgba(249, 115, 22, 0.3);
   }
 }
+
+/* ==== Yellow pulse animation for urgent countdown ==== */
+@keyframes pulseYellow {
+  0%, 100% {
+    opacity: 1;
+    color: #FCD34D;
+  }
+  50% {
+    opacity: 0.6;
+    color: #FBBF24;
+  }
+}
+
+.pulse-yellow {
+  animation: pulseYellow 1.5s ease-in-out infinite;
+}

@@ -6,6 +6,7 @@ import { deleteDoc, doc } from "firebase/firestore";
 import { db } from "../../lib/firebase/client";
 import { fetchUserData, getUserDisplayName } from "../../utils/userUtils";
 import { getLivePercentages } from "../../utils/timeUtils";
+import { useCountdown } from "../../hooks/useCountdown";
 
 // ============ TYPES ============
 export type BetType = "YES_NO" | "OVER_UNDER" | "CLOSEST_GUESS";
@@ -166,6 +167,10 @@ export function GroupBetCard({
   const isCreator = bet.creatorId === currentUserId;
   const cardState = determineCardState(bet, currentUserId);
 
+  // Add countdown hook for active/placed/judge/waiting states
+  const showCountdown = ['ACTIVE', 'PLACED', 'JUDGE', 'WAITING_JUDGEMENT'].includes(cardState);
+  const { timeRemaining, isUnderOneHour, isUnder24Hours } = useCountdown(bet.closingAt);
+
   // Calculate values
   const wager = bet.perUserWager ?? bet.betAmount ?? 0;
   const people = bet.participants?.length ?? 0;
@@ -281,8 +286,14 @@ export function GroupBetCard({
       case "ACTIVE":
       case "PLACED":
         return (
-          <span className={`text-[8px] font-semibold text-white ${textShadow}`}>
-            Closes: {formatDate(bet.closingAt)}
+          <span className={`text-[8px] font-semibold ${textShadow} ${
+            isUnderOneHour
+              ? 'pulse-yellow'
+              : isUnder24Hours
+                ? 'text-[#FF6B35]'
+                : 'text-white'
+          }`}>
+            Closes: {timeRemaining}
           </span>
         );
       case "JUDGE":
@@ -710,35 +721,36 @@ export function GroupBetCard({
       className={`relative w-full max-w-[393px] ${getBgClass()} rounded-[6px] ${getPaddingClass()} ${getBorderClass()} flex flex-col gap-[4px]`}
       style={{ fontFamily: "'Montserrat', sans-serif" }}
     >
-      {/* Delete button */}
-      {isCreator && !["WON", "LOST"].includes(cardState) && (
-        <button
-          onClick={() => setShowDeleteModal(true)}
-          className="absolute top-2 right-2 text-white hover:text-[#C21717] transition-colors"
-        >
-          <Trash2 size={16} />
-        </button>
-      )}
+      {/* Header Row: Group Name on left, Status + Trash on right */}
+      <div className="flex items-center justify-between">
+        {/* Left: Group Name */}
+        {groupName && (
+          <span className={`text-[8px] font-semibold text-[#FF6B35] ${textShadow} flex-shrink-0`}>
+            {groupName}
+          </span>
+        )}
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 flex flex-col gap-[4px]">
-          {/* Group badge */}
-          {groupName && (
-            <span className={`text-[8px] font-semibold text-[#FF6B35] ${textShadow}`}>
-              {groupName}
-            </span>
-          )}
-          {/* Title */}
-          <h3 className={`text-[12px] font-semibold text-white leading-tight ${textShadow}`}>
-            {bet.title}
-          </h3>
-        </div>
-        {/* Status badge */}
-        <div className="flex-shrink-0 mt-1">
+        {/* Right: Status Badge + Trash Icon */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Status Badge */}
           {renderStatusBadge()}
+
+          {/* Trash Icon (only for creator on certain states) */}
+          {isCreator && ['ACTIVE', 'PLACED', 'WAITING_JUDGEMENT'].includes(cardState) && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="flex-shrink-0 text-white hover:text-[#C21717] transition-colors"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Title */}
+      <h3 className={`text-[12px] font-semibold text-white leading-tight ${textShadow}`}>
+        {bet.title}
+      </h3>
 
       {/* Won/Lost state - show creator and closed info */}
       {(cardState === "WON" || cardState === "LOST") && (
