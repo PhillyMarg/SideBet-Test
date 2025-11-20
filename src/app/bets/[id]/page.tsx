@@ -166,7 +166,7 @@ export default function BetDetailsPage({ params }: { params: { id: string } }) {
   if (!bet) return null;
 
   return (
-    <div className="min-h-screen bg-black pb-20 pt-16">
+    <div className="min-h-screen bg-black pt-16">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
 
         {/* Pending H2H Challenge Banner */}
