@@ -514,14 +514,19 @@ export function GroupBetCard({
                   </div>
                 ))}
               </div>
-              {selectedWinner && (
-                <button
-                  onClick={() => onDeclareWinner?.(bet.id, selectedWinner)}
-                  className={`mt-3 w-full h-[31px] bg-[#0ABF00] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center shadow-[4px_4px_4px_0px_rgba(0,0,0,0.25)] ${textShadow}`}
-                >
-                  DECLARE WINNER
-                </button>
-              )}
+              <button
+                onClick={() => {
+                  if (!selectedWinner) {
+                    alert('Please select a winner');
+                    return;
+                  }
+                  onDeclareWinner?.(bet.id, selectedWinner);
+                }}
+                disabled={!selectedWinner}
+                className={`mt-3 w-full h-[31px] bg-[#0ABF00] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center shadow-[4px_4px_4px_0px_rgba(0,0,0,0.25)] disabled:opacity-50 disabled:cursor-not-allowed ${textShadow}`}
+              >
+                DECLARE WINNER
+              </button>
             </div>
           )}
         </>

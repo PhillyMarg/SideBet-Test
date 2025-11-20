@@ -596,8 +596,35 @@ export default function HomePage() {
                         onJudge={(betId, result) => {
                           setJudgingBet(bet);
                         }}
-                        onDeclareWinner={(betId, winnerId) => {
-                          console.log('Declare winner:', betId, winnerId);
+                        onDeclareWinner={async (betId, winnerId) => {
+                          try {
+                            console.log('Declaring winner:', { betId, winnerId });
+
+                            // Get the bet
+                            const betRef = doc(db, 'bets', betId);
+                            const betSnap = await getDoc(betRef);
+
+                            if (!betSnap.exists()) {
+                              console.error('Bet not found');
+                              return;
+                            }
+
+                            const betData = betSnap.data();
+                            const winnerGuess = betData.picks?.[winnerId];
+
+                            // Update bet with result (winner's guess is the actual result)
+                            await updateDoc(betRef, {
+                              actualValue: winnerGuess,
+                              winners: [winnerId],
+                              status: 'JUDGED',
+                              judgedAt: new Date().toISOString(),
+                              judgedBy: user?.uid,
+                            });
+
+                            console.log('Winner declared successfully');
+                          } catch (error) {
+                            console.error('Error declaring winner:', error);
+                          }
                         }}
                         onDelete={async (betId) => {
                           console.log('Delete bet:', betId);
