@@ -1,52 +1,63 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-export function Navigation() {
-  const router = useRouter();
+interface NavigationProps {
+  selected?: string;
+  onSelect?: (nav: string) => void;
+}
 
-  const navItems = [
-    { label: "My Groups", path: "/groups" },
-    { label: "Friends", path: "/friends" },
-    { label: "Account", path: "/settings" },
-  ];
+export function Navigation({ selected = "CREATE GROUP", onSelect }: NavigationProps) {
+  const navItems = ["CREATE GROUP", "JOIN GROUP", "MY GROUPS", "FRIENDS", "ACCOUNT"];
 
   return (
     <nav
       className="fixed left-0 right-0 z-40"
       style={{
         top: "80px",
-        backgroundColor: "#000000",
-        padding: "16px 24px",
-        borderBottom: "1px solid #27272A",
+        backgroundColor: "#18181B",
+        padding: "0 24px",
         fontFamily: "'Montserrat', sans-serif",
       }}
     >
       <div
-        className="flex items-center justify-between overflow-x-auto"
+        className="flex items-center overflow-x-auto"
         style={{
+          gap: "10px",
           scrollbarWidth: "none",
           msOverflowStyle: "none",
+          padding: "8px 0",
         }}
       >
-        {navItems.map((item) => (
-          <button
-            key={item.label}
-            onClick={() => router.push(item.path)}
-            style={{
-              fontSize: "12px",
-              fontWeight: "500",
-              color: "#FFFFFF",
-              backgroundColor: "transparent",
-              border: "none",
-              cursor: "pointer",
-              padding: "4px 8px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {item.label}
-          </button>
-        ))}
+        {navItems.map((item) => {
+          const isSelected = selected === item;
+          return (
+            <button
+              key={item}
+              onClick={() => onSelect?.(item)}
+              style={{
+                padding: "6px 12px",
+                borderRadius: "8px",
+                border: isSelected ? "2px solid #FF6B35" : "2px solid transparent",
+                backgroundColor: "transparent",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: isSelected ? "#FF6B35" : "#FFFFFF",
+                  fontFamily: "'Montserrat', sans-serif",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {item}
+              </span>
+            </button>
+          );
+        })}
       </div>
       <style jsx>{`
         nav div::-webkit-scrollbar {

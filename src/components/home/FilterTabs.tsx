@@ -11,17 +11,15 @@ export function FilterTabs({ selected, onSelect }: FilterTabsProps) {
   return (
     <div
       style={{
-        display: "flex",
-        padding: "0 16px",
-        backgroundColor: "#000000",
-        overflow: "hidden",
+        backgroundColor: "#18181B",
+        padding: "0 24px",
       }}
     >
       <div
         className="pills-scroll"
         style={{
           display: "flex",
-          gap: "8px",
+          gap: "10px",
           overflowX: "auto",
           overflowY: "hidden",
           scrollBehavior: "smooth",
@@ -33,6 +31,11 @@ export function FilterTabs({ selected, onSelect }: FilterTabsProps) {
       >
         {filters.map((filter) => {
           const isSelected = selected === filter;
+          const isH2H = filter === "H2H";
+
+          // H2H uses purple (#A855F7), others use orange (#FF6B35)
+          const selectedColor = isH2H ? "#A855F7" : "#FF6B35";
+
           return (
             <button
               key={filter}
@@ -40,7 +43,7 @@ export function FilterTabs({ selected, onSelect }: FilterTabsProps) {
               style={{
                 padding: "6px 12px",
                 borderRadius: "8px",
-                border: isSelected ? "2px solid #FF6B35" : "2px solid transparent",
+                border: isSelected ? `2px solid ${selectedColor}` : "2px solid transparent",
                 backgroundColor: "transparent",
                 cursor: "pointer",
                 flexShrink: 0,
@@ -50,8 +53,9 @@ export function FilterTabs({ selected, onSelect }: FilterTabsProps) {
                 style={{
                   fontSize: "12px",
                   fontWeight: "600",
-                  color: isSelected ? "#FF6B35" : "#FFFFFF",
+                  color: isSelected ? selectedColor : "#FFFFFF",
                   fontFamily: "'Montserrat', sans-serif",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {filter}
