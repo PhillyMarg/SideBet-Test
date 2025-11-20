@@ -18,6 +18,7 @@ import {
 } from "firebase/firestore";
 import NotificationBell from "../NotificationBell";
 import { createActivity } from "../../lib/activityHelpers";
+import { ScrollableNav } from "../ui/ScrollableNav";
 
 // Lazy load wizard components
 const CreateBetWizard = lazy(() => import("../CreateBetWizard"));
@@ -305,54 +306,28 @@ export function Header({ userId }: HeaderProps) {
           </div>
         </div>
 
-        {/* Bottom Row: Navigation */}
-        <div
-          className="flex items-center overflow-x-auto"
-          style={{
-            padding: "8px 16px",
-            gap: "12px",
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
-            borderBottom: "1px solid #27272A",
-          }}
-        >
-          {navItems.map((item) => (
-            <button
-              key={item.action}
-              onClick={() => handleNavClick(item.action)}
-              style={{
-                backgroundColor: "transparent",
-                border: "none",
-                cursor: "pointer",
-                padding: "4px 0",
-                flexShrink: 0,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#FFFFFF",
-                  fontFamily: "'Montserrat', sans-serif",
-                  whiteSpace: "nowrap",
-                  transition: "color 0.2s ease",
-                }}
-                className="nav-item-text"
-              >
-                {item.label}
-              </span>
-            </button>
-          ))}
+        {/* Bottom Row: Navigation with Gradient Overlay */}
+        <div style={{ borderBottom: "1px solid #27272A" }}>
+          <ScrollableNav className="px-4 py-2">
+            <div className="flex items-center gap-2.5">
+              {navItems.map((item) => (
+                <button
+                  key={item.action}
+                  onClick={() => handleNavClick(item.action)}
+                  className="
+                    flex-shrink-0 px-3 py-0.5 rounded-lg
+                    font-montserrat font-semibold text-[12px] text-center whitespace-nowrap
+                    text-white border-2 border-transparent
+                    hover:text-[#ff6b35] transition-colors
+                    bg-transparent cursor-pointer
+                  "
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </ScrollableNav>
         </div>
-
-        <style jsx>{`
-          header div::-webkit-scrollbar {
-            display: none;
-          }
-          .nav-item-text:hover {
-            color: #FF6B35 !important;
-          }
-        `}</style>
       </header>
 
       {/* Create Bet Wizard */}

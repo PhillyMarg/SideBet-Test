@@ -1,12 +1,14 @@
 "use client";
 
+import { ScrollableNav } from '../ui/ScrollableNav';
+
 interface FilterTabsProps {
   selected: string;
   onSelect: (filter: string) => void;
 }
 
 export function FilterTabs({ selected, onSelect }: FilterTabsProps) {
-  const filters = ["ALL", "OPEN", "MY PICKS", "PENDING", "SOON", "H2H"];
+  const filters = ['ALL', 'OPEN', 'MY PICKS', 'PENDING', 'SOON', 'H2H'];
 
   return (
     <div
@@ -15,60 +17,37 @@ export function FilterTabs({ selected, onSelect }: FilterTabsProps) {
         padding: "0 16px",
       }}
     >
-      <div
-        className="pills-scroll"
-        style={{
-          display: "flex",
-          gap: "10px",
-          overflowX: "auto",
-          overflowY: "hidden",
-          scrollBehavior: "smooth",
-          WebkitOverflowScrolling: "touch",
-          msOverflowStyle: "none",
-          scrollbarWidth: "none",
-          padding: "8px 0",
-        }}
-      >
-        {filters.map((filter) => {
-          const isSelected = selected === filter;
-          const isH2H = filter === "H2H";
+      <ScrollableNav className="py-2">
+        <div className="flex items-center gap-2.5">
+          {filters.map(filter => {
+            const isSelected = selected === filter;
+            const isH2H = filter === 'H2H';
 
-          // H2H uses purple (#A855F7), others use orange (#FF6B35)
-          const selectedColor = isH2H ? "#A855F7" : "#FF6B35";
+            // H2H uses purple, others use orange
+            const selectedColor = isH2H
+              ? 'border-purple-500 text-purple-500'
+              : 'border-[#ff6b35] text-[#ff6b35]';
 
-          return (
-            <button
-              key={filter}
-              onClick={() => onSelect(filter)}
-              style={{
-                padding: "6px 12px",
-                borderRadius: "8px",
-                border: isSelected ? `2px solid ${selectedColor}` : "2px solid transparent",
-                backgroundColor: "transparent",
-                cursor: "pointer",
-                flexShrink: 0,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: isSelected ? selectedColor : "#FFFFFF",
-                  fontFamily: "'Montserrat', sans-serif",
-                  whiteSpace: "nowrap",
-                }}
+            return (
+              <button
+                key={filter}
+                onClick={() => onSelect(filter)}
+                className={`
+                  flex-shrink-0 px-3 py-0.5 rounded-lg
+                  font-montserrat font-semibold text-[12px] text-center whitespace-nowrap
+                  transition-all border-2 bg-transparent cursor-pointer
+                  ${isSelected
+                    ? selectedColor
+                    : 'text-white border-transparent'
+                  }
+                `}
               >
                 {filter}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      <style jsx>{`
-        .pills-scroll::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
+              </button>
+            );
+          })}
+        </div>
+      </ScrollableNav>
     </div>
   );
 }
