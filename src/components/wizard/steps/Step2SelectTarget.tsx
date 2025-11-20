@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { db } from '../../../lib/firebase/client';
-import { collection, query, where, getDocs, limit, getDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, getDoc, doc, or } from 'firebase/firestore';
 import type { WizardTheme, WizardData } from '../BetWizard';
 
 interface Step2Props {
@@ -53,17 +53,24 @@ export function Step2SelectTarget({ theme, onNext, onBack, userId }: Step2Props)
           // Fetch user's friends
           const friendshipsQuery = query(
             collection(db, 'friendships'),
-            where('status', '==', 'accepted')
+            or(
+              where('user1Id', '==', userId),
+              where('user2Id', '==', userId)
+            )
           );
           const snapshot = await getDocs(friendshipsQuery);
 
           const friendIds: string[] = [];
           snapshot.docs.forEach(d => {
             const data = d.data();
-            if (data.requesterId === userId) {
-              friendIds.push(data.addresseeId);
-            } else if (data.addresseeId === userId) {
-              friendIds.push(data.requesterId);
+            // Only include accepted friendships
+            if (data.status !== 'accepted') return;
+
+            // Get the OTHER user's ID (not current user)
+            if (data.user1Id === userId) {
+              friendIds.push(data.user2Id);
+            } else if (data.user2Id === userId) {
+              friendIds.push(data.user1Id);
             }
           });
 
