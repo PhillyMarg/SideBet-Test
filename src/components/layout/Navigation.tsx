@@ -6,8 +6,6 @@ export function Navigation() {
   const router = useRouter();
 
   const navItems = [
-    { label: "Create Group", path: "/groups?action=create" },
-    { label: "Join Group", path: "/groups?action=join" },
     { label: "My Groups", path: "/groups" },
     { label: "Friends", path: "/friends" },
     { label: "Account", path: "/settings" },
