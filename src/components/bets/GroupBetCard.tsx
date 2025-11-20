@@ -90,6 +90,72 @@ export interface GroupBetCardProps {
   onDeclineChallenge?: (betId: string) => void;
 }
 
+// ============ VOTE PROGRESS BAR COMPONENT ============
+
+interface VoteProgressBarProps {
+  bet: Bet;
+  yesPercent: number;
+  noPercent: number;
+  themeColor: string;
+}
+
+function VoteProgressBar({ bet, yesPercent, noPercent, themeColor }: VoteProgressBarProps) {
+  const isYesNo = bet.type === 'YES_NO';
+  const isOverUnder = bet.type === 'OVER_UNDER';
+
+  if (!isYesNo && !isOverUnder) return null;
+
+  const option1Label = isYesNo ? 'NO' : 'UNDER';
+  const option2Label = isYesNo ? 'YES' : 'OVER';
+
+  // option1 is NO/UNDER (left side, dark)
+  // option2 is YES/OVER (right side, themed color)
+  const option1Width = noPercent;
+  const option2Width = yesPercent;
+
+  return (
+    <div className="w-full h-[31px] px-[3px] py-[5px]">
+      <div
+        className="relative h-[20px] w-full bg-[#1e1e1e] border-2 rounded-[6px] overflow-hidden"
+        style={{ borderColor: themeColor }}
+      >
+        {/* Progress Bar Container */}
+        <div className="absolute inset-0 flex">
+          {/* Option 1 (NO/UNDER) - Dark side */}
+          <div
+            className="flex items-center justify-center transition-all duration-300"
+            style={{
+              width: `${option1Width}%`,
+              backgroundColor: '#1e1e1e'
+            }}
+          >
+            {option1Width > 15 && (
+              <span className="font-montserrat font-semibold text-[10px] text-white [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
+                {option1Label} {option1Width}%
+              </span>
+            )}
+          </div>
+
+          {/* Option 2 (YES/OVER) - Theme color side */}
+          <div
+            className="flex items-center justify-center transition-all duration-300"
+            style={{
+              width: `${option2Width}%`,
+              backgroundColor: themeColor
+            }}
+          >
+            {option2Width > 15 && (
+              <span className="font-montserrat font-semibold text-[10px] text-white [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
+                {option2Label} {option2Width}%
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ============ HELPER FUNCTIONS ============
 
 export function determineCardState(bet: Bet, userId: string): CardState {
@@ -530,32 +596,9 @@ export function GroupBetCard({
           <span style={{ color: themeColor }}>Payout: {formatCurrency(calculatePayout())}</span>
         </div>
 
-        {/* Progress bar buttons for YES_NO and OVER_UNDER */}
+        {/* Progress Bar - Single unified bar */}
         {(bet.type === "YES_NO" || bet.type === "OVER_UNDER") && (
-          <div className="h-[40px] px-[3px] py-[5px] flex gap-[10px] mt-1">
-            <button
-              disabled
-              className={`flex-1 h-[20px] px-[37px] py-0 rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${
-                (userPick === "YES" || userPick === "OVER")
-                  ? "text-white"
-                  : "bg-white text-[#18181B]"
-              } ${textShadow}`}
-              style={(userPick === "YES" || userPick === "OVER") ? { backgroundColor: themeColor } : undefined}
-            >
-              {bet.type === "YES_NO" ? "YES" : "OVER"} {formatPercent(yes)}
-            </button>
-            <button
-              disabled
-              className={`flex-1 h-[20px] px-[37px] py-0 rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${
-                (userPick === "NO" || userPick === "UNDER")
-                  ? "text-white"
-                  : "bg-white text-[#18181B]"
-              } ${textShadow}`}
-              style={(userPick === "NO" || userPick === "UNDER") ? { backgroundColor: themeColor } : undefined}
-            >
-              {bet.type === "YES_NO" ? "NO" : "UNDER"} {formatPercent(no)}
-            </button>
-          </div>
+          <VoteProgressBar bet={bet} yesPercent={yes} noPercent={no} themeColor={themeColor} />
         )}
       </>
     );
