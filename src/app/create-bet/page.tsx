@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { collection, addDoc, getDocs, query, where, getDoc, doc } from "firebase/firestore";
 import { db, auth } from "../../lib/firebase/client";
-import Footer from "../../components/Footer";
 import Header from "../../components/Header";
 import CreateBetWizard from "../../components/CreateBetWizard";
 import { notifyH2HChallenge } from "../../lib/notifications";
@@ -109,7 +108,7 @@ function CreateBetContent() {
   }
 
   return (
-    <div className="min-h-screen bg-black pb-20">
+    <div className="min-h-screen bg-black">
       <div className="max-w-7xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold text-white mb-6">Create a Bet</h1>
 
@@ -134,7 +133,6 @@ function CreateBetContent() {
           </div>
         )}
       </div>
-      <Footer />
     </div>
   );
 }

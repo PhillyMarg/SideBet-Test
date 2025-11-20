@@ -24,7 +24,6 @@ import {
   ChevronDown,
   ChevronRight
 } from "lucide-react";
-import Footer from "@/components/Footer";
 import { notifyFriendRequest, notifyFriendRequestAccepted } from "@/lib/notifications";
 import { Header } from "@/components/layout/Header";
 
@@ -467,7 +466,7 @@ export default function FriendsPage() {
   return (
     <>
       <Header userId={user?.uid} />
-      <div className="min-h-screen bg-[#0a0a0a] pb-20" style={{ paddingTop: "100px" }}>
+      <div className="min-h-screen bg-[#0a0a0a]" style={{ paddingTop: "100px" }}>
       {/* Page Title */}
       <div className="px-4 sm:px-6 py-4 border-b border-zinc-800">
         <div className="flex items-center justify-between">
@@ -876,9 +875,6 @@ export default function FriendsPage() {
         </div>
       )}
       </div>
-
-      {/* Footer */}
-      <Footer />
     </>
   );
 }

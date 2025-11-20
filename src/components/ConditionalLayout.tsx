@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import Header from "./Header";
-import Footer from "./Footer";
 
 export default function ConditionalLayout({
   children,
@@ -18,7 +17,6 @@ export default function ConditionalLayout({
     <>
       {!isAuthPage && <Header />}
       <main className="flex-grow">{children}</main>
-      {!isAuthPage && <Footer />}
     </>
   );
 }

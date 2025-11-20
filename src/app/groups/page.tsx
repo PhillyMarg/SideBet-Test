@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "../../lib/firebase/client";
 import CreateGroupWizard from "../../components/CreateGroupWizard";
-import Footer from "../../components/Footer";
 import {
   collection,
   query,
@@ -412,7 +411,7 @@ export default function GroupsPage() {
     <>
       <Header userId={user?.uid} />
       <main
-        className="min-h-screen bg-[#0a0a0a] text-white pb-16 sm:pb-20 flex flex-col items-center"
+        className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center"
         style={{ "--content-width": "500px", paddingTop: "100px" } as React.CSSProperties}
       >
       <div
@@ -844,9 +843,6 @@ export default function GroupsPage() {
         </div>
       </div>
     )}
-
-    {/* Footer */}
-<Footer />
       </main>
     </>
   );
