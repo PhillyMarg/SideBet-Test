@@ -19,9 +19,9 @@ import {
 import NotificationBell from "../NotificationBell";
 import { createActivity } from "../../lib/activityHelpers";
 import { ScrollableNav } from "../ui/ScrollableNav";
+import { BetWizard, WizardData } from "../wizard/BetWizard";
 
 // Lazy load wizard components
-const CreateBetWizard = lazy(() => import("../CreateBetWizard"));
 const CreateGroupWizard = lazy(() => import("../CreateGroupWizard"));
 
 interface HeaderProps {
@@ -218,6 +218,131 @@ export function Header({ userId }: HeaderProps) {
     }
   };
 
+  // Create Bet Handler
+  const handleCreateBet = async (wizardData: WizardData) => {
+    const currentUserId = userId || user?.uid;
+    if (!currentUserId) {
+      alert("You must be signed in to create a bet.");
+      return;
+    }
+
+    try {
+      // Get user info for notifications
+      const userDoc = await getDoc(doc(db, "users", currentUserId));
+      const userData = userDoc.data();
+      const userName = userData?.displayName ||
+        `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() ||
+        "Unknown User";
+
+      if (wizardData.theme === 'group') {
+        // Create group bet
+        const betDoc = {
+          title: wizardData.title,
+          description: wizardData.description || "",
+          type: wizardData.betType,
+          creatorId: currentUserId,
+          groupId: wizardData.targetId,
+          closingAt: wizardData.closingDate?.toISOString(),
+          createdAt: new Date().toISOString(),
+          status: "OPEN",
+          picks: {},
+          participants: [],
+          winners: [],
+          perUserWager: wizardData.wagerAmount,
+          line: wizardData.line || null,
+          isH2H: false,
+        };
+
+        const docRef = await addDoc(collection(db, "bets"), betDoc);
+
+        // Create activity for bet creation
+        await createActivity({
+          groupId: wizardData.targetId!,
+          type: "bet_created",
+          userId: currentUserId,
+          userName: userName,
+          betId: docRef.id,
+          betTitle: wizardData.title || ""
+        });
+
+        // Get group members for notifications
+        const groupDoc = await getDoc(doc(db, "groups", wizardData.targetId!));
+        if (groupDoc.exists()) {
+          const groupData = groupDoc.data();
+          const memberIds = groupData.memberIds || [];
+
+          // Send notifications to all group members except creator
+          for (const memberId of memberIds) {
+            if (memberId !== currentUserId) {
+              await addDoc(collection(db, "notifications"), {
+                userId: memberId,
+                type: "new_bet",
+                message: `${userName} created a new bet: "${wizardData.title}"`,
+                betId: docRef.id,
+                groupId: wizardData.targetId,
+                read: false,
+                createdAt: new Date().toISOString(),
+              });
+            }
+          }
+        }
+
+        setShowCreateBet(false);
+        router.push(`/bets/${docRef.id}`);
+      } else {
+        // Create H2H bet
+        // Get challengee info
+        const challengeeDoc = await getDoc(doc(db, "users", wizardData.targetId!));
+        const challengeeData = challengeeDoc.data();
+        const challengeeName = challengeeData?.displayName ||
+          `${challengeeData?.firstName || ''} ${challengeeData?.lastName || ''}`.trim() ||
+          "Unknown User";
+
+        const betDoc = {
+          title: wizardData.title,
+          description: wizardData.description || "",
+          type: wizardData.betType,
+          creatorId: currentUserId,
+          challengerId: currentUserId,
+          challengeeId: wizardData.targetId,
+          challengerName: userName,
+          challengeeName: challengeeName,
+          closingAt: wizardData.closingDate?.toISOString(),
+          createdAt: new Date().toISOString(),
+          status: "OPEN",
+          h2hStatus: "pending",
+          picks: {},
+          participants: [currentUserId],
+          winners: [],
+          betAmount: wizardData.wagerAmount,
+          perUserWager: wizardData.wagerAmount,
+          line: wizardData.line || null,
+          isH2H: true,
+          h2hOdds: { challenger: 1, challengee: 1 },
+          groupId: null,
+        };
+
+        const docRef = await addDoc(collection(db, "bets"), betDoc);
+
+        // Send notification to challengee
+        await addDoc(collection(db, "notifications"), {
+          userId: wizardData.targetId,
+          type: "h2h_challenge",
+          message: `${userName} challenged you to a bet: "${wizardData.title}"`,
+          betId: docRef.id,
+          read: false,
+          createdAt: new Date().toISOString(),
+        });
+
+        setShowCreateBet(false);
+        router.push(`/bets/${docRef.id}`);
+      }
+    } catch (error: any) {
+      console.error("Error creating bet:", error);
+      alert(`Failed to create bet: ${error.message || "Unknown error"}`);
+    }
+  };
+
   return (
     <>
       <header
@@ -336,24 +461,12 @@ export function Header({ userId }: HeaderProps) {
       </header>
 
       {/* Create Bet Wizard */}
-      {showCreateBet && (
-        <div
-          className="fixed inset-0 flex justify-center items-center z-[60] bg-black/60 p-4"
-          onClick={() => setShowCreateBet(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto p-5"
-          >
-            <Suspense fallback={null}>
-              <CreateBetWizard
-                user={user || { uid: userId }}
-                onClose={() => setShowCreateBet(false)}
-              />
-            </Suspense>
-          </div>
-        </div>
-      )}
+      <BetWizard
+        isOpen={showCreateBet}
+        onClose={() => setShowCreateBet(false)}
+        onComplete={handleCreateBet}
+        userId={userId || user?.uid}
+      />
 
       {/* Create Group Wizard */}
       {showCreateGroup && (
