@@ -23,18 +23,17 @@ import { GroupBetCard } from "../../components/bets/GroupBetCard";
 import FloatingCreateBetButton from "../../components/FloatingCreateBetButton";
 import BetCardSkeleton from "../../components/BetCardSkeleton";
 import GroupCardSkeleton from "../../components/GroupCardSkeleton";
-import Footer from "../../components/Footer";
 import { getTimeRemaining } from "../../utils/timeUtils";
 import { filterBets, sortBets, getEmptyStateMessage, searchBets } from "../../utils/betFilters";
 import { createActivity } from "../../lib/activityHelpers";
 
 // NEW: Import the Figma design components
-import HomeFeedHeader from "../../components/HomeFeedHeader";
-import NavigationTabs from "../../components/NavigationTabs";
-import FilterPills from "../../components/FilterPills";
-import FeedSearchBar from "../../components/FeedSearchBar";
+import { Header } from "../../components/layout/Header";
+import { Navigation } from "../../components/layout/Navigation";
+import { FilterTabs } from "../../components/home/FilterTabs";
+import { SearchBar } from "../../components/home/SearchBar";
+import { SectionTitle } from "../../components/home/SectionTitle";
 import FeedGroupCard from "../../components/FeedGroupCard";
-import ActiveBetsSection from "../../components/ActiveBetsSection";
 
 // Lazy load heavy wizard components
 const CreateBetWizard = lazy(() => import("../../components/CreateBetWizard"));
@@ -45,7 +44,7 @@ function getActiveBetCount(bets: any[], groupId: string) {
   return bets.filter((b) => b.groupId === groupId && b.status !== "JUDGED").length;
 }
 
-type FilterOption = "All" | "Open" | "Picks" | "Pending" | "Soon" | "H2H";
+type FilterOption = "ALL" | "OPEN" | "MY PICKS" | "PENDING" | "SOON" | "H2H";
 
 export default function HomePage() {
   const router = useRouter();
@@ -63,14 +62,14 @@ export default function HomePage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true);
 
-  // NEW: Filter and sort state for bets (using FilterOption type)
-  const [activeFilter, setActiveFilter] = useState<FilterOption>("Open");
+  // NEW: Filter and sort state for bets
+  const [activeFilter, setActiveFilter] = useState<FilterOption>("OPEN");
   const [betSearchQuery, setBetSearchQuery] = useState("");
   const [betSortOption, setBetSortOption] = useState("Closing Soon");
 
   // Groups filtering state
   const [groupSearchQuery, setGroupSearchQuery] = useState("");
-  const [groupView, setGroupView] = useState("all"); // "all" | "recent"
+  const [groupView, setGroupView] = useState("all");
   const [groupBetsMap, setGroupBetsMap] = useState<{ [groupId: string]: any[] }>({});
 
   const handleLogout = async () => {
@@ -103,7 +102,7 @@ export default function HomePage() {
       (bet) => !getTimeRemaining(bet.closingAt).isClosed
     );
 
-    if (!hasActiveCountdowns) return; // Don't update if no active countdowns
+    if (!hasActiveCountdowns) return;
 
     const timer = setInterval(() => forceUpdate((n) => n + 1), 1000);
     return () => clearInterval(timer);
@@ -155,7 +154,7 @@ export default function HomePage() {
       const unsubGroups = onSnapshot(groupsQuery, (snapshot) => {
         const groupsData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
         setGroups(groupsData);
-        setLoading(false); // ← Set loading to false after groups load
+        setLoading(false);
       });
 
       // ✅ Real-time listener for bets created OR joined OR challenged (H2H)
@@ -180,7 +179,6 @@ export default function HomePage() {
         console.log("Bets created snapshot:", snapshot.docs.length);
         const created = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
         setBets((prev) => {
-          const existingIds = new Set(prev.map((b) => b.id));
           return [
             ...prev.filter((b) => !created.some((c) => c.id === b.id)),
             ...created,
@@ -192,7 +190,6 @@ export default function HomePage() {
         console.log("Bets joined snapshot:", snapshot.docs.length);
         const joined = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
         setBets((prev) => {
-          const existingIds = new Set(prev.map((b) => b.id));
           return [
             ...prev.filter((b) => !joined.some((j) => j.id === b.id)),
             ...joined,
@@ -204,7 +201,6 @@ export default function HomePage() {
         console.log("H2H challenges snapshot:", snapshot.docs.length);
         const h2hChallenges = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
         setBets((prev) => {
-          const existingIds = new Set(prev.map((b) => b.id));
           return [
             ...prev.filter((b) => !h2hChallenges.some((h) => h.id === b.id)),
             ...h2hChallenges,
@@ -278,11 +274,11 @@ export default function HomePage() {
   // Map FilterOption to existing FilterTab types for compatibility
   const mapFilterToTab = (filter: FilterOption): string => {
     const mapping: Record<FilterOption, string> = {
-      "All": "all",
-      "Open": "open",
-      "Picks": "picks",
-      "Pending": "pending",
-      "Soon": "soon",
+      "ALL": "all",
+      "OPEN": "open",
+      "MY PICKS": "picks",
+      "PENDING": "pending",
+      "SOON": "soon",
       "H2H": "h2h",
     };
     return mapping[filter];
@@ -316,7 +312,6 @@ export default function HomePage() {
     const groupBets = groupBetsMap[groupId] || [];
     if (groupBets.length === 0) return 0;
 
-    // Get the most recent bet's createdAt or updatedAt
     const times = groupBets.map(bet => {
       const created = new Date(bet.createdAt).getTime();
       const updated = bet.updatedAt ? new Date(bet.updatedAt).getTime() : created;
@@ -342,13 +337,11 @@ export default function HomePage() {
 
     // 2. Apply view (All vs Recent)
     if (groupView === "recent") {
-      // Sort by most recent bet activity
       const sortedGroups = [...displayGroups].sort((a, b) => {
         return getLastBetTime(b.id) - getLastBetTime(a.id);
       });
       displayGroups = sortedGroups;
     } else {
-      // "all" - sort alphabetically by default
       const sortedGroups = [...displayGroups].sort((a, b) =>
         a.name.localeCompare(b.name)
       );
@@ -497,147 +490,133 @@ export default function HomePage() {
   }
 
   return (
-    <>
-      {/* NEW: Figma Design Header */}
-      <HomeFeedHeader userId={user?.uid} />
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#0a0a0a",
+        fontFamily: "'Montserrat', sans-serif",
+      }}
+    >
+      {/* Header */}
+      <Header userId={user?.uid} />
 
-      {/* NEW: Navigation Tabs */}
-      <NavigationTabs />
+      {/* Navigation */}
+      <Navigation />
 
+      {/* Main Content */}
       <main
         style={{
-          minHeight: "100vh",
-          backgroundColor: "#1E1E1E",
-          color: "white",
-          paddingTop: "140px", // 80px header + 60px nav tabs
+          paddingTop: "140px", // 80px header + 60px nav
           paddingBottom: "80px",
-          paddingLeft: "24px",
-          paddingRight: "24px",
-          fontFamily: "'Montserrat', sans-serif",
+          color: "white",
         }}
       >
-        <div
-          style={{
-            maxWidth: "393px",
-            margin: "0 auto",
-          }}
-        >
-          {/* ACTIVE BETS Section */}
-          <section style={{ marginTop: "24px" }}>
-            {loading ? (
-              <div>
-                {[...Array(3)].map((_, i) => (
-                  <BetCardSkeleton key={i} />
-                ))}
-              </div>
-            ) : (
-              <>
-                {/* Active Bets Section with Title, Filter Pills, and Search */}
-                <ActiveBetsSection
-                  activeFilter={
-                    activeFilter === "All" ? "ALL" :
-                    activeFilter === "Open" ? "OPEN" :
-                    activeFilter === "Picks" ? "MY PICKS" :
-                    activeFilter === "Pending" ? "PENDING" :
-                    activeFilter === "Soon" ? "SOON" :
-                    "H2H"
-                  }
-                  onFilterChange={(filter) => {
-                    const mapped =
-                      filter === "ALL" ? "All" :
-                      filter === "OPEN" ? "Open" :
-                      filter === "MY PICKS" ? "Picks" :
-                      filter === "PENDING" ? "Pending" :
-                      filter === "SOON" ? "Soon" :
-                      "H2H";
-                    setActiveFilter(mapped as FilterOption);
-                  }}
-                  searchQuery={betSearchQuery}
-                  onSearchChange={setBetSearchQuery}
-                />
+        {/* ACTIVE BETS Section */}
+        <SectionTitle>ACTIVE BETS</SectionTitle>
 
-                {/* Bet Cards */}
-                {filteredAndSortedBets.length > 0 ? (
-                  <div>
-                    {(showAllBets ? filteredAndSortedBets : filteredAndSortedBets.slice(0, 5)).map((bet) => (
-                      <div key={bet.id} style={{ marginBottom: "12px" }}>
-                        <GroupBetCard
-                          bet={bet}
-                          currentUserId={user?.uid || ''}
-                          groupName={getGroupName(bet.groupId)}
-                          onVote={(betId, vote) => {
-                            const targetBet = bets.find(b => b.id === betId);
-                            if (targetBet) handleUserPick(targetBet, vote);
-                          }}
-                          onSubmitGuess={(betId, guess) => {
-                            const targetBet = bets.find(b => b.id === betId);
-                            if (targetBet) handleUserPick(targetBet, guess);
-                          }}
-                          onChangeVote={(betId) => {
-                            console.log('Change vote:', betId);
-                          }}
-                          onJudge={(betId, result) => {
-                            setJudgingBet(bet);
-                          }}
-                          onDeclareWinner={(betId, winnerId) => {
-                            console.log('Declare winner:', betId, winnerId);
-                          }}
-                          onDelete={async (betId) => {
-                            console.log('Delete bet:', betId);
-                          }}
-                        />
-                      </div>
-                    ))}
-                    {filteredAndSortedBets.length > 5 && (
-                      <button
-                        onClick={() => setShowAllBets(!showAllBets)}
-                        style={{
-                          display: "block",
-                          margin: "16px auto 0",
-                          fontSize: "12px",
-                          color: "#FF6B35",
-                          backgroundColor: "transparent",
-                          border: "none",
-                          cursor: "pointer",
-                          fontWeight: "600",
+        {/* Filter Tabs */}
+        <FilterTabs
+          selected={activeFilter}
+          onSelect={(filter) => setActiveFilter(filter as FilterOption)}
+        />
+
+        {/* Search Bar */}
+        <SearchBar
+          value={betSearchQuery}
+          onChange={setBetSearchQuery}
+          placeholder="Search Bets..."
+        />
+
+        {/* Bet Cards */}
+        <section style={{ padding: "0 16px" }}>
+          {loading ? (
+            <div>
+              {[...Array(3)].map((_, i) => (
+                <BetCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : (
+            <>
+              {filteredAndSortedBets.length > 0 ? (
+                <div>
+                  {(showAllBets ? filteredAndSortedBets : filteredAndSortedBets.slice(0, 5)).map((bet) => (
+                    <div key={bet.id} style={{ marginBottom: "12px" }}>
+                      <GroupBetCard
+                        bet={bet}
+                        currentUserId={user?.uid || ''}
+                        groupName={getGroupName(bet.groupId)}
+                        onVote={(betId, vote) => {
+                          const targetBet = bets.find(b => b.id === betId);
+                          if (targetBet) handleUserPick(targetBet, vote);
                         }}
-                      >
-                        {showAllBets ? "Show Less" : `Show All (${filteredAndSortedBets.length})`}
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <p
-                    style={{
-                      textAlign: "center",
-                      fontSize: "12px",
-                      color: "#888",
-                      marginTop: "24px",
-                    }}
-                  >
-                    {betSearchQuery.trim()
-                      ? `No bets found for "${betSearchQuery}"`
-                      : getEmptyStateMessage(mapFilterToTab(activeFilter) as any)}
-                  </p>
-                )}
-              </>
-            )}
-          </section>
+                        onSubmitGuess={(betId, guess) => {
+                          const targetBet = bets.find(b => b.id === betId);
+                          if (targetBet) handleUserPick(targetBet, guess);
+                        }}
+                        onChangeVote={(betId) => {
+                          console.log('Change vote:', betId);
+                        }}
+                        onJudge={(betId, result) => {
+                          setJudgingBet(bet);
+                        }}
+                        onDeclareWinner={(betId, winnerId) => {
+                          console.log('Declare winner:', betId, winnerId);
+                        }}
+                        onDelete={async (betId) => {
+                          console.log('Delete bet:', betId);
+                        }}
+                      />
+                    </div>
+                  ))}
+                  {filteredAndSortedBets.length > 5 && (
+                    <button
+                      onClick={() => setShowAllBets(!showAllBets)}
+                      style={{
+                        display: "block",
+                        margin: "16px auto 0",
+                        fontSize: "12px",
+                        color: "#FF6B35",
+                        backgroundColor: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        fontWeight: "600",
+                      }}
+                    >
+                      {showAllBets ? "Show Less" : `Show All (${filteredAndSortedBets.length})`}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <p
+                  style={{
+                    textAlign: "center",
+                    fontSize: "12px",
+                    color: "#71717A",
+                    marginTop: "24px",
+                  }}
+                >
+                  {betSearchQuery.trim()
+                    ? `No bets found for "${betSearchQuery}"`
+                    : getEmptyStateMessage(mapFilterToTab(activeFilter) as any)}
+                </p>
+              )}
+            </>
+          )}
+        </section>
 
-          {/* MY GROUPS Section */}
-          <section style={{ marginTop: "32px" }}>
-            <h2
-              style={{
-                fontSize: "12px",
-                fontWeight: "600",
-                color: "#FFFFFF",
-                textAlign: "center",
-                marginBottom: "12px",
-              }}
-            >
-              My Groups
-            </h2>
+        {/* MY GROUPS Section */}
+        <section style={{ marginTop: "32px" }}>
+          <SectionTitle>MY GROUPS</SectionTitle>
 
+          {/* Groups Search Bar */}
+          <SearchBar
+            value={groupSearchQuery}
+            onChange={setGroupSearchQuery}
+            placeholder="Search Groups..."
+          />
+
+          {/* Group Cards */}
+          <div style={{ padding: "0 16px" }}>
             {loading ? (
               <div>
                 {[...Array(2)].map((_, i) => (
@@ -646,13 +625,6 @@ export default function HomePage() {
               </div>
             ) : (
               <>
-                {/* Search Bar */}
-                <FeedSearchBar
-                  searchQuery={groupSearchQuery}
-                  onSearchChange={setGroupSearchQuery}
-                />
-
-                {/* Group Cards */}
                 {filteredAndSortedGroups.length > 0 ? (
                   <div>
                     {filteredAndSortedGroups.map((group) => (
@@ -668,7 +640,7 @@ export default function HomePage() {
                     style={{
                       textAlign: "center",
                       fontSize: "12px",
-                      color: "#888",
+                      color: "#71717A",
                       marginTop: "24px",
                     }}
                   >
@@ -679,8 +651,8 @@ export default function HomePage() {
                 )}
               </>
             )}
-          </section>
-        </div>
+          </div>
+        </section>
       </main>
 
       {showOnboarding && (
@@ -863,12 +835,10 @@ export default function HomePage() {
         <JudgeBetModal bet={judgingBet} onClose={() => setJudgingBet(null)} />
       )}
 
-      <Footer />
-
       <FloatingCreateBetButton
         groups={groups}
         onCreateBet={handleCreateBet}
       />
-    </>
+    </div>
   );
 }
