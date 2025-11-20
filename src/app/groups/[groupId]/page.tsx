@@ -27,6 +27,7 @@ import ArchivedBetCard from "../../../components/ArchivedBetCard";
 import FloatingCreateBetButton from "../../../components/FloatingCreateBetButton";
 import Footer from "../../../components/Footer";
 import BetFilters, { FilterTab, SortOption } from "../../../components/BetFilters";
+import { SeeMoreButton } from "../../../components/ui/SeeMoreButton";
 import ActivityFeed from "../../../components/ActivityFeed";
 import { getTimeRemaining } from "../../../utils/timeUtils";
 import { filterBets, sortBets, getEmptyStateMessage, searchBets } from "../../../utils/betFilters";
@@ -56,6 +57,10 @@ export default function GroupDetailPage() {
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [sortBy, setSortBy] = useState<SortOption>("closingSoon");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Active bets pagination state
+  const [activeExpanded, setActiveExpanded] = useState(false);
+  const [activeDisplayCount, setActiveDisplayCount] = useState(3);
 
   // Leave Group state
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -258,6 +263,38 @@ export default function GroupDetailPage() {
     }
   };
 
+  // Handler for See More / See Less pagination
+  const handleActiveSeeMore = () => {
+    if (activeExpanded) {
+      // Collapse back to 3
+      setActiveExpanded(false);
+      setActiveDisplayCount(3);
+    } else {
+      // Expand by 3 more
+      setActiveDisplayCount(prev => prev + 3);
+      setActiveExpanded(true);
+    }
+  };
+
+  // Reset display count when filters change
+  const handleTabChange = (tab: FilterTab) => {
+    setActiveTab(tab);
+    setActiveDisplayCount(3);
+    setActiveExpanded(false);
+  };
+
+  const handleSortChange = (sort: SortOption) => {
+    setSortBy(sort);
+    setActiveDisplayCount(3);
+    setActiveExpanded(false);
+  };
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    setActiveDisplayCount(3);
+    setActiveExpanded(false);
+  };
+
   // ⏱️ Countdown force re-render (only if there are active bets with countdowns)
   useEffect(() => {
     const activeBets = bets.filter((bet) => bet.status !== "JUDGED");
@@ -454,6 +491,11 @@ export default function GroupDetailPage() {
     return sorted;
   }, [activeBets, activeTab, searchQuery, sortBy, user]);
 
+  // Determine what to display based on pagination
+  const activeBetsToShow = useMemo(() => {
+    return filteredAndSortedBets.slice(0, activeDisplayCount);
+  }, [filteredAndSortedBets, activeDisplayCount]);
+
   if (loading)
     return (
       <main className="flex items-center justify-center min-h-screen bg-black text-white">
@@ -566,17 +608,17 @@ export default function GroupDetailPage() {
                 userId={user.uid}
                 activeTab={activeTab}
                 sortBy={sortBy}
-                onTabChange={setActiveTab}
-                onSortChange={setSortBy}
+                onTabChange={handleTabChange}
+                onSortChange={handleSortChange}
                 showGroupSort={false}
                 searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
+                onSearchChange={handleSearchChange}
               />
 
               {/* Filtered and Sorted Bets */}
-              {filteredAndSortedBets.length > 0 ? (
+              {activeBetsToShow.length > 0 ? (
                 <ul className="space-y-4 w-full mt-4">
-                  {filteredAndSortedBets.map((bet: any) => (
+                  {activeBetsToShow.map((bet: any) => (
                     <li key={bet.id}>
                       <GroupBetCard
                         bet={bet}
@@ -606,7 +648,7 @@ export default function GroupDetailPage() {
                         No bets found for "{searchQuery}"
                       </p>
                       <button
-                        onClick={() => setSearchQuery("")}
+                        onClick={() => handleSearchChange("")}
                         className="mt-2 text-orange-500 text-sm hover:text-orange-400 transition"
                       >
                         Clear search
@@ -619,6 +661,13 @@ export default function GroupDetailPage() {
                   )}
                 </div>
               )}
+
+              {/* SEE MORE Button */}
+              <SeeMoreButton
+                expanded={activeExpanded}
+                onClick={handleActiveSeeMore}
+                hasMore={filteredAndSortedBets.length > activeBetsToShow.length}
+              />
             </>
           ) : (
             <p className="text-gray-500 text-sm text-center">No active bets.</p>
