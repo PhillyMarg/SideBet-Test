@@ -224,6 +224,8 @@ export function GroupBetCard({
   const [isDeleting, setIsDeleting] = useState(false);
   const [creatorName, setCreatorName] = useState<string>("");
   const [h2hDisplayName, setH2hDisplayName] = useState<string>("");
+  const [challengerDisplayName, setChallengerDisplayName] = useState<string>("");
+  const [challengeeDisplayName, setChallengeeDisplayName] = useState<string>("");
 
   // Determine if this is an H2H bet
   const isH2H = isHeadToHeadBet(bet);
@@ -862,8 +864,8 @@ export function GroupBetCard({
     );
   };
 
-  // Build H2H display name (e.g., "Phil v. Evan")
-  const h2hDisplayName = challengerDisplayName && challengeeDisplayName
+  // Build H2H challenge display name (e.g., "Phil v. Evan")
+  const h2hChallengeDisplayName = challengerDisplayName && challengeeDisplayName
     ? `${challengerDisplayName.split(' ')[0]} v. ${challengeeDisplayName.split(' ')[0]}`
     : bet.isH2H ? 'H2H Challenge' : '';
 
@@ -882,7 +884,7 @@ export function GroupBetCard({
             className={`font-semibold text-[8px] ${textShadow}`}
             style={{ color: themeColor }}
           >
-            {h2hDisplayName || 'Challenge'}
+            {h2hChallengeDisplayName || 'Challenge'}
           </p>
 
           <p
@@ -987,7 +989,7 @@ export function GroupBetCard({
             className={`font-semibold text-[8px] ${textShadow}`}
             style={{ color: themeColor }}
           >
-            {h2hDisplayName || 'Challenge Sent'}
+            {h2hChallengeDisplayName || 'Challenge Sent'}
           </p>
 
           {isCreator && (
