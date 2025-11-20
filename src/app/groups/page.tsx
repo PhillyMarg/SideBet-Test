@@ -6,7 +6,6 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "../../lib/firebase/client";
 import CreateGroupWizard from "../../components/CreateGroupWizard";
 import Footer from "../../components/Footer";
-import FloatingCreateBetButton from "../../components/FloatingCreateBetButton";
 import {
   collection,
   query,
@@ -848,12 +847,6 @@ export default function GroupsPage() {
 
     {/* Footer */}
 <Footer />
-
-      {/* Floating Create Bet Button */}
-      <FloatingCreateBetButton
-        groups={groups}
-        onCreateBet={handleCreateBet}
-      />
       </main>
     </>
   );
