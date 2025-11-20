@@ -67,6 +67,31 @@ export default function HomePage() {
   const [betSearchQuery, setBetSearchQuery] = useState("");
   const [betSortOption, setBetSortOption] = useState("Closing Soon");
 
+  // Navigation state
+  const [selectedNav, setSelectedNav] = useState("CREATE GROUP");
+
+  // Handle navigation item selection
+  const handleNavSelect = (nav: string) => {
+    setSelectedNav(nav);
+    switch (nav) {
+      case "CREATE GROUP":
+        setShowCreateGroup(true);
+        break;
+      case "JOIN GROUP":
+        setShowJoinGroup(true);
+        break;
+      case "MY GROUPS":
+        router.push("/groups");
+        break;
+      case "FRIENDS":
+        router.push("/friends");
+        break;
+      case "ACCOUNT":
+        router.push("/settings");
+        break;
+    }
+  };
+
   // Groups filtering state
   const [groupSearchQuery, setGroupSearchQuery] = useState("");
   const [groupView, setGroupView] = useState("all");
@@ -501,7 +526,10 @@ export default function HomePage() {
       <Header userId={user?.uid} />
 
       {/* Navigation */}
-      <Navigation />
+      <Navigation
+        selected={selectedNav}
+        onSelect={handleNavSelect}
+      />
 
       {/* Main Content */}
       <main
