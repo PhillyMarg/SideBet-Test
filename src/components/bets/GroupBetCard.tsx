@@ -21,6 +21,7 @@ export interface Bet {
   type: BetType;
   creatorId: string;
   groupId: string;
+  friendId?: string;
   createdAt: string;
   closingAt: string;
   status: BetStatus;
@@ -46,6 +47,33 @@ export interface Bet {
   challengeeName?: string;
   h2hStatus?: "pending" | "accepted" | "declined";
   h2hOdds?: { challenger: number; challengee: number };
+}
+
+// ============ H2H HELPER FUNCTIONS ============
+
+// Check if bet is a head-to-head (Challenge Friend) bet
+function isHeadToHeadBet(bet: Bet): boolean {
+  return !!bet.friendId && !bet.groupId;
+}
+
+// Get display name for H2H bets (e.g., "Player 1 v. Player 2")
+async function getH2HDisplayName(bet: Bet): Promise<string> {
+  try {
+    // Get creator name
+    const creatorData = await fetchUserData(bet.creatorId);
+    const creatorName = getUserDisplayName(creatorData);
+
+    // Get friend name
+    if (!bet.friendId) return creatorName;
+
+    const friendData = await fetchUserData(bet.friendId);
+    const friendName = getUserDisplayName(friendData);
+
+    return `${creatorName} v. ${friendName}`;
+  } catch (error) {
+    console.error('Error fetching H2H names:', error);
+    return 'Head-to-Head';
+  }
 }
 
 export interface GroupBetCardProps {
@@ -195,27 +223,42 @@ export function GroupBetCard({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [creatorName, setCreatorName] = useState<string>("");
-  const [challengerDisplayName, setChallengerDisplayName] = useState<string>("");
-  const [challengeeDisplayName, setChallengeeDisplayName] = useState<string>("");
+  const [h2hDisplayName, setH2hDisplayName] = useState<string>("");
 
-  // Handler for group name click
-  const handleGroupClick = (e: React.MouseEvent) => {
+  // Determine if this is an H2H bet
+  const isH2H = isHeadToHeadBet(bet);
+
+  // Dynamic theme color: Purple for H2H, Orange for Groups
+  const themeColor = isH2H ? '#A855F7' : '#FF6B35';
+
+  // Handler for display name click (group name or H2H names)
+  const handleDisplayNameClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card expansion if card is clickable
 
-    if (!bet.groupId) {
-      console.error('No groupId found for bet:', bet.id);
-      return;
+    // Only navigate for group bets, not H2H
+    if (!isH2H && bet.groupId) {
+      router.push(`/groups/${bet.groupId}`);
     }
-
-    router.push(`/groups/${bet.groupId}`);
   };
 
   // Determine state
   const isCreator = bet.creatorId === currentUserId;
   const cardState = determineCardState(bet, currentUserId);
 
-  // Add countdown hook for active/placed/judge/waiting/challenged/pending states
-  const showCountdown = ['ACTIVE', 'PLACED', 'CHALLENGED', 'PENDING', 'JUDGE', 'WAITING_JUDGEMENT'].includes(cardState);
+  // Fetch H2H display name
+  useEffect(() => {
+    if (isH2H) {
+      getH2HDisplayName(bet).then(setH2hDisplayName);
+    }
+  }, [bet, isH2H]);
+
+  // Determine display name (H2H names or group name)
+  const displayName = isH2H
+    ? (h2hDisplayName || 'Loading...')
+    : (groupName || 'Unknown Group');
+
+  // Add countdown hook for active/placed/judge/waiting states
+  const showCountdown = ['ACTIVE', 'PLACED', 'JUDGE', 'WAITING_JUDGEMENT'].includes(cardState);
   const { timeRemaining, isUnderOneHour, isUnder24Hours } = useCountdown(bet.closingAt);
 
   // Calculate values
@@ -322,21 +365,32 @@ export function GroupBetCard({
     return "bg-[#18181B]"; // zinc-900
   };
 
-  // Get border class based on state
+  // Get border class based on state (color will be applied via style)
   const getBorderClass = (): string => {
     switch (cardState) {
       case "ACTIVE":
       case "PLACED":
-        return "border-2 border-[#FF6B35]";
+        return "border-2";
       case "JUDGE":
       case "WAITING_JUDGEMENT":
-        return "border border-[#FF6B35]";
+        return "border";
       case "WON":
         return "border-2 border-[#0ABF00]";
       case "LOST":
         return "border-2 border-[#C21717]";
       default:
-        return "border-2 border-[#FF6B35]";
+        return "border-2";
+    }
+  };
+
+  // Get border color based on state
+  const getBorderColor = (): string | undefined => {
+    switch (cardState) {
+      case "WON":
+      case "LOST":
+        return undefined; // Uses Tailwind classes
+      default:
+        return themeColor;
     }
   };
 
@@ -357,19 +411,21 @@ export function GroupBetCard({
       case "ACTIVE":
       case "PLACED":
         return (
-          <span className={`text-[8px] font-semibold ${textShadow} ${
-            isUnderOneHour
-              ? 'pulse-yellow'
-              : isUnder24Hours
-                ? 'text-[#FF6B35]'
-                : 'text-white'
-          }`}>
+          <span
+            className={`text-[8px] font-semibold ${textShadow} ${
+              isUnderOneHour ? 'pulse-yellow' : ''
+            }`}
+            style={{ color: isUnderOneHour ? undefined : (isUnder24Hours ? themeColor : 'white') }}
+          >
             Closes: {timeRemaining}
           </span>
         );
       case "JUDGE":
         return (
-          <span className={`text-[10px] font-extrabold text-white bg-[#FF6B35] px-2 py-0.5 rounded ${textShadow}`}>
+          <span
+            className={`text-[10px] font-extrabold text-white px-2 py-0.5 rounded ${textShadow}`}
+            style={{ backgroundColor: themeColor }}
+          >
             JUDGE BET!
           </span>
         );
@@ -394,7 +450,8 @@ export function GroupBetCard({
         <div className="h-[40px] px-[3px] py-[5px] flex gap-[10px]">
           <button
             onClick={() => onVote?.(bet.id, "YES")}
-            className={`flex-1 h-[20px] px-[37px] py-0 bg-[#FF6B35] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${textShadow}`}
+            className={`flex-1 h-[20px] px-[37px] py-0 text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${textShadow}`}
+            style={{ backgroundColor: themeColor }}
           >
             YES
           </button>
@@ -413,7 +470,8 @@ export function GroupBetCard({
         <div className="h-[40px] px-[3px] py-[5px] flex gap-[10px]">
           <button
             onClick={() => onVote?.(bet.id, "OVER")}
-            className={`flex-1 h-[20px] px-[37px] py-0 bg-[#FF6B35] text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${textShadow}`}
+            className={`flex-1 h-[20px] px-[37px] py-0 text-white rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${textShadow}`}
+            style={{ backgroundColor: themeColor }}
           >
             OVER
           </button>
@@ -435,7 +493,8 @@ export function GroupBetCard({
             value={guessInput}
             onChange={(e) => setGuessInput(e.target.value)}
             placeholder="Enter guess"
-            className="flex-1 h-[20px] bg-[#18181B] text-white rounded-[6px] text-[10px] px-2 border border-[#FF6B35]"
+            className="flex-1 h-[20px] bg-[#18181B] text-white rounded-[6px] text-[10px] px-2 border"
+            style={{ borderColor: themeColor }}
           />
           <button
             onClick={() => {
@@ -444,7 +503,8 @@ export function GroupBetCard({
                 setGuessInput("");
               }
             }}
-            className={`h-[20px] bg-[#FF6B35] text-white rounded-[6px] text-[10px] font-semibold px-4 flex items-center justify-center ${textShadow}`}
+            className={`h-[20px] text-white rounded-[6px] text-[10px] font-semibold px-4 flex items-center justify-center ${textShadow}`}
+            style={{ backgroundColor: themeColor }}
           >
             SUBMIT
           </button>
@@ -463,9 +523,9 @@ export function GroupBetCard({
       <>
         <div className={`text-[8px] font-semibold ${textShadow}`}>
           <span className="text-white">You Voted: </span>
-          <span className="text-[#FF6B35]">{displayPick}</span>
+          <span style={{ color: themeColor }}>{displayPick}</span>
           <span className="text-white"> | </span>
-          <span className="text-[#FF6B35]">Payout: {formatCurrency(calculatePayout())}</span>
+          <span style={{ color: themeColor }}>Payout: {formatCurrency(calculatePayout())}</span>
         </div>
 
         {/* Progress bar buttons for YES_NO and OVER_UNDER */}
@@ -475,9 +535,10 @@ export function GroupBetCard({
               disabled
               className={`flex-1 h-[20px] px-[37px] py-0 rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${
                 (userPick === "YES" || userPick === "OVER")
-                  ? "bg-[#FF6B35] text-white"
+                  ? "text-white"
                   : "bg-white text-[#18181B]"
               } ${textShadow}`}
+              style={(userPick === "YES" || userPick === "OVER") ? { backgroundColor: themeColor } : undefined}
             >
               {bet.type === "YES_NO" ? "YES" : "OVER"} {formatPercent(yes)}
             </button>
@@ -485,9 +546,10 @@ export function GroupBetCard({
               disabled
               className={`flex-1 h-[20px] px-[37px] py-0 rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${
                 (userPick === "NO" || userPick === "UNDER")
-                  ? "bg-[#FF6B35] text-white"
+                  ? "text-white"
                   : "bg-white text-[#18181B]"
               } ${textShadow}`}
+              style={(userPick === "NO" || userPick === "UNDER") ? { backgroundColor: themeColor } : undefined}
             >
               {bet.type === "YES_NO" ? "NO" : "UNDER"} {formatPercent(no)}
             </button>
@@ -549,7 +611,8 @@ export function GroupBetCard({
         <>
           <button
             onClick={() => setExpanded(!expanded)}
-            className={`w-full h-[31px] bg-[#18181B] border-2 border-[#FF6B35] rounded-[6px] text-white text-[12px] font-semibold flex items-center justify-center gap-2 ${textShadow}`}
+            className={`w-full h-[31px] bg-[#18181B] border-2 rounded-[6px] text-white text-[12px] font-semibold flex items-center justify-center gap-2 ${textShadow}`}
+            style={{ borderColor: themeColor }}
           >
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             {expanded ? "HIDE GUESSES" : "SEE GUESSES"}
@@ -557,7 +620,7 @@ export function GroupBetCard({
           </button>
 
           {expanded && (
-            <div className="mt-2 pt-3 border-t border-[rgba(255,107,53,0.2)]">
+            <div className="mt-2 pt-3 border-t" style={{ borderColor: `${themeColor}33` }}>
               <div className="space-y-2">
                 {guesses.map((entry) => (
                   <div
@@ -567,19 +630,25 @@ export function GroupBetCard({
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setSelectedWinner(entry.id)}
-                        className={`w-4 h-4 rounded border flex items-center justify-center ${
-                          selectedWinner === entry.id
-                            ? "bg-[#FF6B35] border-[#FF6B35]"
-                            : "border-[#FF6B35]"
-                        }`}
+                        className={`w-4 h-4 rounded border flex items-center justify-center`}
+                        style={{
+                          backgroundColor: selectedWinner === entry.id ? themeColor : 'transparent',
+                          borderColor: themeColor
+                        }}
                       >
                         {selectedWinner === entry.id && <Check size={10} className="text-white" />}
                       </button>
-                      <span className={`font-semibold ${textShadow} ${entry.id === currentUserId ? "text-[#FF6B35]" : "text-white"}`}>
+                      <span
+                        className={`font-semibold ${textShadow}`}
+                        style={{ color: entry.id === currentUserId ? themeColor : 'white' }}
+                      >
                         {entry.name}
                       </span>
                     </div>
-                    <span className={`font-semibold ${textShadow} ${entry.id === currentUserId ? "text-[#FF6B35]" : "text-white"}`}>
+                    <span
+                      className={`font-semibold ${textShadow}`}
+                      style={{ color: entry.id === currentUserId ? themeColor : 'white' }}
+                    >
                       {entry.guess}
                     </span>
                   </div>
@@ -624,7 +693,8 @@ export function GroupBetCard({
           </div>
           <button
             onClick={() => setExpanded(!expanded)}
-            className={`w-full h-[31px] bg-[#18181B] border-2 border-[#FF6B35] rounded-[6px] text-white text-[12px] font-semibold flex items-center justify-center gap-2 ${textShadow}`}
+            className={`w-full h-[31px] bg-[#18181B] border-2 rounded-[6px] text-white text-[12px] font-semibold flex items-center justify-center gap-2 ${textShadow}`}
+            style={{ borderColor: themeColor }}
           >
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             {expanded ? "HIDE GUESSES" : "SEE GUESSES"}
@@ -632,17 +702,17 @@ export function GroupBetCard({
           </button>
 
           {expanded && (
-            <div className="mt-2 pt-3 border-t border-[rgba(255,107,53,0.2)]">
+            <div className="mt-2 pt-3 border-t" style={{ borderColor: `${themeColor}33` }}>
               <div className="space-y-2">
                 {guesses.map((entry) => (
                   <div
                     key={entry.id}
                     className={`flex items-center justify-between text-[8px] font-semibold ${textShadow}`}
                   >
-                    <span className={entry.id === currentUserId ? "text-[#FF6B35]" : "text-white"}>
+                    <span style={{ color: entry.id === currentUserId ? themeColor : 'white' }}>
                       {entry.name}
                     </span>
-                    <span className={entry.id === currentUserId ? "text-[#FF6B35]" : "text-white"}>
+                    <span style={{ color: entry.id === currentUserId ? themeColor : 'white' }}>
                       {entry.guess}
                     </span>
                   </div>
@@ -658,9 +728,9 @@ export function GroupBetCard({
     return (
       <div className={`text-[8px] font-semibold ${textShadow}`}>
         <span className="text-white">You Voted: </span>
-        <span className="text-[#FF6B35]">{userPick as string}</span>
+        <span style={{ color: themeColor }}>{userPick as string}</span>
         <span className="text-white"> | </span>
-        <span className="text-[#FF6B35]">Payout: {formatCurrency(calculatePayout())}</span>
+        <span style={{ color: themeColor }}>Payout: {formatCurrency(calculatePayout())}</span>
       </div>
     );
   };
@@ -695,7 +765,8 @@ export function GroupBetCard({
           </div>
           <button
             onClick={() => setExpanded(!expanded)}
-            className={`w-full h-[31px] bg-[#18181B] border-2 border-[#FF6B35] rounded-[6px] text-white text-[12px] font-semibold flex items-center justify-center gap-2 ${textShadow}`}
+            className={`w-full h-[31px] bg-[#18181B] border-2 rounded-[6px] text-white text-[12px] font-semibold flex items-center justify-center gap-2 ${textShadow}`}
+            style={{ borderColor: themeColor }}
           >
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             {expanded ? "HIDE RESULTS" : "SEE RESULTS"}
@@ -703,17 +774,17 @@ export function GroupBetCard({
           </button>
 
           {expanded && (
-            <div className="mt-2 pt-3 border-t border-[rgba(255,107,53,0.2)]">
+            <div className="mt-2 pt-3 border-t" style={{ borderColor: `${themeColor}33` }}>
               <div className="space-y-2">
                 {guesses.map((entry, index) => (
                   <div
                     key={entry.id}
                     className={`flex items-center justify-between text-[8px] font-semibold ${textShadow}`}
                   >
-                    <span className={entry.id === currentUserId ? "text-[#FF6B35]" : "text-white"}>
+                    <span style={{ color: entry.id === currentUserId ? themeColor : 'white' }}>
                       {index + 1}. {entry.name} {entry.isWinner && "🏆"}
                     </span>
-                    <span className={entry.id === currentUserId ? "text-[#FF6B35]" : "text-white"}>
+                    <span style={{ color: entry.id === currentUserId ? themeColor : 'white' }}>
                       {entry.guess}
                     </span>
                   </div>
@@ -1006,19 +1077,21 @@ export function GroupBetCard({
   return (
     <div
       className={`relative w-full max-w-[393px] ${getBgClass()} rounded-[6px] ${getPaddingClass()} ${getBorderClass()} flex flex-col gap-[4px]`}
-      style={{ fontFamily: "'Montserrat', sans-serif" }}
+      style={{ fontFamily: "'Montserrat', sans-serif", borderColor: getBorderColor() }}
     >
-      {/* Header Row: Group Name on left, Status + Trash on right */}
+      {/* Header Row: Display Name on left, Status + Trash on right */}
       <div className="flex items-center justify-between">
-        {/* Left: Clickable Group Name */}
-        {groupName && (
-          <button
-            onClick={handleGroupClick}
-            className={`text-[8px] font-semibold text-[#FF6B35] ${textShadow} flex-shrink-0 cursor-pointer hover:underline hover:text-[#ff8555] transition-all`}
-          >
-            {groupName}
-          </button>
-        )}
+        {/* Left: Clickable Display Name (Group name or H2H names) */}
+        <button
+          onClick={handleDisplayNameClick}
+          className={`text-[8px] font-semibold ${textShadow} flex-shrink-0 ${
+            isH2H ? 'cursor-default' : 'cursor-pointer hover:underline hover:opacity-80'
+          } transition-all`}
+          style={{ color: themeColor }}
+          disabled={isH2H}
+        >
+          {displayName}
+        </button>
 
         {/* Right: Status Badge + Trash Icon */}
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -1044,7 +1117,7 @@ export function GroupBetCard({
 
       {/* O/U Line for OVER_UNDER type */}
       {bet.type === "OVER_UNDER" && bet.line !== undefined && (
-        <div className={`text-[8px] font-extrabold text-[#FF6B35] ${textShadow}`}>
+        <div className={`text-[8px] font-extrabold ${textShadow}`} style={{ color: themeColor }}>
           O/U Line: {bet.line}
         </div>
       )}
@@ -1065,7 +1138,7 @@ export function GroupBetCard({
       {cardState !== "WON" && cardState !== "LOST" && (
         <div className={`text-[8px] font-semibold ${textShadow}`}>
           <span className="text-white">Wager: {formatCurrency(wager)} | </span>
-          <span className="text-[#FF6B35]">Total Pot: {formatCurrency(pot)}</span>
+          <span style={{ color: themeColor }}>Total Pot: {formatCurrency(pot)}</span>
         </div>
       )}
 
@@ -1084,7 +1157,7 @@ export function GroupBetCard({
       {/* Delete Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[#18181B] rounded-lg p-4 max-w-sm mx-4 border border-[#FF6B35]">
+          <div className="bg-[#18181B] rounded-lg p-4 max-w-sm mx-4 border" style={{ borderColor: themeColor }}>
             <h4 className={`text-white font-semibold mb-2 ${textShadow}`}>Delete Bet?</h4>
             <p className={`text-[#a1a1aa] text-sm mb-4 ${textShadow}`}>
               Are you sure you want to delete this bet? This action cannot be undone.
