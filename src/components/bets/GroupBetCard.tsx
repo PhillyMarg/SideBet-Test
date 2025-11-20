@@ -774,6 +774,13 @@ export function GroupBetCard({
         {bet.title}
       </h3>
 
+      {/* O/U Line for OVER_UNDER type */}
+      {bet.type === "OVER_UNDER" && bet.line !== undefined && (
+        <div className={`text-[8px] font-extrabold text-[#FF6B35] ${textShadow}`}>
+          O/U Line: {bet.line}
+        </div>
+      )}
+
       {/* Won/Lost state - show creator and closed info */}
       {(cardState === "WON" || cardState === "LOST") && (
         <div className="flex flex-col gap-[4px]">
@@ -798,13 +805,6 @@ export function GroupBetCard({
       <div className={`text-[8px] font-semibold text-white ${textShadow}`}>
         Players: {people}
       </div>
-
-      {/* O/U Line for OVER_UNDER type */}
-      {bet.type === "OVER_UNDER" && bet.line !== undefined && (
-        <div className={`text-[8px] font-extrabold text-[#FF6B35] ${textShadow}`}>
-          O/U Line: {bet.line}
-        </div>
-      )}
 
       {/* State-specific content */}
       {cardState === "ACTIVE" && renderVotingButtons()}
