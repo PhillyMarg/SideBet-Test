@@ -29,7 +29,6 @@ import { createActivity } from "../../lib/activityHelpers";
 
 // NEW: Import the Figma design components
 import { Header } from "../../components/layout/Header";
-import { Navigation } from "../../components/layout/Navigation";
 import { FilterTabs } from "../../components/home/FilterTabs";
 import { SearchBar } from "../../components/home/SearchBar";
 import { SectionTitle } from "../../components/home/SectionTitle";
@@ -63,34 +62,9 @@ export default function HomePage() {
   const [onboardingCompleted, setOnboardingCompleted] = useState(true);
 
   // NEW: Filter and sort state for bets
-  const [activeFilter, setActiveFilter] = useState<FilterOption>("OPEN");
+  const [activeFilter, setActiveFilter] = useState<FilterOption>("ALL");
   const [betSearchQuery, setBetSearchQuery] = useState("");
   const [betSortOption, setBetSortOption] = useState("Closing Soon");
-
-  // Navigation state
-  const [selectedNav, setSelectedNav] = useState("CREATE GROUP");
-
-  // Handle navigation item selection
-  const handleNavSelect = (nav: string) => {
-    setSelectedNav(nav);
-    switch (nav) {
-      case "CREATE GROUP":
-        setShowCreateGroup(true);
-        break;
-      case "JOIN GROUP":
-        setShowJoinGroup(true);
-        break;
-      case "MY GROUPS":
-        router.push("/groups");
-        break;
-      case "FRIENDS":
-        router.push("/friends");
-        break;
-      case "ACCOUNT":
-        router.push("/settings");
-        break;
-    }
-  };
 
   // Groups filtering state
   const [groupSearchQuery, setGroupSearchQuery] = useState("");
@@ -522,19 +496,13 @@ export default function HomePage() {
         fontFamily: "'Montserrat', sans-serif",
       }}
     >
-      {/* Header */}
+      {/* Header with integrated navigation */}
       <Header userId={user?.uid} />
-
-      {/* Navigation */}
-      <Navigation
-        selected={selectedNav}
-        onSelect={handleNavSelect}
-      />
 
       {/* Main Content */}
       <main
         style={{
-          paddingTop: "140px", // 80px header + 60px nav
+          paddingTop: "100px", // 60px header + 40px nav
           paddingBottom: "80px",
           color: "white",
         }}

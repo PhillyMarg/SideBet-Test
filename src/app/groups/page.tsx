@@ -20,6 +20,7 @@ import { motion } from "framer-motion";
 import { Search, X, LogOut, Users, Dices } from "lucide-react";
 import { removeUserFromGroupBets } from "../../utils/groupHelpers";
 import { arrayRemove, doc } from "firebase/firestore";
+import { Header } from "../../components/layout/Header";
 
 export default function GroupsPage() {
   const router = useRouter();
@@ -410,9 +411,10 @@ export default function GroupsPage() {
 
   return (
     <>
+      <Header userId={user?.uid} />
       <main
-        className="min-h-screen bg-black text-white pb-16 sm:pb-20 pt-20 flex flex-col items-center"
-        style={{ "--content-width": "500px" } as React.CSSProperties}
+        className="min-h-screen bg-[#0a0a0a] text-white pb-16 sm:pb-20 flex flex-col items-center"
+        style={{ "--content-width": "500px", paddingTop: "100px" } as React.CSSProperties}
       >
       <div
         className="w-[92%] mx-auto py-6"

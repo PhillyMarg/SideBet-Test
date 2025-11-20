@@ -8,7 +8,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import Footer from "../../components/Footer";
-import Header from "../../components/Header";
+import { Header } from "../../components/layout/Header";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -60,10 +60,10 @@ export default function SettingsPage() {
 
   return (
     <>
-      <Header />
+      <Header userId={user?.uid} />
       <main
-        className="min-h-screen bg-black text-white pb-20 flex flex-col items-center"
-        style={{ "--content-width": "500px" } as React.CSSProperties}
+        className="min-h-screen bg-[#0a0a0a] text-white pb-20 flex flex-col items-center"
+        style={{ "--content-width": "500px", paddingTop: "100px" } as React.CSSProperties}
       >
       <div
         className="w-[92%] mx-auto py-8"

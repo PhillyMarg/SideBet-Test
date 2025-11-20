@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import PWAHead from "../components/PWAHead";
-import Header from "../components/Header";
 
 export const metadata: Metadata = {
   title: "SideBet - Social Betting for Friends",
@@ -17,8 +16,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans">
         <PWAHead />
-        <Header />
-        <main className="min-h-screen bg-black">
+        <main className="min-h-screen bg-[#0a0a0a]">
           {children}
         </main>
       </body>
