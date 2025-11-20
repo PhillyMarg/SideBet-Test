@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from 'next/navigation';
 import { Trash2, ChevronDown, ChevronUp, Check } from "lucide-react";
 import { deleteDoc, doc } from "firebase/firestore";
 import { db } from "../../lib/firebase/client";
@@ -155,6 +156,7 @@ export function GroupBetCard({
   onDeclareWinner,
   onDelete,
 }: GroupBetCardProps) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [guessInput, setGuessInput] = useState("");
   const [selectedWinner, setSelectedWinner] = useState<string | null>(null);
@@ -162,6 +164,18 @@ export function GroupBetCard({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [creatorName, setCreatorName] = useState<string>("");
+
+  // Handler for group name click
+  const handleGroupClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card expansion if card is clickable
+
+    if (!bet.groupId) {
+      console.error('No groupId found for bet:', bet.id);
+      return;
+    }
+
+    router.push(`/groups/${bet.groupId}`);
+  };
 
   // Determine state
   const isCreator = bet.creatorId === currentUserId;
@@ -728,11 +742,14 @@ export function GroupBetCard({
     >
       {/* Header Row: Group Name on left, Status + Trash on right */}
       <div className="flex items-center justify-between">
-        {/* Left: Group Name */}
+        {/* Left: Clickable Group Name */}
         {groupName && (
-          <span className={`text-[8px] font-semibold text-[#FF6B35] ${textShadow} flex-shrink-0`}>
+          <button
+            onClick={handleGroupClick}
+            className={`text-[8px] font-semibold text-[#FF6B35] ${textShadow} flex-shrink-0 cursor-pointer hover:underline hover:text-[#ff8555] transition-all`}
+          >
             {groupName}
-          </span>
+          </button>
         )}
 
         {/* Right: Status Badge + Trash Icon */}
