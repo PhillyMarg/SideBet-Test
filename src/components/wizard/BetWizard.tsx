@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Step1ChooseType } from './steps/Step1ChooseType';
 import { Step2SelectTarget } from './steps/Step2SelectTarget';
@@ -29,11 +29,42 @@ interface BetWizardProps {
   onClose: () => void;
   onComplete: (data: WizardData) => void;
   userId?: string;
+
+  // Pre-selection props
+  initialStep?: number;           // Start at specific step
+  initialTheme?: WizardTheme;     // Pre-select group or friend
+  initialTargetId?: string;       // Pre-select specific friend/group
+  initialTargetName?: string;     // Friend/group name
 }
 
-export function BetWizard({ isOpen, onClose, onComplete, userId }: BetWizardProps) {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [wizardData, setWizardData] = useState<WizardData>({ theme: 'group' });
+export function BetWizard({
+  isOpen,
+  onClose,
+  onComplete,
+  userId,
+  initialStep = 1,
+  initialTheme = 'group',
+  initialTargetId,
+  initialTargetName
+}: BetWizardProps) {
+  const [currentStep, setCurrentStep] = useState(initialStep);
+  const [wizardData, setWizardData] = useState<WizardData>({
+    theme: initialTheme,
+    targetId: initialTargetId,
+    targetName: initialTargetName
+  });
+
+  // Reset when modal opens with new initial values
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentStep(initialStep);
+      setWizardData({
+        theme: initialTheme,
+        targetId: initialTargetId,
+        targetName: initialTargetName
+      });
+    }
+  }, [isOpen, initialStep, initialTheme, initialTargetId, initialTargetName]);
 
   if (!isOpen) return null;
 
@@ -62,9 +93,13 @@ export function BetWizard({ isOpen, onClose, onComplete, userId }: BetWizardProp
   };
 
   const handleClose = () => {
-    // Close and reset progress
-    setCurrentStep(1);
-    setWizardData({ theme: 'group' });
+    // Close and reset progress to initial values
+    setCurrentStep(initialStep);
+    setWizardData({
+      theme: initialTheme,
+      targetId: initialTargetId,
+      targetName: initialTargetName
+    });
     onClose();
   };
 
@@ -127,6 +162,8 @@ export function BetWizard({ isOpen, onClose, onComplete, userId }: BetWizardProp
                 onNext={handleNext}
                 onBack={handleBack}
                 userId={userId}
+                initialTargetId={wizardData.targetId}
+                initialTargetName={wizardData.targetName}
               />
             )}
             {currentStep === 3 && (
