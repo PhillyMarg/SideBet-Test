@@ -387,39 +387,88 @@ export function GroupBetCard({
   // Render placed state (user has voted)
   const renderPlacedContent = () => {
     const displayPick = userPick as string;
+    const canChangeVote = !isUnderOneHour;
+
+    // Calculate percentages for progress bar
+    // For YES/NO: yes = YES%, no = NO%
+    // For OVER/UNDER: yes = OVER%, no = UNDER%
+    const isYesNo = bet.type === "YES_NO";
+    const isOverUnder = bet.type === "OVER_UNDER";
+
+    // Option 1 (left side) is NO or UNDER
+    // Option 2 (right side) is YES or OVER
+    const option1Label = isYesNo ? "NO" : "UNDER";
+    const option2Label = isYesNo ? "YES" : "OVER";
+    const option1Percent = no; // no = NO% or UNDER%
+    const option2Percent = yes; // yes = YES% or OVER%
 
     return (
       <>
-        <div className={`text-[8px] font-semibold ${textShadow}`}>
-          <span className="text-white">You Voted: </span>
-          <span className="text-[#FF6B35]">{displayPick}</span>
-          <span className="text-white"> | </span>
-          <span className="text-[#FF6B35]">Payout: {formatCurrency(calculatePayout())}</span>
+        {/* You Voted + Change Vote Button Row */}
+        <div className="flex items-center justify-between">
+          <div className={`text-[8px] font-semibold ${textShadow}`}>
+            <span className="text-white">You Voted: </span>
+            <span className="text-[#FF6B35]">{displayPick}</span>
+            <span className="text-white"> | </span>
+            <span className="text-[#FF6B35]">Payout: {formatCurrency(calculatePayout())}</span>
+          </div>
+
+          {/* Change Vote Button (only if >1 hour remaining) */}
+          {canChangeVote && (
+            <button
+              onClick={() => onChangeVote?.(bet.id)}
+              className={`
+                border-2 border-[#ff6b35] rounded-[6px]
+                h-[15px] px-2
+                font-semibold text-[8px] text-white
+                hover:bg-[#ff6b35]/10 transition-colors
+                flex items-center justify-center
+                ${textShadow}
+              `}
+            >
+              Change Vote
+            </button>
+          )}
         </div>
 
-        {/* Progress bar buttons for YES_NO and OVER_UNDER */}
-        {(bet.type === "YES_NO" || bet.type === "OVER_UNDER") && (
-          <div className="h-[40px] px-[3px] py-[5px] flex gap-[10px] mt-1">
-            <button
-              disabled
-              className={`flex-1 h-[20px] px-[37px] py-0 rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${
-                (userPick === "YES" || userPick === "OVER")
-                  ? "bg-[#FF6B35] text-white"
-                  : "bg-white text-[#18181B]"
-              } ${textShadow}`}
+        {/* Progress Bar for YES_NO and OVER_UNDER */}
+        {(isYesNo || isOverUnder) && (
+          <div className="mt-2">
+            {/* Progress Bar Container */}
+            <div
+              className="h-[20px] w-full rounded-[6px] border-2 border-[#ff6b35] overflow-hidden flex"
+              style={{ transition: 'all 300ms ease' }}
             >
-              {bet.type === "YES_NO" ? "YES" : "OVER"} {formatPercent(yes)}
-            </button>
-            <button
-              disabled
-              className={`flex-1 h-[20px] px-[37px] py-0 rounded-[6px] text-[10px] font-semibold flex items-center justify-center ${
-                (userPick === "NO" || userPick === "UNDER")
-                  ? "bg-[#FF6B35] text-white"
-                  : "bg-white text-[#18181B]"
-              } ${textShadow}`}
-            >
-              {bet.type === "YES_NO" ? "NO" : "UNDER"} {formatPercent(no)}
-            </button>
+              {/* Option 1 (NO/UNDER) - Dark side (left) */}
+              <div
+                className="h-full bg-[#1e1e1e] flex items-center justify-center relative"
+                style={{
+                  width: `${option1Percent}%`,
+                  transition: 'width 300ms ease'
+                }}
+              >
+                {option1Percent > 15 && (
+                  <span className={`text-[10px] font-semibold text-white ${textShadow}`}>
+                    {option1Label} {option1Percent}%
+                  </span>
+                )}
+              </div>
+
+              {/* Option 2 (YES/OVER) - Orange side (right) */}
+              <div
+                className="h-full bg-[#ff6b35] flex items-center justify-center relative"
+                style={{
+                  width: `${option2Percent}%`,
+                  transition: 'width 300ms ease'
+                }}
+              >
+                {option2Percent > 15 && (
+                  <span className={`text-[10px] font-semibold text-white ${textShadow}`}>
+                    {option2Label} {option2Percent}%
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </>

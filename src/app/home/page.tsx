@@ -21,6 +21,7 @@ import { signOut } from "firebase/auth";
 import JudgeBetModal from "../../components/JudgeBetModal";
 import { GroupBetCard, determineCardState } from "../../components/bets/GroupBetCard";
 import FloatingCreateBetButton from "../../components/FloatingCreateBetButton";
+import { ChangeVoteModal } from "../../components/modals/ChangeVoteModal";
 import { SeeMoreButton } from "../../components/ui/SeeMoreButton";
 import BetCardSkeleton from "../../components/BetCardSkeleton";
 import GroupCardSkeleton from "../../components/GroupCardSkeleton";
@@ -60,6 +61,10 @@ export default function HomePage() {
   const [judgingBet, setJudgingBet] = useState<any>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true);
+
+  // Change vote modal state
+  const [changeVoteModalOpen, setChangeVoteModalOpen] = useState(false);
+  const [changeVoteBet, setChangeVoteBet] = useState<any>(null);
 
   // Active bets state
   const [activeFilter, setActiveFilter] = useState<FilterOption>("ALL");
@@ -485,6 +490,35 @@ export default function HomePage() {
     }
   };
 
+  // Handle change vote - open modal
+  const handleChangeVote = (betId: string) => {
+    const bet = bets.find(b => b.id === betId);
+    if (bet) {
+      setChangeVoteBet(bet);
+      setChangeVoteModalOpen(true);
+    }
+  };
+
+  // Handle confirm vote change - update Firebase
+  const handleConfirmVoteChange = async (newVote: string) => {
+    if (!changeVoteBet || !user?.uid) return;
+
+    try {
+      const betRef = doc(db, 'bets', changeVoteBet.id);
+      await updateDoc(betRef, {
+        [`picks.${user.uid}`]: newVote,
+        updatedAt: new Date().toISOString()
+      });
+
+      console.log('Vote changed successfully');
+      setChangeVoteModalOpen(false);
+      setChangeVoteBet(null);
+    } catch (error) {
+      console.error('Error changing vote:', error);
+      alert('Failed to change vote. Please try again.');
+    }
+  };
+
   const handleCreateGroup = async (groupData: any) => {
     if (!user) {
       alert("You must be signed in to create a group.");
@@ -590,9 +624,7 @@ export default function HomePage() {
                           const targetBet = bets.find(b => b.id === betId);
                           if (targetBet) handleUserPick(targetBet, guess);
                         }}
-                        onChangeVote={(betId) => {
-                          console.log('Change vote:', betId);
-                        }}
+                        onChangeVote={handleChangeVote}
                         onJudge={(betId, result) => {
                           setJudgingBet(bet);
                         }}
@@ -889,6 +921,21 @@ export default function HomePage() {
       {/* Judge Bet Modal */}
       {judgingBet && (
         <JudgeBetModal bet={judgingBet} onClose={() => setJudgingBet(null)} />
+      )}
+
+      {/* Change Vote Modal */}
+      {changeVoteBet && (
+        <ChangeVoteModal
+          isOpen={changeVoteModalOpen}
+          onClose={() => {
+            setChangeVoteModalOpen(false);
+            setChangeVoteBet(null);
+          }}
+          onConfirm={handleConfirmVoteChange}
+          betType={changeVoteBet?.type as 'YES_NO' | 'OVER_UNDER'}
+          currentVote={changeVoteBet?.picks?.[user?.uid || ''] || ''}
+          betTitle={changeVoteBet?.title || ''}
+        />
       )}
 
       <FloatingCreateBetButton
