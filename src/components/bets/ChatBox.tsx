@@ -155,14 +155,6 @@ export function ChatBox({
     }
   };
 
-  // Handle toggle - NO SCROLL, PURE TOGGLE
-  const handleToggle = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onToggle();
-
-    // Chat should expand in place without any scrolling
-  };
 
   // Send message
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -211,11 +203,16 @@ export function ChatBox({
       ref={chatContainerRef}
       className="border-t border-zinc-800"
       style={{ overflowAnchor: 'none' }}
+      onClick={(e) => e.stopPropagation()}
     >
       {/* Header Button */}
       <button
-        onClick={handleToggle}
         type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onToggle();
+        }}
         className="w-full px-3 py-2 flex items-center justify-between hover:bg-zinc-800/50 transition-colors"
       >
         <div className="flex items-center gap-2">
@@ -224,20 +221,16 @@ export function ChatBox({
           </span>
 
           {unreadCount > 0 && !isExpanded && (
-            <div className="
-              bg-[#ff6b35] text-white
-              px-1.5 py-0.5 rounded-full
-              text-[8px] font-bold font-montserrat
-            ">
+            <div className="bg-[#ff6b35] text-white px-1.5 py-0.5 rounded-full text-[8px] font-bold font-montserrat">
               {unreadCount}
             </div>
           )}
         </div>
 
         {isExpanded ? (
-          <ChevronUp size={12} className="text-zinc-400" />
+          <ChevronUp size={14} className="text-zinc-400" />
         ) : (
-          <ChevronDown size={12} className="text-zinc-400" />
+          <ChevronDown size={14} className="text-zinc-400" />
         )}
       </button>
 
