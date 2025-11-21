@@ -249,3 +249,80 @@ export async function getUserTournaments(userId: string): Promise<{
     throw error;
   }
 }
+
+/**
+ * Remove participant from tournament
+ */
+export async function removeParticipant(
+  tournamentId: string,
+  userId: string
+): Promise<void> {
+  try {
+    const tournament = await getTournament(tournamentId);
+    if (!tournament) throw new Error('Tournament not found');
+
+    const updatedParticipants = tournament.participants.filter(
+      p => p.userId !== userId
+    );
+
+    const docRef = doc(db, TOURNAMENTS_COLLECTION, tournamentId);
+    await updateDoc(docRef, {
+      participants: updatedParticipants
+    });
+  } catch (error) {
+    console.error('Error removing participant:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update participant seed
+ */
+export async function updateParticipantSeed(
+  tournamentId: string,
+  userId: string,
+  newSeed: number
+): Promise<void> {
+  try {
+    const tournament = await getTournament(tournamentId);
+    if (!tournament) throw new Error('Tournament not found');
+
+    const updatedParticipants = tournament.participants.map(p =>
+      p.userId === userId ? { ...p, seed: newSeed } : p
+    );
+
+    const docRef = doc(db, TOURNAMENTS_COLLECTION, tournamentId);
+    await updateDoc(docRef, {
+      participants: updatedParticipants
+    });
+  } catch (error) {
+    console.error('Error updating participant seed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Bulk update all participant seeds
+ */
+export async function updateAllSeeds(
+  tournamentId: string,
+  seedAssignments: { userId: string; seed: number }[]
+): Promise<void> {
+  try {
+    const tournament = await getTournament(tournamentId);
+    if (!tournament) throw new Error('Tournament not found');
+
+    const updatedParticipants = tournament.participants.map(p => {
+      const assignment = seedAssignments.find(a => a.userId === p.userId);
+      return assignment ? { ...p, seed: assignment.seed } : p;
+    });
+
+    const docRef = doc(db, TOURNAMENTS_COLLECTION, tournamentId);
+    await updateDoc(docRef, {
+      participants: updatedParticipants
+    });
+  } catch (error) {
+    console.error('Error updating seeds:', error);
+    throw error;
+  }
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from 'next/navigation';
 import { Tournament } from '@/types/tournament';
 import { Calendar, Users, Trophy } from 'lucide-react';
 
@@ -9,7 +10,16 @@ interface TournamentCardProps {
 }
 
 export function TournamentCard({ tournament, onClick }: TournamentCardProps) {
+  const router = useRouter();
   const startDate = new Date(tournament.startDate);
+
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    } else {
+      router.push(`/events/${tournament.id}`);
+    }
+  };
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
@@ -29,7 +39,7 @@ export function TournamentCard({ tournament, onClick }: TournamentCardProps) {
 
   return (
     <div
-      onClick={onClick}
+      onClick={handleClick}
       className="bg-zinc-900 rounded-lg p-4 border border-zinc-800 hover:border-[#ff6b35] transition-colors cursor-pointer"
     >
       {/* Tournament Name */}
