@@ -23,7 +23,6 @@ import {
 } from "firebase/firestore";
 import JudgeBetModal from "../../../components/JudgeBetModal";
 import { GroupBetCard } from "../../../components/bets/GroupBetCard";
-import ArchivedBetCard from "../../../components/ArchivedBetCard";
 import { Header } from "../../../components/layout/Header";
 import BetFilters, { FilterTab, SortOption } from "../../../components/BetFilters";
 import { SeeMoreButton } from "../../../components/ui/SeeMoreButton";
@@ -64,7 +63,6 @@ export default function GroupDetailPage() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
   const [creatorName, setCreatorName] = useState<string>("Loading...");
   const [judgingBet, setJudgingBet] = useState<any>(null);
   const [, forceUpdate] = useState(0);
@@ -495,7 +493,6 @@ export default function GroupDetailPage() {
   }, [groupId, router]);
 
   const activeBets = bets.filter((b) => b.status !== "JUDGED");
-  const archivedBets = bets.filter((b) => b.status === "JUDGED");
 
   // Apply filters and sorting to active bets
   const filteredAndSortedBets = useMemo(() => {
@@ -778,46 +775,6 @@ export default function GroupDetailPage() {
           </AnimatePresence>
         </section>
 
-        {/* 🗂️ ARCHIVED BETS */}
-        <section className="mt-8">
-          <div className="flex justify-between w-full items-center bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3">
-            <h3 className="text-lg font-semibold text-white">Archived Bets</h3>
-            <button
-              onClick={() => setShowArchived(!showArchived)}
-              className="text-orange-400 text-sm font-medium hover:text-orange-300 transition"
-            >
-              {showArchived ? "Hide" : "Show"}
-            </button>
-          </div>
-
-          <AnimatePresence initial={false}>
-            {showArchived && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.35, ease: "easeInOut" }}
-                className="overflow-hidden mt-3 bg-zinc-900 border border-zinc-800 rounded-xl p-3 space-y-2"
-              >
-                {archivedBets.length > 0 ? (
-                  archivedBets
-                    .sort(
-                      (a: any, b: any) =>
-                        new Date(b.closingAt).getTime() -
-                        new Date(a.closingAt).getTime()
-                    )
-                    .map((bet: any) => (
-                      <ArchivedBetCard key={bet.id} bet={bet} user={user} />
-                    ))
-                ) : (
-                  <p className="text-gray-500 text-sm text-center">
-                    No archived bets.
-                  </p>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </section>
       </div>
 
       {/* Judge Bet Modal */}
