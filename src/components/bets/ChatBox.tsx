@@ -50,27 +50,19 @@ export function ChatBox({
   const inputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Calculate dynamic height based on message count
-  const getMessagesHeightPx = (): number => {
+  // Calculate dynamic height
+  const getMessagesHeight = () => {
     const messageCount = messages.length;
+    if (messageCount === 0) return 80;
 
-    // Empty state - minimal height
-    if (messageCount === 0) {
-      return 80;
-    }
-
-    // Height per message (bubble + spacing)
-    const singleMessageHeight = 50;
-    const padding = 16;
-
-    // Cap at 5 messages visible
-    const visibleMessages = Math.min(messageCount, 5);
-    return (visibleMessages * singleMessageHeight) + padding;
+    const messagesToShow = Math.min(messageCount, 5);
+    return (messagesToShow * 45) + 16;
   };
 
-  const messagesHeight = getMessagesHeightPx();
+  const messagesHeight = getMessagesHeight();
+  const needsScroll = messages.length > 5;
 
-  // Fetch initial messages (last 5)
+  // Fetch messages
   useEffect(() => {
     if (!betId) return;
 
@@ -103,7 +95,7 @@ export function ChatBox({
     return () => unsubscribe();
   }, [betId, currentUserId, lastReadTimestamp, isExpanded]);
 
-  // Mark messages as read when expanded
+  // Mark as read
   useEffect(() => {
     if (isExpanded) {
       setLastReadTimestamp(new Date());
@@ -111,7 +103,7 @@ export function ChatBox({
     }
   }, [isExpanded]);
 
-  // Auto-scroll to bottom on new message
+  // Auto-scroll to bottom
   useEffect(() => {
     if (isExpanded && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -120,7 +112,9 @@ export function ChatBox({
 
   // Load more messages
   const loadMoreMessages = async () => {
-    if (!hasMore || messages.length === 0) return;
+    if (!hasMore || messages.length === 0 || loading) return;
+
+    setLoading(true);
 
     const messagesRef = collection(db, 'bets', betId, 'messages');
     const oldestMessage = messages[0];
@@ -136,6 +130,7 @@ export function ChatBox({
 
     if (snapshot.empty) {
       setHasMore(false);
+      setLoading(false);
       return;
     }
 
@@ -146,63 +141,39 @@ export function ChatBox({
 
     setMessages([...olderMsgs.reverse(), ...messages]);
     setHasMore(snapshot.docs.length === 10);
+    setLoading(false);
   };
 
-  // Handle scroll for infinite scroll
+  // Handle scroll
   const handleScroll = () => {
-    if (!messagesContainerRef.current) return;
+    if (!messagesContainerRef.current || loading) return;
 
     const { scrollTop } = messagesContainerRef.current;
 
-    if (scrollTop === 0 && hasMore && !loading) {
+    if (scrollTop === 0 && hasMore) {
       loadMoreMessages();
     }
   };
 
-  // Handle toggle with proper scroll control
+  // Handle toggle - NO SCROLL, PURE TOGGLE
   const handleToggle = () => {
-    const newExpandedState = !isExpanded;
-
-    // If collapsing, just toggle
-    if (!newExpandedState) {
-      onToggle();
-      return;
+    // Prevent any hash changes
+    if (window.location.hash) {
+      history.replaceState(null, '', window.location.pathname);
     }
 
-    // If expanding, prevent scroll jump and center card
-    if (chatContainerRef.current) {
-      // Toggle expansion first
-      onToggle();
+    // Store current scroll position
+    const scrollY = window.pageYOffset;
 
-      // Wait for DOM to update with expansion
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const element = chatContainerRef.current;
-          if (!element) return;
+    // Just toggle
+    onToggle();
 
-          // Get element position after expansion
-          const rect = element.getBoundingClientRect();
-          const elementTop = rect.top + window.pageYOffset;
-
-          // Calculate scroll to center card in viewport
-          const viewportHeight = window.innerHeight;
-          const cardElement = element.parentElement;
-          const cardRect = cardElement?.getBoundingClientRect();
-          const cardHeight = cardRect?.height || 0;
-
-          // Center the entire card (not just chat)
-          const targetScroll = elementTop - cardHeight - (viewportHeight / 2) + (cardHeight / 1.2);
-
-          // Smooth scroll
-          window.scrollTo({
-            top: Math.max(0, targetScroll),
-            behavior: 'smooth'
-          });
-        });
-      });
-    } else {
-      onToggle();
-    }
+    // Immediately restore scroll if it changed
+    requestAnimationFrame(() => {
+      if (window.pageYOffset !== scrollY) {
+        window.scrollTo(0, scrollY);
+      }
+    });
   };
 
   // Send message
@@ -231,7 +202,7 @@ export function ChatBox({
     }
   };
 
-  // Format timestamp
+  // Format time
   const formatTime = (timestamp: any) => {
     if (!timestamp) return '';
 
@@ -248,20 +219,36 @@ export function ChatBox({
   };
 
   return (
-    <div ref={chatContainerRef} className="border-t border-zinc-800">
-      {/* Collapsed Header */}
+    <div
+      ref={chatContainerRef}
+      className="border-t border-zinc-800"
+      style={{ overflowAnchor: 'none' }}
+    >
+      {/* Header Button */}
       <button
         onClick={(e) => {
+          // Prevent ALL default behaviors
           e.preventDefault();
           e.stopPropagation();
+
+          // Pure toggle
           handleToggle();
+        }}
+        onMouseDown={(e) => {
+          // Prevent focus-related scroll
+          e.preventDefault();
         }}
         type="button"
         className="
           w-full px-3 py-2
           flex items-center justify-between
           hover:bg-zinc-800/50 transition-colors
+          select-none
         "
+        style={{
+          cursor: 'pointer',
+          WebkitTapHighlightColor: 'transparent'
+        }}
       >
         <div className="flex items-center gap-2">
           <span className="text-white font-montserrat font-semibold text-[8px]">
@@ -289,37 +276,37 @@ export function ChatBox({
       {/* Expanded Chat */}
       {isExpanded && (
         <div className="bg-[#0a0a0a] border-t border-zinc-800">
-          {/* Messages Container - Dynamic Height */}
+          {/* Messages Container */}
           <div
             ref={messagesContainerRef}
             onScroll={handleScroll}
-            className="
-              overflow-y-auto
+            className={`
               px-3 py-2 space-y-2
               scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent
-              transition-all duration-300
-            "
+              ${needsScroll ? 'overflow-y-auto' : 'overflow-y-visible'}
+            `}
             style={{
               height: `${messagesHeight}px`,
-              minHeight: '80px',
-              maxHeight: '266px'
+              maxHeight: '225px',
+              minHeight: '60px',
+              transition: 'height 0.2s ease-out'
             }}
           >
-            {/* Load More Button */}
-            {hasMore && messages.length >= 5 && (
+            {hasMore && messages.length >= 5 && needsScroll && (
               <button
                 onClick={loadMoreMessages}
+                disabled={loading}
                 className="
                   w-full text-center text-zinc-500 text-[8px]
                   font-montserrat py-1.5
                   hover:text-zinc-400
+                  disabled:opacity-50
                 "
               >
-                Load older messages
+                {loading ? 'Loading...' : 'Load older messages'}
               </button>
             )}
 
-            {/* Messages or Empty State */}
             {messages.length === 0 ? (
               <div className="
                 h-full flex items-center justify-center
@@ -354,7 +341,6 @@ export function ChatBox({
                         </p>
                       )}
 
-                      {/* Message + Timestamp INLINE */}
                       <div className="flex items-end gap-2">
                         <p className="
                           text-white font-montserrat text-[8px]
@@ -379,7 +365,7 @@ export function ChatBox({
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Area */}
+          {/* Input */}
           <form
             onSubmit={handleSendMessage}
             className="

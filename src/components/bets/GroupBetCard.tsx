@@ -298,6 +298,8 @@ export function GroupBetCard({
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Auto-collapse chat when scrolling away from card
+  // TEMPORARILY DISABLED to debug scroll jump issue
+  /*
   useEffect(() => {
     if (!chatExpanded || !cardRef.current) return;
 
@@ -320,6 +322,7 @@ export function GroupBetCard({
 
     return () => observer.disconnect();
   }, [chatExpanded]);
+  */
 
   // Determine if this is an H2H bet
   const isH2H = isHeadToHeadBet(bet);
