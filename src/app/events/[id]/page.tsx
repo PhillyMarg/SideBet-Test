@@ -16,8 +16,12 @@ import {
   Globe,
   ArrowLeft,
   Settings,
-  MessageSquare
+  MessageSquare,
+  Loader2
 } from 'lucide-react';
+import { getTournamentBets } from '@/services/tournamentBetService';
+import { TournamentBet } from '@/types/tournamentBet';
+import { TournamentBetCard } from '@/components/tournaments/TournamentBetCard';
 
 export default function TournamentDetailsPage() {
   const params = useParams();
@@ -406,23 +410,193 @@ function ParticipantsTab({ tournament, isDirector }: { tournament: Tournament; i
 }
 
 function StandardBetsTab({ tournament }: { tournament: Tournament }) {
+  const [bets, setBets] = useState<TournamentBet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    async function loadBets() {
+      try {
+        setLoading(true);
+        const allBets = await getTournamentBets(tournament.id);
+        const standardBets = allBets.filter((b) => b.isStandard);
+        setBets(standardBets);
+      } catch (err) {
+        console.error('Error loading bets:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadBets();
+  }, [tournament.id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="animate-spin text-zinc-400" size={24} />
+      </div>
+    );
+  }
+
+  if (bets.length === 0) {
+    return (
+      <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800 text-center">
+        <p className="text-zinc-400">No standard bets yet</p>
+        <p className="text-zinc-500 text-sm mt-2">
+          Standard bets will be created when the bracket is generated
+        </p>
+      </div>
+    );
+  }
+
+  // Group bets by type
+  const tournamentWinnerBets = bets.filter((b) => b.type === 'tournament_winner');
+  const finalFourBets = bets.filter((b) => b.type === 'final_four');
+  const matchupBets = bets.filter((b) => b.type === 'matchup_winner');
+
+  // Get user's picks
+  const getUserPick = (bet: TournamentBet) => {
+    if (!user) return undefined;
+    const pick = bet.picks.find((p) => p.userId === user.uid);
+    return pick?.selectionLabel;
+  };
+
   return (
-    <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800 text-center">
-      <p className="text-zinc-400">Standard bets will appear here</p>
-      <p className="text-zinc-500 text-sm mt-2">
-        Auto-generated bets for tournament outcomes
-      </p>
+    <div className="space-y-6">
+      {/* Tournament Winner */}
+      {tournamentWinnerBets.length > 0 && (
+        <div>
+          <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-3">
+            Tournament Winner
+          </h3>
+          <div className="space-y-2">
+            {tournamentWinnerBets.map((bet) => (
+              <TournamentBetCard
+                key={bet.id}
+                bet={bet}
+                userPick={getUserPick(bet)}
+                onClick={() => {
+                  // TODO: Open bet details modal
+                  console.log('Bet clicked:', bet);
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Final Four */}
+      {finalFourBets.length > 0 && (
+        <div>
+          <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-3">
+            Final Four
+          </h3>
+          <div className="space-y-2">
+            {finalFourBets.map((bet) => (
+              <TournamentBetCard
+                key={bet.id}
+                bet={bet}
+                userPick={getUserPick(bet)}
+                onClick={() => {
+                  console.log('Bet clicked:', bet);
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Matchup Bets */}
+      {matchupBets.length > 0 && (
+        <div>
+          <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-3">
+            Round 1 Matchups ({matchupBets.length})
+          </h3>
+          <div className="space-y-2">
+            {matchupBets.map((bet) => (
+              <TournamentBetCard
+                key={bet.id}
+                bet={bet}
+                userPick={getUserPick(bet)}
+                onClick={() => {
+                  console.log('Bet clicked:', bet);
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function DynamicBetsTab({ tournament }: { tournament: Tournament }) {
+  const [bets, setBets] = useState<TournamentBet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    async function loadBets() {
+      try {
+        setLoading(true);
+        const allBets = await getTournamentBets(tournament.id);
+        const dynamicBets = allBets.filter((b) => !b.isStandard);
+        setBets(dynamicBets);
+      } catch (err) {
+        console.error('Error loading bets:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadBets();
+  }, [tournament.id]);
+
+  // Get user's picks
+  const getUserPick = (bet: TournamentBet) => {
+    if (!user) return undefined;
+    const pick = bet.picks.find((p) => p.userId === user.uid);
+    return pick?.selectionLabel;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="animate-spin text-zinc-400" size={24} />
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800 text-center">
-      <p className="text-zinc-400">Dynamic bets will appear here</p>
-      <p className="text-zinc-500 text-sm mt-2">
-        User-created custom bets
-      </p>
+    <div>
+      {/* Create Dynamic Bet Button */}
+      <button className="w-full mb-4 p-4 bg-zinc-900 border-2 border-dashed border-zinc-700 hover:border-[#ff6b35] rounded-lg text-zinc-400 hover:text-white transition-colors flex items-center justify-center gap-2">
+        <span className="text-2xl">+</span>
+        <span className="font-semibold">Create Custom Bet</span>
+      </button>
+
+      {bets.length === 0 ? (
+        <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800 text-center">
+          <p className="text-zinc-400">No custom bets yet</p>
+          <p className="text-zinc-500 text-sm mt-2">
+            Anyone can create custom bets about this tournament
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {bets.map((bet) => (
+            <TournamentBetCard
+              key={bet.id}
+              bet={bet}
+              userPick={getUserPick(bet)}
+              onClick={() => {
+                console.log('Bet clicked:', bet);
+              }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
