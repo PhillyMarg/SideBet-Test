@@ -22,7 +22,12 @@ export default function NotificationBell({
 
   // Listen for unread notifications count
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      console.log('NotificationBell: No userId');
+      return;
+    }
+
+    console.log('NotificationBell: Fetching unread count for user:', userId);
 
     const q = query(
       collection(db, "notifications"),
@@ -30,9 +35,16 @@ export default function NotificationBell({
       where("read", "==", false)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setUnreadCount(snapshot.size);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        console.log('NotificationBell: Unread notification count:', snapshot.size);
+        setUnreadCount(snapshot.size);
+      },
+      (error) => {
+        console.error('NotificationBell: Error fetching unread count:', error);
+      }
+    );
 
     return () => unsubscribe();
   }, [userId]);

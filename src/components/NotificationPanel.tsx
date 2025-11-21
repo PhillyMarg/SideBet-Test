@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { collection, query, where, onSnapshot, orderBy, limit } from "firebase/firestore";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import {
   markNotificationAsRead,
@@ -51,25 +51,59 @@ export default function NotificationPanel({
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
+  const [loading, setLoading] = useState(true);
+
   // Fetch notifications in real-time
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      console.log('NotificationPanel: No userId, skipping fetch');
+      setLoading(false);
+      return;
+    }
 
+    console.log('NotificationPanel: Fetching notifications for user:', userId);
+
+    // Simple query without orderBy to avoid Firestore index requirement
     const q = query(
       collection(db, "notifications"),
-      where("userId", "==", userId),
-      orderBy("createdAt", "desc"),
-      limit(50)
+      where("userId", "==", userId)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notifs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Notification[];
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        console.log('NotificationPanel: Snapshot received, document count:', snapshot.size);
 
-      setNotifications(notifs);
-    });
+        const notifs = snapshot.docs.map(doc => {
+          const data = doc.data();
+          console.log('NotificationPanel: Notification doc:', doc.id, data);
+          return {
+            id: doc.id,
+            ...data
+          };
+        }) as Notification[];
+
+        // Sort by createdAt in JavaScript (descending - newest first)
+        const sortedNotifs = notifs.sort((a, b) => {
+          const dateA = new Date(a.createdAt || 0).getTime();
+          const dateB = new Date(b.createdAt || 0).getTime();
+          return dateB - dateA;
+        });
+
+        // Limit to 50 notifications
+        const limitedNotifs = sortedNotifs.slice(0, 50);
+
+        console.log('NotificationPanel: Setting notifications:', limitedNotifs.length, 'total');
+        setNotifications(limitedNotifs);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('NotificationPanel: Error fetching notifications:', error);
+        console.error('NotificationPanel: Error code:', error.code);
+        console.error('NotificationPanel: Error message:', error.message);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, [userId]);
@@ -204,7 +238,11 @@ export default function NotificationPanel({
 
         {/* Notifications List */}
         <div className="divide-y divide-zinc-800">
-          {notifications.length === 0 ? (
+          {loading ? (
+            <div className="p-8 text-center">
+              <p className="text-zinc-500">Loading...</p>
+            </div>
+          ) : notifications.length === 0 ? (
             <div className="p-8 text-center">
               <Bell size={48} className="text-zinc-600 mx-auto mb-4" />
               <p className="text-zinc-500">
