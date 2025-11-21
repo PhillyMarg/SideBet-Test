@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { auth } from '@/lib/firebase/client';
+import { createTournament } from '@/services/tournamentService';
+import { CreateTournamentInput } from '@/types/tournament';
 
 interface CreateTournamentWizardProps {
   isOpen: boolean;
@@ -24,6 +27,10 @@ export function CreateTournamentWizard({ isOpen, onClose }: CreateTournamentWiza
   const [isPublic, setIsPublic] = useState(false);
   const [participants, setParticipants] = useState<string[]>([]);
 
+  // Submission state
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
   const handleNext = () => {
@@ -34,21 +41,97 @@ export function CreateTournamentWizard({ isOpen, onClose }: CreateTournamentWiza
     if (step > 1) setStep(step - 1);
   };
 
-  const handleSubmit = () => {
-    // TODO: Create tournament in Firebase
-    console.log("Creating tournament:", {
-      tournamentName,
-      description,
-      startDate,
-      startTime,
-      endDate,
-      endTime,
-      tournamentType,
-      bracketSize,
-      isPublic,
-      participants
-    });
-    onClose();
+  const handleSubmit = async () => {
+    const user = auth.currentUser;
+
+    if (!user) {
+      setError('You must be logged in to create a tournament');
+      return;
+    }
+
+    // Validation
+    if (!tournamentName.trim()) {
+      setError('Tournament name is required');
+      return;
+    }
+
+    if (!startDate || !startTime) {
+      setError('Start date and time are required');
+      return;
+    }
+
+    if (!endDate || !endTime) {
+      setError('End date and time are required');
+      return;
+    }
+
+    if (bracketSize < 4) {
+      setError('Bracket size must be at least 4');
+      return;
+    }
+
+    const startDateTime = new Date(`${startDate}T${startTime}`);
+    const endDateTime = new Date(`${endDate}T${endTime}`);
+    const now = new Date();
+
+    if (startDateTime < now) {
+      setError('Start date must be in the future');
+      return;
+    }
+
+    if (endDateTime <= startDateTime) {
+      setError('End date must be after start date');
+      return;
+    }
+
+    // Check 90 day limit
+    const ninetyDaysFromNow = new Date();
+    ninetyDaysFromNow.setDate(ninetyDaysFromNow.getDate() + 90);
+    if (startDateTime > ninetyDaysFromNow) {
+      setError('Tournament cannot be created more than 90 days in advance');
+      return;
+    }
+
+    setIsCreating(true);
+    setError(null);
+
+    try {
+      const input: CreateTournamentInput = {
+        name: tournamentName,
+        description: description || undefined,
+        startDate,
+        startTime,
+        endDate,
+        endTime,
+        type: tournamentType,
+        bracketSize,
+        isPublic,
+        creatorId: user.uid,
+        creatorName: user.displayName || user.email || 'Unknown',
+      };
+
+      const tournamentId = await createTournament(input);
+      console.log('Tournament created:', tournamentId);
+
+      // Reset form
+      setTournamentName('');
+      setDescription('');
+      setStartDate('');
+      setStartTime('');
+      setEndDate('');
+      setEndTime('');
+      setTournamentType('single');
+      setBracketSize(8);
+      setIsPublic(false);
+      setStep(1);
+
+      onClose();
+    } catch (err) {
+      console.error('Error creating tournament:', err);
+      setError('Failed to create tournament. Please try again.');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -84,6 +167,13 @@ export function CreateTournamentWizard({ isOpen, onClose }: CreateTournamentWiza
             />
           </div>
         </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="px-6 py-3 bg-red-500/10 border-b border-red-500/20">
+            <p className="text-sm text-red-400">{error}</p>
+          </div>
+        )}
 
         {/* Step Content */}
         <div className="px-6 py-6">
@@ -310,9 +400,10 @@ export function CreateTournamentWizard({ isOpen, onClose }: CreateTournamentWiza
           ) : (
             <button
               onClick={handleSubmit}
-              className="bg-[#ff6b35] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#ff8555] transition-colors"
+              disabled={isCreating}
+              className="bg-[#ff6b35] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#ff8555] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create Tournament
+              {isCreating ? 'Creating...' : 'Create Tournament'}
             </button>
           )}
         </div>

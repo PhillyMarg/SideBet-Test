@@ -7,6 +7,9 @@ import { auth } from "../../lib/firebase/client";
 import { Header } from "../../components/layout/Header";
 import { Search, X, Plus } from 'lucide-react';
 import { CreateTournamentWizard } from '@/components/tournaments/CreateTournamentWizard';
+import { TournamentCard } from '@/components/tournaments/TournamentCard';
+import { getTournaments } from '@/services/tournamentService';
+import { Tournament } from '@/types/tournament';
 
 export default function EventsPage() {
   const router = useRouter();
@@ -17,10 +20,63 @@ export default function EventsPage() {
   const [filterTab, setFilterTab] = useState<"all" | "live" | "upcoming" | "completed">("all");
   const [showCreateWizard, setShowCreateWizard] = useState(false);
 
-  // Placeholder data - will be replaced with Firebase data later
-  const liveTournaments: any[] = [];
-  const upcomingTournaments: any[] = [];
-  const completedTournaments: any[] = [];
+  // Tournament data
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [tournamentsLoading, setTournamentsLoading] = useState(true);
+  const [tournamentsError, setTournamentsError] = useState<string | null>(null);
+
+  // Fetch tournaments
+  useEffect(() => {
+    async function loadTournaments() {
+      try {
+        setTournamentsLoading(true);
+        const data = await getTournaments();
+        setTournaments(data);
+        setTournamentsError(null);
+      } catch (err) {
+        console.error('Error loading tournaments:', err);
+        setTournamentsError('Failed to load tournaments');
+      } finally {
+        setTournamentsLoading(false);
+      }
+    }
+
+    loadTournaments();
+  }, [showCreateWizard]); // Refetch when wizard closes
+
+  // Filter tournaments by search and status
+  const filteredTournaments = tournaments.filter(t => {
+    // Filter by search
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      return t.name.toLowerCase().includes(query) ||
+             t.description?.toLowerCase().includes(query);
+    }
+    return true;
+  });
+
+  // Sort tournaments
+  const sortTournaments = (tourns: Tournament[]) => {
+    return [...tourns].sort((a, b) => {
+      switch (sortBy) {
+        case 'startDate':
+          return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+        case 'mostParticipants':
+          return b.participants.length - a.participants.length;
+        case 'mostBets':
+          return b.totalBets - a.totalBets;
+        case 'newest':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        default:
+          return 0;
+      }
+    });
+  };
+
+  // Separate by status
+  const liveTournaments = sortTournaments(filteredTournaments.filter(t => t.status === 'live'));
+  const upcomingTournaments = sortTournaments(filteredTournaments.filter(t => t.status === 'upcoming'));
+  const completedTournaments = sortTournaments(filteredTournaments.filter(t => t.status === 'completed'));
 
   // Auth listener
   useEffect(() => {
@@ -203,8 +259,22 @@ export default function EventsPage() {
         {/* Tournament Sections */}
         <div className="px-4 sm:px-6 mt-4 space-y-6">
 
+          {/* Loading State */}
+          {tournamentsLoading && (
+            <div className="bg-zinc-900 rounded-lg p-6 text-center">
+              <p className="text-zinc-400 text-sm">Loading tournaments...</p>
+            </div>
+          )}
+
+          {/* Error State */}
+          {tournamentsError && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-6 text-center">
+              <p className="text-red-400 text-sm">{tournamentsError}</p>
+            </div>
+          )}
+
           {/* Live Tournaments */}
-          {(filterTab === "all" || filterTab === "live") && (
+          {!tournamentsLoading && (filterTab === "all" || filterTab === "live") && (
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -219,14 +289,22 @@ export default function EventsPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* Tournament cards will go here */}
+                  {liveTournaments.map(tournament => (
+                    <TournamentCard
+                      key={tournament.id}
+                      tournament={tournament}
+                      onClick={() => {
+                        console.log('View tournament:', tournament.id);
+                      }}
+                    />
+                  ))}
                 </div>
               )}
             </section>
           )}
 
           {/* Upcoming Tournaments */}
-          {(filterTab === "all" || filterTab === "upcoming") && (
+          {!tournamentsLoading && (filterTab === "all" || filterTab === "upcoming") && (
             <section>
               <h2 className="text-sm font-bold text-white uppercase tracking-wider mb-3 font-montserrat">
                 UPCOMING TOURNAMENTS ({upcomingTournaments.length})
@@ -238,14 +316,22 @@ export default function EventsPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* Tournament cards will go here */}
+                  {upcomingTournaments.map(tournament => (
+                    <TournamentCard
+                      key={tournament.id}
+                      tournament={tournament}
+                      onClick={() => {
+                        console.log('View tournament:', tournament.id);
+                      }}
+                    />
+                  ))}
                 </div>
               )}
             </section>
           )}
 
           {/* Completed Tournaments */}
-          {(filterTab === "all" || filterTab === "completed") && (
+          {!tournamentsLoading && (filterTab === "all" || filterTab === "completed") && (
             <section>
               <h2 className="text-sm font-bold text-white uppercase tracking-wider mb-3 font-montserrat">
                 COMPLETED TOURNAMENTS ({completedTournaments.length})
@@ -257,7 +343,15 @@ export default function EventsPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* Tournament cards will go here */}
+                  {completedTournaments.map(tournament => (
+                    <TournamentCard
+                      key={tournament.id}
+                      tournament={tournament}
+                      onClick={() => {
+                        console.log('View tournament:', tournament.id);
+                      }}
+                    />
+                  ))}
                 </div>
               )}
             </section>
