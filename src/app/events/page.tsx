@@ -6,6 +6,7 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "../../lib/firebase/client";
 import { Header } from "../../components/layout/Header";
 import { Search, X, Plus } from 'lucide-react';
+import { CreateTournamentWizard } from '@/components/tournaments/CreateTournamentWizard';
 
 export default function EventsPage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function EventsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("startDate");
   const [filterTab, setFilterTab] = useState<"all" | "live" | "upcoming" | "completed">("all");
+  const [showCreateWizard, setShowCreateWizard] = useState(false);
 
   // Placeholder data - will be replaced with Firebase data later
   const liveTournaments: any[] = [];
@@ -72,73 +74,84 @@ export default function EventsPage() {
         {/* Filter Tabs */}
         <div className="sticky top-[120px] z-20 bg-[#0a0a0a] border-b border-zinc-800 py-3">
           <div className="px-4 sm:px-6">
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-              <button
-                onClick={() => setFilterTab("all")}
-                className={`
-                  text-[12px] font-semibold font-montserrat
-                  px-3 py-2
-                  rounded-lg
-                  whitespace-nowrap
-                  transition-colors
-                  ${filterTab === "all"
-                    ? 'border-2 border-[#ff6b35] text-[#ff6b35] bg-[#ff6b35]/10'
-                    : 'border-2 border-transparent text-white hover:text-[#ff6b35]'
-                  }
-                `}
-              >
-                ALL
-              </button>
+            <div className="flex items-center justify-between gap-3">
+              {/* Filter Tabs - Left Side */}
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide flex-1">
+                <button
+                  onClick={() => setFilterTab("all")}
+                  className={`
+                    text-[12px] font-semibold font-montserrat
+                    px-3 py-2
+                    rounded-lg
+                    whitespace-nowrap
+                    transition-colors
+                    ${filterTab === "all"
+                      ? 'border-2 border-[#ff6b35] text-[#ff6b35] bg-[#ff6b35]/10'
+                      : 'border-2 border-transparent text-white hover:text-[#ff6b35]'
+                    }
+                  `}
+                >
+                  ALL
+                </button>
 
-              <button
-                onClick={() => setFilterTab("live")}
-                className={`
-                  text-[12px] font-semibold font-montserrat
-                  px-3 py-2
-                  rounded-lg
-                  whitespace-nowrap
-                  transition-colors
-                  ${filterTab === "live"
-                    ? 'border-2 border-[#ff6b35] text-[#ff6b35] bg-[#ff6b35]/10'
-                    : 'border-2 border-transparent text-white hover:text-[#ff6b35]'
-                  }
-                `}
-              >
-                LIVE
-              </button>
+                <button
+                  onClick={() => setFilterTab("live")}
+                  className={`
+                    text-[12px] font-semibold font-montserrat
+                    px-3 py-2
+                    rounded-lg
+                    whitespace-nowrap
+                    transition-colors
+                    ${filterTab === "live"
+                      ? 'border-2 border-[#ff6b35] text-[#ff6b35] bg-[#ff6b35]/10'
+                      : 'border-2 border-transparent text-white hover:text-[#ff6b35]'
+                    }
+                  `}
+                >
+                  LIVE
+                </button>
 
-              <button
-                onClick={() => setFilterTab("upcoming")}
-                className={`
-                  text-[12px] font-semibold font-montserrat
-                  px-3 py-2
-                  rounded-lg
-                  whitespace-nowrap
-                  transition-colors
-                  ${filterTab === "upcoming"
-                    ? 'border-2 border-[#ff6b35] text-[#ff6b35] bg-[#ff6b35]/10'
-                    : 'border-2 border-transparent text-white hover:text-[#ff6b35]'
-                  }
-                `}
-              >
-                UPCOMING
-              </button>
+                <button
+                  onClick={() => setFilterTab("upcoming")}
+                  className={`
+                    text-[12px] font-semibold font-montserrat
+                    px-3 py-2
+                    rounded-lg
+                    whitespace-nowrap
+                    transition-colors
+                    ${filterTab === "upcoming"
+                      ? 'border-2 border-[#ff6b35] text-[#ff6b35] bg-[#ff6b35]/10'
+                      : 'border-2 border-transparent text-white hover:text-[#ff6b35]'
+                    }
+                  `}
+                >
+                  UPCOMING
+                </button>
 
+                <button
+                  onClick={() => setFilterTab("completed")}
+                  className={`
+                    text-[12px] font-semibold font-montserrat
+                    px-3 py-2
+                    rounded-lg
+                    whitespace-nowrap
+                    transition-colors
+                    ${filterTab === "completed"
+                      ? 'border-2 border-[#ff6b35] text-[#ff6b35] bg-[#ff6b35]/10'
+                      : 'border-2 border-transparent text-white hover:text-[#ff6b35]'
+                    }
+                  `}
+                >
+                  COMPLETED
+                </button>
+              </div>
+
+              {/* Create Tournament Button - Right Side */}
               <button
-                onClick={() => setFilterTab("completed")}
-                className={`
-                  text-[12px] font-semibold font-montserrat
-                  px-3 py-2
-                  rounded-lg
-                  whitespace-nowrap
-                  transition-colors
-                  ${filterTab === "completed"
-                    ? 'border-2 border-[#ff6b35] text-[#ff6b35] bg-[#ff6b35]/10'
-                    : 'border-2 border-transparent text-white hover:text-[#ff6b35]'
-                  }
-                `}
+                onClick={() => setShowCreateWizard(true)}
+                className="bg-[#ff6b35] text-white px-4 py-2 rounded-lg text-[12px] font-semibold font-montserrat hover:bg-[#ff8555] transition-colors whitespace-nowrap flex-shrink-0"
               >
-                COMPLETED
+                CREATE TOURNAMENT
               </button>
             </div>
           </div>
@@ -252,6 +265,12 @@ export default function EventsPage() {
 
         </div>
       </main>
+
+      {/* Create Tournament Wizard */}
+      <CreateTournamentWizard
+        isOpen={showCreateWizard}
+        onClose={() => setShowCreateWizard(false)}
+      />
     </div>
   );
 }
