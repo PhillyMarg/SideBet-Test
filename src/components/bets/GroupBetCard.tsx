@@ -921,33 +921,36 @@ export function GroupBetCard({
         className="bg-[#18181B] rounded-[6px] p-3 space-y-2 border-2"
         style={{ borderColor: themeColor, fontFamily: "'Montserrat', sans-serif" }}
       >
-        {/* Header - 2 rows */}
-        <div className="space-y-1">
-          {/* Row 1: H2H Name (left) + Creator Name (right) */}
-          <div className="flex items-center justify-between">
-            <p
-              className={`font-semibold text-[8px] ${textShadow}`}
-              style={{ color: themeColor }}
-            >
-              {h2hChallengeDisplayName || 'Challenge'}
-            </p>
+        {/* Row 1: H2H Name (left) + Creator Name (right) */}
+        <div className="flex items-center justify-between mb-1">
+          <p
+            className={`font-semibold text-[8px] ${textShadow}`}
+            style={{ color: themeColor }}
+          >
+            {h2hChallengeDisplayName || 'Challenge'}
+          </p>
 
-            <span className={`text-[8px] font-semibold text-[#58585a] ${textShadow}`}>
-              Creator: {challengerDisplayName || 'Loading...'}
-            </span>
-          </div>
+          <span className={`text-[8px] font-semibold text-[#58585a] ${textShadow}`}>
+            Creator: {challengerDisplayName || 'Loading...'}
+          </span>
+        </div>
 
-          {/* Row 2: Empty (left) + Timer (right) */}
-          <div className="flex items-center justify-end">
-            <p
-              className={`font-semibold text-[8px] ${textShadow} ${
-                isUnderOneHour ? 'pulse-yellow' : ''
-              }`}
-              style={{ color: isUnderOneHour ? undefined : themeColor }}
-            >
-              Closes: {timeRemaining}
-            </p>
-          </div>
+        {/* Row 2: Bet Title (left) + Timer (right) */}
+        <div className="flex items-center justify-between mb-1">
+          {/* Left: Bet Title */}
+          <p className={`font-semibold text-[12px] text-white ${textShadow} flex-1 mr-2`}>
+            {bet.title}
+          </p>
+
+          {/* Right: Timer */}
+          <p
+            className={`font-semibold text-[8px] ${textShadow} whitespace-nowrap flex-shrink-0 ${
+              isUnderOneHour ? 'pulse-yellow' : ''
+            }`}
+            style={{ color: isUnderOneHour ? undefined : themeColor }}
+          >
+            Closes: {timeRemaining}
+          </p>
         </div>
 
         {/* NEW CHALLENGE! Badge */}
@@ -956,13 +959,6 @@ export function GroupBetCard({
             className={`font-extrabold text-[10px] text-white ${textShadow}`}
           >
             NEW CHALLENGE!
-          </p>
-        </div>
-
-        {/* Bet Title */}
-        <div>
-          <p className={`font-semibold text-[12px] text-white ${textShadow}`}>
-            {bet.title}
           </p>
         </div>
 
@@ -1038,51 +1034,47 @@ export function GroupBetCard({
         className="bg-[#18181B] rounded-[6px] p-3 space-y-2 border-2 opacity-75"
         style={{ borderColor: themeColor, fontFamily: "'Montserrat', sans-serif" }}
       >
-        {/* Header - 2 rows */}
-        <div className="space-y-1">
-          {/* Row 1: H2H Name (left) + Creator Name (right) */}
-          <div className="flex items-center justify-between">
-            <p
-              className={`font-semibold text-[8px] ${textShadow}`}
-              style={{ color: themeColor }}
-            >
-              {h2hChallengeDisplayName || 'Challenge Sent'}
-            </p>
+        {/* Row 1: H2H Name (left) + Creator Name (right) */}
+        <div className="flex items-center justify-between mb-1">
+          <p
+            className={`font-semibold text-[8px] ${textShadow}`}
+            style={{ color: themeColor }}
+          >
+            {h2hChallengeDisplayName || 'Challenge Sent'}
+          </p>
 
-            <span className={`text-[8px] font-semibold text-[#58585a] ${textShadow}`}>
-              Creator: You
-            </span>
-          </div>
-
-          {/* Row 2: Empty (left) + Timer + Trash (right) */}
-          <div className="flex items-center justify-end">
-            <div className="flex items-center gap-2">
-              <p
-                className={`font-semibold text-[8px] ${textShadow} ${
-                  isUnderOneHour ? 'pulse-yellow' : ''
-                }`}
-                style={{ color: isUnderOneHour ? undefined : themeColor }}
-              >
-                Closes: {timeRemaining}
-              </p>
-
-              {isCreator && (
-                <button
-                  onClick={() => setShowDeleteModal(true)}
-                  className="text-white hover:text-[#ef4444] transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
-              )}
-            </div>
-          </div>
+          <span className={`text-[8px] font-semibold text-[#58585a] ${textShadow}`}>
+            Creator: You
+          </span>
         </div>
 
-        {/* Bet Title */}
-        <div>
-          <p className={`font-semibold text-[12px] text-white ${textShadow}`}>
+        {/* Row 2: Bet Title (left) + Timer + Trash (right) */}
+        <div className="flex items-center justify-between mb-1">
+          {/* Left: Bet Title */}
+          <p className={`font-semibold text-[12px] text-white ${textShadow} flex-1 mr-2`}>
             {bet.title}
           </p>
+
+          {/* Right: Timer + Trash */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <p
+              className={`font-semibold text-[8px] ${textShadow} whitespace-nowrap ${
+                isUnderOneHour ? 'pulse-yellow' : ''
+              }`}
+              style={{ color: isUnderOneHour ? undefined : themeColor }}
+            >
+              Closes: {timeRemaining}
+            </p>
+
+            {isCreator && (
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="text-white hover:text-[#ef4444] transition-colors"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* O/U Line (if applicable) */}
@@ -1147,51 +1139,49 @@ export function GroupBetCard({
       className={`relative w-full max-w-[393px] ${getBgClass()} rounded-[6px] ${getPaddingClass()} ${getBorderClass()} flex flex-col gap-[4px]`}
       style={{ fontFamily: "'Montserrat', sans-serif", borderColor: getBorderColor() }}
     >
-      {/* Header - 2 rows */}
-      <div className="space-y-1 mb-1">
-        {/* Row 1: Group/H2H Name (left) + Creator Name (right) */}
-        <div className="flex items-center justify-between">
-          {/* Left: Clickable Display Name (Group name or H2H names) */}
-          <button
-            onClick={handleDisplayNameClick}
-            className={`text-[8px] font-semibold ${textShadow} flex-shrink-0 ${
-              isH2H ? 'cursor-default' : 'cursor-pointer hover:underline hover:opacity-80'
-            } transition-all`}
-            style={{ color: themeColor }}
-            disabled={isH2H}
-          >
-            {displayName}
-          </button>
+      {/* Row 1: Group/H2H Name (left) + Creator Name (right) */}
+      <div className="flex items-center justify-between mb-1">
+        {/* Left: Clickable Display Name (Group name or H2H names) */}
+        <button
+          onClick={handleDisplayNameClick}
+          className={`text-[8px] font-semibold ${textShadow} flex-shrink-0 ${
+            isH2H ? 'cursor-default' : 'cursor-pointer hover:underline hover:opacity-80'
+          } transition-all`}
+          style={{ color: themeColor }}
+          disabled={isH2H}
+        >
+          {displayName}
+        </button>
 
-          {/* Right: Creator Name */}
-          <span className={`text-[8px] font-semibold text-[#58585a] ${textShadow} flex-shrink-0`}>
-            Creator: {isCreator ? 'You' : (creatorName || 'Loading...')}
-          </span>
-        </div>
-
-        {/* Row 2: Empty (left) + Timer + Trash (right) */}
-        <div className="flex items-center justify-end">
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Timer/Status Badge */}
-            {renderStatusBadge()}
-
-            {/* Trash Icon (only for creator on certain states) */}
-            {isCreator && ['ACTIVE', 'PLACED', 'WAITING_JUDGEMENT'].includes(cardState) && (
-              <button
-                onClick={() => setShowDeleteModal(true)}
-                className="flex-shrink-0 text-white hover:text-[#C21717] transition-colors"
-              >
-                <Trash2 size={16} />
-              </button>
-            )}
-          </div>
-        </div>
+        {/* Right: Creator Name */}
+        <span className={`text-[8px] font-semibold text-[#58585a] ${textShadow} flex-shrink-0`}>
+          Creator: {isCreator ? 'You' : (creatorName || 'Loading...')}
+        </span>
       </div>
 
-      {/* Title */}
-      <h3 className={`text-[12px] font-semibold text-white leading-tight ${textShadow}`}>
-        {bet.title}
-      </h3>
+      {/* Row 2: Bet Title (left) + Timer + Trash (right) */}
+      <div className="flex items-center justify-between mb-1">
+        {/* Left: Bet Title */}
+        <p className={`text-[12px] font-semibold text-white leading-tight ${textShadow} flex-1 mr-2`}>
+          {bet.title}
+        </p>
+
+        {/* Right: Timer + Trash */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Timer/Status Badge */}
+          {renderStatusBadge()}
+
+          {/* Trash Icon (only for creator on certain states) */}
+          {isCreator && ['ACTIVE', 'PLACED', 'WAITING_JUDGEMENT'].includes(cardState) && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="flex-shrink-0 text-white hover:text-[#C21717] transition-colors"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* O/U Line for OVER_UNDER type */}
       {bet.type === "OVER_UNDER" && bet.line !== undefined && (
