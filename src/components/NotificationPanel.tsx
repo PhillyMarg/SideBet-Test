@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, getDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import {
   markNotificationAsRead,
@@ -10,6 +10,7 @@ import {
   markNotificationActionTaken
 } from "@/lib/notifications";
 import { Bell, Check, X, Swords, Users, TrendingUp, Clock, Gavel, Trophy } from "lucide-react";
+import { motion, PanInfo } from "framer-motion";
 
 interface Notification {
   id: string;
@@ -115,18 +116,87 @@ export default function NotificationPanel({
   const handleNotificationClick = async (notif: Notification) => {
     await markNotificationAsRead(notif.id);
 
-    // Navigate based on type
-    if (notif.link) {
-      router.push(notif.link);
-    } else if (notif.betId) {
-      router.push(`/bets/${notif.betId}`);
-    } else if (notif.groupId) {
-      router.push(`/groups/${notif.groupId}`);
-    } else if (notif.type === "friend_request") {
-      router.push("/friends");
+    // Navigate based on notification type
+    try {
+      switch (notif.type) {
+        case "h2h_challenge":
+        case "challenge_status":
+          // H2H notifications → go to home
+          router.push("/home");
+          break;
+
+        case "group_bet_created":
+          // Group bet notification → go to group page
+          if (notif.groupId) {
+            router.push(`/groups/${notif.groupId}`);
+          } else {
+            router.push("/home");
+          }
+          break;
+
+        case "group_invite":
+          // Group invite → go to group page
+          if (notif.groupId) {
+            router.push(`/groups/${notif.groupId}`);
+          } else {
+            router.push("/home");
+          }
+          break;
+
+        case "bet_closing":
+        case "bet_result":
+        case "judge_required":
+          // Fetch bet to determine navigation
+          if (notif.betId) {
+            const betRef = doc(db, "bets", notif.betId);
+            const betSnap = await getDoc(betRef);
+
+            if (betSnap.exists()) {
+              const bet = betSnap.data();
+
+              // If group bet, go to group page
+              if (bet.groupId) {
+                router.push(`/groups/${bet.groupId}`);
+              } else {
+                // If H2H bet, go to home
+                router.push("/home");
+              }
+            } else {
+              // Bet not found, go to home
+              router.push("/home");
+            }
+          } else {
+            router.push("/home");
+          }
+          break;
+
+        case "friend_request":
+          router.push("/friends");
+          break;
+
+        default:
+          // Use link if available, otherwise go to home
+          if (notif.link) {
+            router.push(notif.link);
+          } else {
+            router.push("/home");
+          }
+      }
+    } catch (error) {
+      console.error("Error navigating from notification:", error);
+      router.push("/home");
     }
 
     onClose();
+  };
+
+  const handleDelete = async (notificationId: string) => {
+    try {
+      await deleteDoc(doc(db, "notifications", notificationId));
+      console.log("Notification deleted:", notificationId);
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+    }
   };
 
   const handleAccept = async (notif: Notification, e: React.MouseEvent) => {
@@ -149,10 +219,31 @@ export default function NotificationPanel({
     e.stopPropagation();
     await markNotificationAsRead(notif.id);
 
-    if (notif.link) {
-      router.push(notif.link);
-    } else if (notif.betId) {
-      router.push(`/bets/${notif.betId}`);
+    // Navigate to appropriate page based on bet type
+    if (notif.betId) {
+      try {
+        const betRef = doc(db, "bets", notif.betId);
+        const betSnap = await getDoc(betRef);
+
+        if (betSnap.exists()) {
+          const bet = betSnap.data();
+
+          // If group bet, go to group page
+          if (bet.groupId) {
+            router.push(`/groups/${bet.groupId}`);
+          } else {
+            // If H2H bet, go to home
+            router.push("/home");
+          }
+        } else {
+          router.push("/home");
+        }
+      } catch (error) {
+        console.error("Error navigating from judge notification:", error);
+        router.push("/home");
+      }
+    } else {
+      router.push("/home");
     }
 
     onClose();
@@ -189,7 +280,7 @@ export default function NotificationPanel({
       case "judge_required":
         return <Gavel className="w-4 h-4 text-orange-500" />;
       case "group_bet_created":
-        return <Bell className="w-4 h-4 text-orange-500" />;
+        return <TrendingUp className="w-4 h-4 text-blue-400" />;
       case "group_invite":
         return <Users className="w-4 h-4 text-blue-500" />;
       case "activity":
@@ -237,7 +328,7 @@ export default function NotificationPanel({
         </div>
 
         {/* Notifications List */}
-        <div className="divide-y divide-zinc-800">
+        <div>
           {loading ? (
             <div className="p-8 text-center">
               <p className="text-zinc-500">Loading...</p>
@@ -258,6 +349,7 @@ export default function NotificationPanel({
                 onAccept={(e) => handleAccept(notif, e)}
                 onDecline={(e) => handleDecline(notif, e)}
                 onJudgeNow={(e) => handleJudgeNow(notif, e)}
+                onDelete={() => handleDelete(notif.id)}
                 getIcon={getNotificationIcon}
                 getTimeAgo={getTimeAgo}
               />
@@ -283,13 +375,14 @@ export default function NotificationPanel({
   );
 }
 
-// Notification Item Component
+// Notification Item Component with Swipe-to-Delete
 function NotificationItem({
   notification,
   onClick,
   onAccept,
   onDecline,
   onJudgeNow,
+  onDelete,
   getIcon,
   getTimeAgo
 }: {
@@ -298,157 +391,201 @@ function NotificationItem({
   onAccept: (e: React.MouseEvent) => void;
   onDecline: (e: React.MouseEvent) => void;
   onJudgeNow: (e: React.MouseEvent) => void;
+  onDelete: () => void;
   getIcon: (type: string) => React.ReactNode;
   getTimeAgo: (timestamp: string) => string;
 }) {
+  const [dragX, setDragX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
   const bgColor = notification.read ? "bg-zinc-900" : "bg-zinc-800/50";
 
+  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    setIsDragging(false);
+
+    // If swiped left more than 100px, delete
+    if (info.offset.x < -100) {
+      onDelete();
+    } else {
+      // Snap back
+      setDragX(0);
+    }
+  };
+
   return (
-    <div
-      className={`${bgColor} p-4 cursor-pointer hover:bg-zinc-800 transition-colors relative`}
-      onClick={onClick}
-    >
-      <div className="flex items-start gap-3">
-        {/* Icon */}
-        <div className="flex-shrink-0 mt-1">
-          {getIcon(notification.type)}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          {/* H2H Challenge Notification with Accept/Decline buttons */}
-          {notification.type === "h2h_challenge" && !notification.actionTaken && (
-            <>
-              <p className="text-white font-semibold text-sm mb-1">
-                {notification.title}
-              </p>
-              <p className="text-zinc-400 text-xs mb-3">
-                {notification.message}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={onDecline}
-                  className="flex-1 bg-red-600 text-white py-2 rounded-lg font-semibold text-xs hover:bg-red-700 transition-colors"
-                >
-                  Decline
-                </button>
-                <button
-                  onClick={onAccept}
-                  className="flex-1 bg-green-600 text-white py-2 rounded-lg font-semibold text-xs hover:bg-green-700 transition-colors"
-                >
-                  Accept
-                </button>
-              </div>
-            </>
-          )}
-
-          {/* H2H Challenge that was already actioned */}
-          {notification.type === "h2h_challenge" && notification.actionTaken && (
-            <>
-              <p className="text-white font-semibold text-sm mb-1">
-                {notification.title}
-              </p>
-              <p className="text-zinc-400 text-xs">
-                {notification.message}
-              </p>
-              <p className="text-zinc-500 text-xs mt-1 italic">
-                Response sent
-              </p>
-            </>
-          )}
-
-          {/* Challenge Status Notification */}
-          {notification.type === "challenge_status" && (
-            <>
-              <p className={`font-semibold text-sm mb-1 ${notification.accepted ? "text-green-500" : "text-red-500"}`}>
-                {notification.title}
-              </p>
-              <p className="text-zinc-400 text-xs">
-                {notification.message}
-              </p>
-            </>
-          )}
-
-          {/* Bet Closing Soon Notification */}
-          {notification.type === "bet_closing" && (
-            <>
-              <p className="text-amber-500 font-semibold text-sm mb-1">
-                {notification.title}
-              </p>
-              <p className="text-zinc-400 text-xs">
-                {notification.message}
-              </p>
-            </>
-          )}
-
-          {/* Result Notification */}
-          {notification.type === "bet_result" && (
-            <>
-              <p className={`font-semibold text-sm mb-1 ${notification.won ? "text-green-500" : "text-white"}`}>
-                {notification.title}
-              </p>
-              <p className="text-zinc-400 text-xs">
-                {notification.message}
-              </p>
-            </>
-          )}
-
-          {/* Judge Required Notification */}
-          {notification.type === "judge_required" && !notification.actionTaken && (
-            <>
-              <p className="text-white font-semibold text-sm mb-1">
-                {notification.title}
-              </p>
-              <p className="text-zinc-400 text-xs mb-3">
-                {notification.message}
-              </p>
-              <button
-                onClick={onJudgeNow}
-                className="bg-orange-500 text-white px-4 py-2 rounded-lg font-semibold text-xs hover:bg-orange-600 transition-colors"
-              >
-                Judge Now
-              </button>
-            </>
-          )}
-
-          {/* Judge Required that was already actioned */}
-          {notification.type === "judge_required" && notification.actionTaken && (
-            <>
-              <p className="text-white font-semibold text-sm mb-1">
-                {notification.title}
-              </p>
-              <p className="text-zinc-400 text-xs">
-                {notification.message}
-              </p>
-              <p className="text-zinc-500 text-xs mt-1 italic">
-                Judged
-              </p>
-            </>
-          )}
-
-          {/* Other notification types (friend_request, group_bet_created, group_invite, activity) */}
-          {!["h2h_challenge", "challenge_status", "bet_closing", "bet_result", "judge_required"].includes(notification.type) && (
-            <>
-              <p className="text-white font-semibold text-sm mb-1">
-                {notification.title}
-              </p>
-              <p className="text-zinc-400 text-xs">
-                {notification.message}
-              </p>
-            </>
-          )}
-        </div>
-
-        {/* Timestamp */}
-        <div className="flex-shrink-0 text-zinc-500 text-xs">
-          {getTimeAgo(notification.createdAt)}
-        </div>
+    <div className="relative overflow-hidden border-b border-zinc-800">
+      {/* Delete Background */}
+      <div className={`
+        absolute inset-0 bg-red-600
+        flex items-center justify-end px-6
+        transition-opacity duration-200
+        ${isDragging && dragX < -20 ? 'opacity-100' : 'opacity-0'}
+      `}>
+        <span className="text-white font-semibold text-sm">
+          Delete
+        </span>
       </div>
 
-      {/* Unread Indicator */}
-      {!notification.read && (
-        <div className="absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-orange-500 rounded-full" />
-      )}
+      {/* Swipeable Content */}
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: -150, right: 0 }}
+        dragElastic={0.2}
+        onDrag={(event, info) => {
+          setIsDragging(true);
+          setDragX(info.offset.x);
+        }}
+        onDragEnd={handleDragEnd}
+        animate={{ x: isDragging ? undefined : 0 }}
+        className={`${bgColor} p-4 cursor-pointer hover:bg-zinc-800 transition-colors relative`}
+        onClick={onClick}
+        style={{
+          touchAction: 'pan-y',
+          userSelect: 'none'
+        }}
+      >
+        <div className="flex items-start gap-3">
+          {/* Icon */}
+          <div className="flex-shrink-0 mt-1">
+            {getIcon(notification.type)}
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            {/* H2H Challenge Notification with Accept/Decline buttons */}
+            {notification.type === "h2h_challenge" && !notification.actionTaken && (
+              <>
+                <p className="text-white font-semibold text-sm mb-1">
+                  {notification.title}
+                </p>
+                <p className="text-zinc-400 text-xs mb-3">
+                  {notification.message}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={onDecline}
+                    className="flex-1 bg-red-600 text-white py-2 rounded-lg font-semibold text-xs hover:bg-red-700 transition-colors"
+                  >
+                    Decline
+                  </button>
+                  <button
+                    onClick={onAccept}
+                    className="flex-1 bg-green-600 text-white py-2 rounded-lg font-semibold text-xs hover:bg-green-700 transition-colors"
+                  >
+                    Accept
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* H2H Challenge that was already actioned */}
+            {notification.type === "h2h_challenge" && notification.actionTaken && (
+              <>
+                <p className="text-white font-semibold text-sm mb-1">
+                  {notification.title}
+                </p>
+                <p className="text-zinc-400 text-xs">
+                  {notification.message}
+                </p>
+                <p className="text-zinc-500 text-xs mt-1 italic">
+                  Response sent
+                </p>
+              </>
+            )}
+
+            {/* Challenge Status Notification */}
+            {notification.type === "challenge_status" && (
+              <>
+                <p className={`font-semibold text-sm mb-1 ${notification.accepted ? "text-green-500" : "text-red-500"}`}>
+                  {notification.title}
+                </p>
+                <p className="text-zinc-400 text-xs">
+                  {notification.message}
+                </p>
+              </>
+            )}
+
+            {/* Bet Closing Soon Notification */}
+            {notification.type === "bet_closing" && (
+              <>
+                <p className="text-amber-500 font-semibold text-sm mb-1">
+                  {notification.title}
+                </p>
+                <p className="text-zinc-400 text-xs">
+                  {notification.message}
+                </p>
+              </>
+            )}
+
+            {/* Result Notification */}
+            {notification.type === "bet_result" && (
+              <>
+                <p className={`font-semibold text-sm mb-1 ${notification.won ? "text-green-500" : "text-white"}`}>
+                  {notification.title}
+                </p>
+                <p className="text-zinc-400 text-xs">
+                  {notification.message}
+                </p>
+              </>
+            )}
+
+            {/* Judge Required Notification */}
+            {notification.type === "judge_required" && !notification.actionTaken && (
+              <>
+                <p className="text-white font-semibold text-sm mb-1">
+                  {notification.title}
+                </p>
+                <p className="text-zinc-400 text-xs mb-3">
+                  {notification.message}
+                </p>
+                <button
+                  onClick={onJudgeNow}
+                  className="bg-orange-500 text-white px-4 py-2 rounded-lg font-semibold text-xs hover:bg-orange-600 transition-colors"
+                >
+                  Judge Now
+                </button>
+              </>
+            )}
+
+            {/* Judge Required that was already actioned */}
+            {notification.type === "judge_required" && notification.actionTaken && (
+              <>
+                <p className="text-white font-semibold text-sm mb-1">
+                  {notification.title}
+                </p>
+                <p className="text-zinc-400 text-xs">
+                  {notification.message}
+                </p>
+                <p className="text-zinc-500 text-xs mt-1 italic">
+                  Judged
+                </p>
+              </>
+            )}
+
+            {/* Other notification types (friend_request, group_bet_created, group_invite, activity) */}
+            {!["h2h_challenge", "challenge_status", "bet_closing", "bet_result", "judge_required"].includes(notification.type) && (
+              <>
+                <p className="text-white font-semibold text-sm mb-1">
+                  {notification.title}
+                </p>
+                <p className="text-zinc-400 text-xs">
+                  {notification.message}
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* Timestamp */}
+          <div className="flex-shrink-0 text-zinc-500 text-xs">
+            {getTimeAgo(notification.createdAt)}
+          </div>
+        </div>
+
+        {/* Unread Indicator */}
+        {!notification.read && (
+          <div className="absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-orange-500 rounded-full" />
+        )}
+      </motion.div>
     </div>
   );
 }
