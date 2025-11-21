@@ -61,7 +61,7 @@ export async function notifyH2HChallenge(challengeeId: string, challengerName: s
 }
 
 export async function notifyBetResult(userId: string, betId: string, betTitle: string, won: boolean, amount?: number) {
-  await createNotification({
+  const notificationData: CreateNotificationParams = {
     userId: userId,
     type: "bet_result",
     title: won ? "You Won!" : "Bet Resolved",
@@ -70,9 +70,15 @@ export async function notifyBetResult(userId: string, betId: string, betTitle: s
       : `"${betTitle}" has been resolved`,
     link: `/bets/${betId}`,
     betId: betId,
-    betTitle: betTitle,
-    amount: amount
-  });
+    betTitle: betTitle
+  };
+
+  // Only add amount if it exists (not undefined) to avoid Firebase error
+  if (amount !== undefined && amount !== null) {
+    notificationData.amount = amount;
+  }
+
+  await createNotification(notificationData);
 }
 
 export async function notifyBetClosingSoon(userId: string, betId: string, betTitle: string) {
