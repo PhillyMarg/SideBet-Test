@@ -397,48 +397,111 @@ function NotificationItem({
 }) {
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [hasVibrated, setHasVibrated] = useState(false);
 
   const bgColor = notification.read ? "bg-zinc-900" : "bg-zinc-800/50";
 
-  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    setIsDragging(false);
+  // Swipe configuration - more lenient thresholds for better UX
+  const SWIPE_THRESHOLD = -180;     // Distance to delete
+  const MAX_DRAG = -230;            // Maximum drag allowed
+  const DELETE_VISIBLE_AT = -50;    // When delete starts showing
 
-    // If swiped left more than 100px, delete
-    if (info.offset.x < -100) {
-      onDelete();
-    } else {
-      // Snap back
-      setDragX(0);
+  const handleDrag = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    setIsDragging(true);
+    setDragX(info.offset.x);
+
+    // Haptic feedback when reaching threshold (mobile only)
+    if (info.offset.x < SWIPE_THRESHOLD && !hasVibrated) {
+      if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate(50);
+        setHasVibrated(true);
+      }
+    } else if (info.offset.x > SWIPE_THRESHOLD) {
+      setHasVibrated(false);
     }
   };
 
+  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    setIsDragging(false);
+    setHasVibrated(false);
+
+    // Only delete if swiped past threshold
+    if (info.offset.x < SWIPE_THRESHOLD) {
+      onDelete();
+    }
+  };
+
+  // Calculate swipe progress (0 to 1)
+  const getSwipeProgress = () => {
+    if (dragX > DELETE_VISIBLE_AT) return 0;
+    if (dragX < SWIPE_THRESHOLD) return 1;
+
+    const progress = Math.abs(dragX - DELETE_VISIBLE_AT) /
+                    Math.abs(SWIPE_THRESHOLD - DELETE_VISIBLE_AT);
+    return Math.min(progress, 1);
+  };
+
+  const swipeProgress = getSwipeProgress();
+  const canDelete = swipeProgress >= 1;
+
   return (
     <div className="relative overflow-hidden border-b border-zinc-800">
-      {/* Delete Background */}
-      <div className={`
-        absolute inset-0 bg-red-600
-        flex items-center justify-end px-6
-        transition-opacity duration-200
-        ${isDragging && dragX < -20 ? 'opacity-100' : 'opacity-0'}
-      `}>
-        <span className="text-white font-semibold text-sm">
-          Delete
-        </span>
+      {/* Delete Background with Progress */}
+      <div
+        className="
+          absolute inset-0
+          flex items-center justify-end px-6
+          transition-all duration-150 ease-out
+        "
+        style={{
+          background: `linear-gradient(to left,
+            rgba(194, 23, 23, ${swipeProgress}) 0%,
+            rgba(194, 23, 23, ${swipeProgress * 0.8}) 100%)`,
+          opacity: swipeProgress > 0 ? 1 : 0
+        }}
+      >
+        <div
+          className="flex items-center gap-2 transition-all duration-150"
+          style={{
+            transform: `scale(${0.85 + (swipeProgress * 0.15)}) translateX(${swipeProgress * -10}px)`,
+            opacity: swipeProgress
+          }}
+        >
+          <X
+            size={24}
+            className="text-white transition-transform duration-150"
+            style={{
+              transform: `rotate(${canDelete ? 90 : 0}deg)`
+            }}
+          />
+          <span className="text-white font-semibold text-sm whitespace-nowrap">
+            {canDelete ? 'Release to Delete' : 'Delete'}
+          </span>
+        </div>
       </div>
 
       {/* Swipeable Content */}
       <motion.div
         drag="x"
-        dragConstraints={{ left: -150, right: 0 }}
-        dragElastic={0.2}
-        onDrag={(event, info) => {
-          setIsDragging(true);
-          setDragX(info.offset.x);
-        }}
+        dragConstraints={{ left: MAX_DRAG, right: 0 }}
+        dragElastic={0.1}
+        dragMomentum={false}
+        onDrag={handleDrag}
         onDragEnd={handleDragEnd}
         animate={{ x: isDragging ? undefined : 0 }}
+        transition={{
+          type: "spring",
+          stiffness: 350,
+          damping: 35,
+          mass: 0.5
+        }}
         className={`${bgColor} p-4 cursor-pointer hover:bg-zinc-800 transition-colors relative`}
-        onClick={onClick}
+        onClick={(e) => {
+          // Only trigger click if not dragging
+          if (!isDragging) {
+            onClick();
+          }
+        }}
         style={{
           touchAction: 'pan-y',
           userSelect: 'none'
