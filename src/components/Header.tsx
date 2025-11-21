@@ -21,8 +21,9 @@ import { motion } from "framer-motion";
 const CreateBetWizard = lazy(() => import("./CreateBetWizard"));
 const CreateGroupWizard = lazy(() => import("./CreateGroupWizard"));
 
-// Import NotificationBell
+// Import NotificationBell and notification helpers
 import NotificationBell from "./NotificationBell";
+import { notifyChallengeStatus } from "@/lib/notifications";
 
 export default function Header() {
   const router = useRouter();
@@ -182,6 +183,100 @@ export default function Header() {
     }
   };
 
+  // Handle accepting H2H challenge from notification
+  const handleAcceptChallenge = async (betId: string) => {
+    if (!user) return;
+
+    try {
+      const betRef = doc(db, "bets", betId);
+      const betSnap = await getDoc(betRef);
+
+      if (!betSnap.exists()) {
+        alert("Challenge not found");
+        return;
+      }
+
+      const betData = betSnap.data();
+
+      // Update bet status to accepted
+      await updateDoc(betRef, {
+        h2hStatus: "accepted",
+        acceptedAt: new Date().toISOString(),
+        participants: [...(betData.participants || []), user.uid],
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Get user's display name
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const userData = userDoc.exists() ? userDoc.data() : null;
+      const responderName = userData?.displayName ||
+        `${userData?.firstName || ""} ${userData?.lastName || ""}`.trim() ||
+        "Your friend";
+
+      // Notify creator that challenge was accepted
+      await notifyChallengeStatus(
+        betData.challengerId,
+        betId,
+        betData.title,
+        true,
+        responderName
+      );
+
+      console.log("Challenge accepted!");
+    } catch (error) {
+      console.error("Error accepting challenge:", error);
+      alert("Failed to accept challenge. Please try again.");
+    }
+  };
+
+  // Handle declining H2H challenge from notification
+  const handleDeclineChallenge = async (betId: string) => {
+    if (!user) return;
+
+    try {
+      const confirmed = confirm("Are you sure you want to decline this challenge?");
+      if (!confirmed) return;
+
+      const betRef = doc(db, "bets", betId);
+      const betSnap = await getDoc(betRef);
+
+      if (!betSnap.exists()) {
+        alert("Challenge not found");
+        return;
+      }
+
+      const betData = betSnap.data();
+
+      // Update bet status to declined
+      await updateDoc(betRef, {
+        h2hStatus: "declined",
+        declinedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Get user's display name
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const userData = userDoc.exists() ? userDoc.data() : null;
+      const responderName = userData?.displayName ||
+        `${userData?.firstName || ""} ${userData?.lastName || ""}`.trim() ||
+        "Your friend";
+
+      // Notify creator that challenge was declined
+      await notifyChallengeStatus(
+        betData.challengerId,
+        betId,
+        betData.title,
+        false,
+        responderName
+      );
+
+      console.log("Challenge declined");
+    } catch (error) {
+      console.error("Error declining challenge:", error);
+      alert("Failed to decline challenge. Please try again.");
+    }
+  };
+
   // Fetch user's name from Firestore when authenticated
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -263,7 +358,13 @@ export default function Header() {
 
             {/* User Name & Notification Bell */}
             <div className="flex items-center gap-2">
-              {user && <NotificationBell userId={user.uid} />}
+              {user && (
+                <NotificationBell
+                  userId={user.uid}
+                  onAcceptChallenge={handleAcceptChallenge}
+                  onDeclineChallenge={handleDeclineChallenge}
+                />
+              )}
               {user && userName && (
                 <span className="text-sm text-gray-300 truncate max-w-[120px] lg:max-w-[160px]">
                   {userName}
@@ -282,7 +383,13 @@ export default function Header() {
               >
                 Side Bet
               </div>
-              {user && <NotificationBell userId={user.uid} />}
+              {user && (
+                <NotificationBell
+                  userId={user.uid}
+                  onAcceptChallenge={handleAcceptChallenge}
+                  onDeclineChallenge={handleDeclineChallenge}
+                />
+              )}
             </div>
 
             {/* Row 2: Action Buttons */}
