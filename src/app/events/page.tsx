@@ -7,6 +7,8 @@ import { auth } from "../../lib/firebase/client";
 import { Header } from "../../components/layout/Header";
 import { Search, X, Plus } from 'lucide-react';
 import { CreateTournamentWizard } from '@/components/tournaments/CreateTournamentWizard';
+import { TournamentCard } from '@/components/tournaments/TournamentCard';
+import { Tournament } from '@/types/tournament';
 
 export default function EventsPage() {
   const router = useRouter();
@@ -18,9 +20,9 @@ export default function EventsPage() {
   const [showCreateWizard, setShowCreateWizard] = useState(false);
 
   // Placeholder data - will be replaced with Firebase data later
-  const liveTournaments: any[] = [];
-  const upcomingTournaments: any[] = [];
-  const completedTournaments: any[] = [];
+  const liveTournaments: Tournament[] = [];
+  const upcomingTournaments: Tournament[] = [];
+  const completedTournaments: Tournament[] = [];
 
   // Auth listener
   useEffect(() => {
@@ -219,7 +221,12 @@ export default function EventsPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* Tournament cards will go here */}
+                  {liveTournaments.map(tournament => (
+                    <TournamentCard
+                      key={tournament.id}
+                      tournament={tournament}
+                    />
+                  ))}
                 </div>
               )}
             </section>
@@ -238,7 +245,12 @@ export default function EventsPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* Tournament cards will go here */}
+                  {upcomingTournaments.map(tournament => (
+                    <TournamentCard
+                      key={tournament.id}
+                      tournament={tournament}
+                    />
+                  ))}
                 </div>
               )}
             </section>
@@ -257,7 +269,12 @@ export default function EventsPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* Tournament cards will go here */}
+                  {completedTournaments.map(tournament => (
+                    <TournamentCard
+                      key={tournament.id}
+                      tournament={tournament}
+                    />
+                  ))}
                 </div>
               )}
             </section>
