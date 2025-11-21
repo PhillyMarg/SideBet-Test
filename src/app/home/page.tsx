@@ -650,7 +650,7 @@ export default function HomePage() {
       <main
         className="min-h-screen flex flex-col overflow-y-auto"
         style={{
-          paddingTop: "100px", // 60px header + 40px nav
+          paddingTop: "120px", // 60px header + 40px nav + 20px buffer
           paddingBottom: "80px",
           color: "white",
         }}
