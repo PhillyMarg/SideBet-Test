@@ -48,6 +48,7 @@ export function ChatBox({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch initial messages (last 5)
   useEffect(() => {
@@ -66,10 +67,8 @@ export function ChatBox({
         ...doc.data()
       })) as ChatMessage[];
 
-      // Reverse to show oldest first
       setMessages(msgs.reverse());
 
-      // Calculate unread count
       if (lastReadTimestamp && !isExpanded) {
         const unread = msgs.filter(msg =>
           msg.userId !== currentUserId &&
@@ -99,7 +98,7 @@ export function ChatBox({
     }
   }, [messages, isExpanded]);
 
-  // Load more messages (infinite scroll)
+  // Load more messages
   const loadMoreMessages = async () => {
     if (!hasMore || messages.length === 0) return;
 
@@ -135,9 +134,32 @@ export function ChatBox({
 
     const { scrollTop } = messagesContainerRef.current;
 
-    // Load more when scrolled to top
     if (scrollTop === 0 && hasMore && !loading) {
       loadMoreMessages();
+    }
+  };
+
+  // Handle toggle with scroll centering
+  const handleToggle = () => {
+    const newExpandedState = !isExpanded;
+    onToggle();
+
+    // If expanding, scroll to center chat in viewport
+    if (newExpandedState && chatContainerRef.current) {
+      setTimeout(() => {
+        const element = chatContainerRef.current;
+        if (!element) return;
+
+        const rect = element.getBoundingClientRect();
+        const elementTop = rect.top + window.pageYOffset;
+        const viewportHeight = window.innerHeight;
+        const targetScroll = elementTop - (viewportHeight * 0.15);
+
+        window.scrollTo({
+          top: targetScroll,
+          behavior: 'smooth'
+        });
+      }, 100);
     }
   };
 
@@ -159,8 +181,6 @@ export function ChatBox({
       });
 
       setNewMessage('');
-
-      // Focus back on input
       inputRef.current?.focus();
 
     } catch (error) {
@@ -177,36 +197,35 @@ export function ChatBox({
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (seconds < 60) return 'Just now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+    if (seconds < 60) return 'now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d`;
 
     return date.toLocaleDateString();
   };
 
   return (
-    <div className="border-t border-zinc-800">
+    <div ref={chatContainerRef} className="border-t border-zinc-800">
       {/* Collapsed Header */}
       <button
-        onClick={onToggle}
+        onClick={handleToggle}
         className="
-          w-full px-4 py-3
+          w-full px-3 py-2
           flex items-center justify-between
           hover:bg-zinc-800/50 transition-colors
         "
       >
         <div className="flex items-center gap-2">
-          <span className="text-white font-montserrat font-semibold text-sm">
-            Chat
+          <span className="text-white font-montserrat font-semibold text-[8px]">
+            💬 Chat
           </span>
 
-          {/* Unread Badge */}
           {unreadCount > 0 && !isExpanded && (
             <div className="
               bg-[#ff6b35] text-white
-              px-2 py-0.5 rounded-full
-              text-[10px] font-bold font-montserrat
+              px-1.5 py-0.5 rounded-full
+              text-[8px] font-bold font-montserrat
             ">
               {unreadCount}
             </div>
@@ -214,32 +233,31 @@ export function ChatBox({
         </div>
 
         {isExpanded ? (
-          <ChevronUp size={16} className="text-zinc-400" />
+          <ChevronUp size={12} className="text-zinc-400" />
         ) : (
-          <ChevronDown size={16} className="text-zinc-400" />
+          <ChevronDown size={12} className="text-zinc-400" />
         )}
       </button>
 
       {/* Expanded Chat */}
       {isExpanded && (
         <div className="bg-[#0a0a0a] border-t border-zinc-800">
-          {/* Messages Container - Fixed Height with Scroll */}
+          {/* Messages Container */}
           <div
             ref={messagesContainerRef}
             onScroll={handleScroll}
             className="
               h-[200px] overflow-y-auto
-              px-4 py-3 space-y-2
+              px-3 py-2 space-y-2
               scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent
             "
           >
-            {/* Load More Indicator */}
             {hasMore && messages.length >= 5 && (
               <button
                 onClick={loadMoreMessages}
                 className="
-                  w-full text-center text-zinc-500 text-xs
-                  font-montserrat py-2
+                  w-full text-center text-zinc-500 text-[8px]
+                  font-montserrat py-1.5
                   hover:text-zinc-400
                 "
               >
@@ -247,11 +265,10 @@ export function ChatBox({
               </button>
             )}
 
-            {/* Messages */}
             {messages.length === 0 ? (
               <div className="
                 h-full flex items-center justify-center
-                text-zinc-500 text-sm font-montserrat
+                text-zinc-500 text-[8px] font-montserrat
               ">
                 No messages yet. Start the conversation!
               </div>
@@ -267,7 +284,6 @@ export function ChatBox({
                       ${isOwnMessage ? 'justify-end' : 'justify-start'}
                     `}
                   >
-                    {/* Message Bubble */}
                     <div className={`
                       max-w-[75%] rounded-2xl px-3 py-2
                       ${isOwnMessage
@@ -275,37 +291,36 @@ export function ChatBox({
                         : 'bg-[#27272A] rounded-bl-sm'
                       }
                     `}>
-                      {/* Name (only for others' messages) */}
                       {!isOwnMessage && (
                         <p className="
-                          text-[#ff6b35] font-montserrat font-semibold text-[10px] mb-0.5
+                          text-[#ff6b35] font-montserrat font-semibold text-[8px] mb-1
                         ">
                           {msg.userName}
                         </p>
                       )}
 
-                      {/* Message Text */}
-                      <p className="
-                        text-white font-montserrat text-sm
-                        break-words
-                      ">
-                        {msg.message}
-                      </p>
+                      {/* Message + Timestamp INLINE */}
+                      <div className="flex items-end gap-2">
+                        <p className="
+                          text-white font-montserrat text-[8px]
+                          break-words flex-1
+                        ">
+                          {msg.message}
+                        </p>
 
-                      {/* Timestamp */}
-                      <p className={`
-                        font-montserrat text-[9px] mt-1
-                        ${isOwnMessage ? 'text-white/70' : 'text-zinc-500'}
-                      `}>
-                        {formatTime(msg.timestamp)}
-                      </p>
+                        <p className={`
+                          font-montserrat text-[7px] flex-shrink-0 whitespace-nowrap
+                          ${isOwnMessage ? 'text-white/70' : 'text-zinc-500'}
+                        `}>
+                          {formatTime(msg.timestamp)}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 );
               })
             )}
 
-            {/* Auto-scroll anchor */}
             <div ref={messagesEndRef} />
           </div>
 
@@ -313,7 +328,7 @@ export function ChatBox({
           <form
             onSubmit={handleSendMessage}
             className="
-              px-4 py-3 border-t border-zinc-800
+              px-3 py-2 border-t border-zinc-800
               flex items-center gap-2
               bg-[#18181B]
             "
@@ -331,15 +346,14 @@ export function ChatBox({
               placeholder="Type a message..."
               className="
                 flex-1 bg-[#27272A] text-white
-                px-3 py-2 rounded-full
-                font-montserrat text-sm
+                px-3 py-1.5 rounded-full
+                font-montserrat text-[8px]
                 border border-zinc-700
                 focus:outline-none focus:border-[#ff6b35]
                 placeholder:text-zinc-500
               "
-              maxLength={500}
-              // Prevent zoom on iOS
               style={{ fontSize: '16px' }}
+              maxLength={500}
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="sentences"
@@ -350,13 +364,13 @@ export function ChatBox({
               disabled={!newMessage.trim()}
               className="
                 bg-[#ff6b35] text-white
-                w-10 h-10 rounded-full
+                w-8 h-8 rounded-full
                 flex items-center justify-center
                 hover:bg-[#ff7b45] transition-colors
                 disabled:opacity-50 disabled:cursor-not-allowed
               "
             >
-              <Send size={18} />
+              <Send size={14} />
             </button>
           </form>
         </div>
