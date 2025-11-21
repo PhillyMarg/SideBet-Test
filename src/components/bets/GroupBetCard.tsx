@@ -3,8 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation';
 import { Trash2, ChevronDown, ChevronUp, Check } from "lucide-react";
-import { deleteDoc, doc, getDoc } from "firebase/firestore";
-import { ChatBox } from "./ChatBox";
+import { deleteDoc, doc } from "firebase/firestore";
 import { db } from "../../lib/firebase/client";
 import { fetchUserData, getUserDisplayName } from "../../utils/userUtils";
 import { getLivePercentages } from "../../utils/timeUtils";
@@ -293,36 +292,7 @@ export function GroupBetCard({
   const [h2hDisplayName, setH2hDisplayName] = useState<string>("");
   const [challengerDisplayName, setChallengerDisplayName] = useState<string>("");
   const [challengeeDisplayName, setChallengeeDisplayName] = useState<string>("");
-  const [chatExpanded, setChatExpanded] = useState(false);
-  const [currentUserName, setCurrentUserName] = useState<string>("");
   const cardRef = useRef<HTMLDivElement>(null);
-
-  // Auto-collapse chat when scrolling away from card
-  // TEMPORARILY DISABLED to debug scroll jump issue
-  /*
-  useEffect(() => {
-    if (!chatExpanded || !cardRef.current) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          // If card is less than 50% visible, collapse chat
-          if (entry.intersectionRatio < 0.5) {
-            setChatExpanded(false);
-          }
-        });
-      },
-      {
-        threshold: [0.5],
-        rootMargin: '0px'
-      }
-    );
-
-    observer.observe(cardRef.current);
-
-    return () => observer.disconnect();
-  }, [chatExpanded]);
-  */
 
   // Determine if this is an H2H bet
   const isH2H = isHeadToHeadBet(bet);
@@ -394,50 +364,6 @@ export function GroupBetCard({
       fetchCreator();
     }
   }, [bet.creatorId]);
-
-  // Fetch current user name for chat
-  useEffect(() => {
-    if (currentUserId) {
-      getDoc(doc(db, 'users', currentUserId)).then(snap => {
-        if (snap.exists()) {
-          const data = snap.data();
-          setCurrentUserName(data.displayName || data.name || 'You');
-        }
-      });
-    }
-  }, [currentUserId]);
-
-  // Determine if chat is available
-  const isChatAvailable = () => {
-    const isH2HBet = bet.friendId && !bet.groupId;
-    const isGroup = bet.groupId && !bet.friendId;
-
-    // Group bets: Always show chat
-    if (isGroup) {
-      return true;
-    }
-
-    // H2H bets: Only show after accepted
-    if (isH2HBet) {
-      // If pending, don't show chat
-      if (bet.h2hStatus === 'pending') {
-        return false;
-      }
-
-      // If accepted (active or closed), show chat
-      if (bet.h2hStatus === 'accepted' || bet.status === 'CLOSED') {
-        return true;
-      }
-
-      // If declined, don't show chat
-      if (bet.h2hStatus === 'declined') {
-        return false;
-      }
-    }
-
-    // Default: show chat
-    return true;
-  };
 
   // Fetch challenger/challengee names for H2H states
   useEffect(() => {
@@ -1294,17 +1220,6 @@ export function GroupBetCard({
       {cardState === "JUDGE" && renderJudgeContent()}
       {cardState === "WAITING_JUDGEMENT" && renderWaitingContent()}
       {(cardState === "WON" || cardState === "LOST") && renderResultContent()}
-
-      {/* Chat Box */}
-      {isChatAvailable() && (
-        <ChatBox
-          betId={bet.id}
-          currentUserId={currentUserId}
-          currentUserName={currentUserName}
-          isExpanded={chatExpanded}
-          onToggle={() => setChatExpanded(!chatExpanded)}
-        />
-      )}
 
       {/* Delete Modal */}
       {showDeleteModal && (
