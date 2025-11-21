@@ -1,6 +1,7 @@
 "use client";
 
-import { Trophy } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Trophy, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Tournament, Match, BracketRound } from '@/types/tournament';
 import { getParticipantName } from '@/services/bracketService';
 
@@ -11,6 +12,19 @@ interface BracketViewProps {
 
 export function BracketView({ tournament, onMatchClick }: BracketViewProps) {
   const { matches, participants } = tournament;
+  const [isMobile, setIsMobile] = useState(false);
+  const [currentRoundIndex, setCurrentRoundIndex] = useState(0);
+
+  // Check for mobile viewport
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Group matches by round
   const matchesByRound = matches.reduce((acc, match) => {
@@ -45,8 +59,76 @@ export function BracketView({ tournament, onMatchClick }: BracketViewProps) {
     );
   }
 
+  // Mobile view with navigation
+  if (isMobile && activeRounds.length > 2) {
+    const visibleRounds = activeRounds.slice(currentRoundIndex, currentRoundIndex + 2);
+
+    return (
+      <div>
+        {/* Mobile Navigation Controls */}
+        <div className="flex items-center justify-between mb-4 gap-2">
+          <button
+            onClick={() => setCurrentRoundIndex(Math.max(0, currentRoundIndex - 1))}
+            disabled={currentRoundIndex === 0}
+            className="flex-1 px-4 py-3 bg-zinc-800 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition-colors touch-manipulation flex items-center justify-center gap-1"
+          >
+            <ChevronLeft size={16} />
+            Previous
+          </button>
+          <div className="px-3 py-3 bg-zinc-900 rounded-lg border border-zinc-800 min-w-[100px] text-center">
+            <span className="text-zinc-400 text-sm">
+              {currentRoundIndex + 1}-{Math.min(currentRoundIndex + 2, activeRounds.length)} of {activeRounds.length}
+            </span>
+          </div>
+          <button
+            onClick={() => setCurrentRoundIndex(Math.min(activeRounds.length - 2, currentRoundIndex + 1))}
+            disabled={currentRoundIndex >= activeRounds.length - 2}
+            className="flex-1 px-4 py-3 bg-zinc-800 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition-colors touch-manipulation flex items-center justify-center gap-1"
+          >
+            Next
+            <ChevronRight size={16} />
+          </button>
+        </div>
+
+        {/* Mobile Bracket View */}
+        <div className="overflow-x-auto pb-4 scrollbar-hide">
+          <div className="flex gap-4 min-w-max p-2">
+            {visibleRounds.map((round) => (
+              <div key={round} className="flex flex-col gap-4 min-w-[240px]">
+                {/* Round Header */}
+                <div className="text-center mb-2">
+                  <h3 className="text-sm font-bold text-white font-montserrat uppercase">
+                    {getRoundLabel(round)}
+                  </h3>
+                  <p className="text-xs text-zinc-500">
+                    {matchesByRound[round].length} {matchesByRound[round].length === 1 ? 'match' : 'matches'}
+                  </p>
+                </div>
+
+                {/* Matches in this round */}
+                <div className="flex flex-col gap-4 justify-center flex-1">
+                  {matchesByRound[round]
+                    .sort((a, b) => a.matchNumber - b.matchNumber)
+                    .map((match) => (
+                      <MatchCard
+                        key={match.id}
+                        match={match}
+                        tournament={tournament}
+                        onClick={() => onMatchClick?.(match)}
+                      />
+                    ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop/tablet view
   return (
-    <div className="overflow-x-auto pb-4">
+    <div className="overflow-x-auto pb-4 scrollbar-hide">
       <div className="flex gap-6 min-w-max p-4">
         {activeRounds.map((round) => (
           <div key={round} className="flex flex-col gap-4">
@@ -103,6 +185,9 @@ function MatchCard({ match, tournament, onClick }: MatchCardProps) {
       onClick={onClick}
       className={`
         w-64 bg-zinc-800 rounded-lg border transition-all cursor-pointer
+        min-h-[120px]
+        touch-manipulation
+        active:bg-zinc-700
         ${isCompleted
           ? 'border-green-500/50 hover:border-green-500'
           : 'border-zinc-700 hover:border-[#ff6b35]'

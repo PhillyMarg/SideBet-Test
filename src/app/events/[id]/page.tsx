@@ -22,6 +22,8 @@ import {
 import { getTournamentBets } from '@/services/tournamentBetService';
 import { TournamentBet } from '@/types/tournamentBet';
 import { TournamentBetCard } from '@/components/tournaments/TournamentBetCard';
+import { CreateCustomBetModal } from '@/components/tournaments/CreateCustomBetModal';
+import { ActivityFeed } from '@/components/tournaments/ActivityFeed';
 
 export default function TournamentDetailsPage() {
   const params = useParams();
@@ -127,16 +129,16 @@ export default function TournamentDetailsPage() {
 
         {/* Tournament Header */}
         <div className="px-4 sm:px-6 mb-6">
-          <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800">
-            {/* Title Row */}
-            <div className="flex items-start justify-between mb-4">
+          <div className="bg-zinc-900 rounded-lg p-4 sm:p-6 border border-zinc-800">
+            {/* Title Row - Stack on mobile */}
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
               <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-2xl font-bold text-white font-montserrat">
+                <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl font-bold text-white font-montserrat">
                     {tournament.name}
                   </h1>
                   {isLive && (
-                    <div className="flex items-center gap-1 px-2 py-1 bg-red-500/10 rounded">
+                    <div className="flex items-center gap-1 px-2 py-1 bg-red-500/10 rounded flex-shrink-0">
                       <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                       <span className="text-xs font-semibold text-red-500 uppercase">LIVE</span>
                     </div>
@@ -149,7 +151,7 @@ export default function TournamentDetailsPage() {
                   </p>
                 )}
 
-                {/* Info Pills */}
+                {/* Info Pills - Wrap on mobile */}
                 <div className="flex flex-wrap gap-2">
                   <span className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${
                     tournament.isPublic
@@ -176,11 +178,11 @@ export default function TournamentDetailsPage() {
                 </div>
               </div>
 
-              {/* Director Actions */}
+              {/* Director Actions - Full width on mobile */}
               {isDirector && (
-                <button className="flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-white text-sm transition-colors">
+                <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-white text-sm transition-colors touch-manipulation">
                   <Settings size={16} />
-                  Manage
+                  <span>Manage</span>
                 </button>
               )}
             </div>
@@ -204,22 +206,21 @@ export default function TournamentDetailsPage() {
               </div>
             </div>
 
-            {/* Access Code (for private tournaments) */}
+            {/* Access Code (for private tournaments) - Larger touch target on mobile */}
             {!tournament.isPublic && tournament.accessCode && isDirector && (
               <div className="mt-4 pt-4 border-t border-zinc-800">
                 <div className="text-xs text-zinc-500 mb-1">Access Code</div>
-                <div className="flex items-center gap-2">
-                  <code className="text-lg font-bold text-[#ff6b35] font-mono tracking-wider">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <code className="text-lg sm:text-xl font-bold text-[#ff6b35] font-mono tracking-wider">
                     {tournament.accessCode}
                   </code>
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(tournament.accessCode!);
-                      // TODO: Show toast notification
                     }}
-                    className="text-xs text-zinc-400 hover:text-white transition-colors"
+                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-sm transition-colors touch-manipulation"
                   >
-                    Copy
+                    Copy Code
                   </button>
                 </div>
               </div>
@@ -321,12 +322,9 @@ export default function TournamentDetailsPage() {
           )}
         </div>
 
-        {/* Tournament Chat/Feed (optional for now) */}
+        {/* Activity Feed */}
         <div className="px-4 sm:px-6 mt-6">
-          <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800 text-center">
-            <MessageSquare className="mx-auto mb-2 text-zinc-600" size={24} />
-            <p className="text-zinc-500 text-sm">Tournament chat coming soon</p>
-          </div>
+          <ActivityFeed tournament={tournament} />
         </div>
       </main>
     </div>
@@ -534,6 +532,7 @@ function StandardBetsTab({ tournament }: { tournament: Tournament }) {
 function DynamicBetsTab({ tournament }: { tournament: Tournament }) {
   const [bets, setBets] = useState<TournamentBet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -560,6 +559,11 @@ function DynamicBetsTab({ tournament }: { tournament: Tournament }) {
     return pick?.selectionLabel;
   };
 
+  const handleBetCreated = () => {
+    setShowCreateModal(false);
+    window.location.reload();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -570,8 +574,11 @@ function DynamicBetsTab({ tournament }: { tournament: Tournament }) {
 
   return (
     <div>
-      {/* Create Dynamic Bet Button */}
-      <button className="w-full mb-4 p-4 bg-zinc-900 border-2 border-dashed border-zinc-700 hover:border-[#ff6b35] rounded-lg text-zinc-400 hover:text-white transition-colors flex items-center justify-center gap-2">
+      {/* Create Custom Bet Button */}
+      <button
+        onClick={() => setShowCreateModal(true)}
+        className="w-full mb-4 p-4 bg-zinc-900 border-2 border-dashed border-zinc-700 hover:border-[#ff6b35] rounded-lg text-zinc-400 hover:text-white transition-colors flex items-center justify-center gap-2 touch-manipulation"
+      >
         <span className="text-2xl">+</span>
         <span className="font-semibold">Create Custom Bet</span>
       </button>
@@ -597,6 +604,14 @@ function DynamicBetsTab({ tournament }: { tournament: Tournament }) {
           ))}
         </div>
       )}
+
+      {/* Create Modal */}
+      <CreateCustomBetModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        tournament={tournament}
+        onBetCreated={handleBetCreated}
+      />
     </div>
   );
 }
