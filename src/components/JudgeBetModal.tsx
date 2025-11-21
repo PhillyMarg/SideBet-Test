@@ -17,6 +17,14 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleJudge = async (answer: string | number) => {
+    console.log('=== JUDGE BET DEBUG ===');
+    console.log('Bet ID:', bet.id);
+    console.log('Bet Type:', bet.type);
+    console.log('Answer:', answer);
+    console.log('Bet Line:', bet.line);
+    console.log('Participants:', bet.participants);
+    console.log('Picks:', bet.picks);
+
     setIsSubmitting(true);
 
     try {
@@ -217,9 +225,25 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
         } - $${payoutPerWinner.toFixed(2)} each`
       );
       onClose();
-    } catch (error) {
-      console.error("Error judging bet:", error);
-      alert("Failed to judge bet. Please try again.");
+    } catch (error: any) {
+      console.error('=== JUDGE BET ERROR ===');
+      console.error('Error:', error);
+      console.error('Error message:', error?.message);
+      console.error('Error code:', error?.code);
+      console.error('Bet ID:', bet.id);
+      console.error('Answer:', answer);
+
+      // More specific error message
+      let errorMessage = "Failed to judge bet. Please try again.";
+      if (error?.code === 'permission-denied') {
+        errorMessage = "Permission denied. You may not have access to judge this bet.";
+      } else if (error?.code === 'not-found') {
+        errorMessage = "Bet not found. It may have been deleted.";
+      } else if (error?.message) {
+        errorMessage = `Error: ${error.message}`;
+      }
+
+      alert(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -255,6 +279,15 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
         {/* YES/NO */}
         {bet.type === "YES_NO" && (
           <div className="flex gap-3">
+            {/* LEFT BUTTON - NO (Dark) */}
+            <button
+              onClick={() => handleJudge("NO")}
+              disabled={isSubmitting}
+              className="flex-1 py-3 rounded-lg text-sm font-semibold bg-zinc-800 border-2 border-orange-500 hover:bg-zinc-700 text-white transition disabled:opacity-50"
+            >
+              No
+            </button>
+            {/* RIGHT BUTTON - YES (Orange) */}
             <button
               onClick={() => handleJudge("YES")}
               disabled={isSubmitting}
@@ -262,17 +295,10 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
             >
               Yes
             </button>
-            <button
-              onClick={() => handleJudge("NO")}
-              disabled={isSubmitting}
-              className="flex-1 py-3 rounded-lg text-sm font-semibold bg-white hover:bg-gray-200 text-black transition disabled:opacity-50"
-            >
-              No
-            </button>
           </div>
         )}
 
-        {/* OVER/UNDER - Enter Actual Result */}
+        {/* OVER/UNDER - Quick Buttons or Enter Actual Result */}
         {bet.type === "OVER_UNDER" && (
           <div>
             {/* Show the line */}
@@ -283,9 +309,44 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
               </div>
             )}
 
-            <label className="block text-sm text-gray-400 mb-2">
-              What was the actual result?
-            </label>
+            {/* Quick UNDER/OVER buttons */}
+            <p className="text-sm text-gray-400 mb-2 text-center">
+              Pick the winning side:
+            </p>
+            <div className="flex gap-3 mb-4">
+              {/* LEFT BUTTON - UNDER (Dark) */}
+              <button
+                onClick={() => {
+                  // Use a value below the line to trigger UNDER
+                  const underValue = bet.line - 1;
+                  handleJudge(underValue.toString());
+                }}
+                disabled={isSubmitting}
+                className="flex-1 py-3 rounded-lg text-sm font-semibold bg-zinc-800 border-2 border-orange-500 hover:bg-zinc-700 text-white transition disabled:opacity-50"
+              >
+                Under
+              </button>
+              {/* RIGHT BUTTON - OVER (Orange) */}
+              <button
+                onClick={() => {
+                  // Use a value above the line to trigger OVER
+                  const overValue = bet.line + 1;
+                  handleJudge(overValue.toString());
+                }}
+                disabled={isSubmitting}
+                className="flex-1 py-3 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition disabled:opacity-50"
+              >
+                Over
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex-1 h-px bg-zinc-700"></div>
+              <span className="text-xs text-gray-500">or enter exact value</span>
+              <div className="flex-1 h-px bg-zinc-700"></div>
+            </div>
+
             <input
               type="number"
               step="0.5"
