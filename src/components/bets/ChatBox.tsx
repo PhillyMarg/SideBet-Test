@@ -50,6 +50,26 @@ export function ChatBox({
   const inputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
+  // Calculate dynamic height based on message count
+  const getMessagesHeightPx = (): number => {
+    const messageCount = messages.length;
+
+    // Empty state - minimal height
+    if (messageCount === 0) {
+      return 80;
+    }
+
+    // Height per message (bubble + spacing)
+    const singleMessageHeight = 50;
+    const padding = 16;
+
+    // Cap at 5 messages visible
+    const visibleMessages = Math.min(messageCount, 5);
+    return (visibleMessages * singleMessageHeight) + padding;
+  };
+
+  const messagesHeight = getMessagesHeightPx();
+
   // Fetch initial messages (last 5)
   useEffect(() => {
     if (!betId) return;
@@ -139,27 +159,49 @@ export function ChatBox({
     }
   };
 
-  // Handle toggle with scroll centering
+  // Handle toggle with proper scroll control
   const handleToggle = () => {
     const newExpandedState = !isExpanded;
-    onToggle();
 
-    // If expanding, scroll to center chat in viewport
-    if (newExpandedState && chatContainerRef.current) {
-      setTimeout(() => {
-        const element = chatContainerRef.current;
-        if (!element) return;
+    // If collapsing, just toggle
+    if (!newExpandedState) {
+      onToggle();
+      return;
+    }
 
-        const rect = element.getBoundingClientRect();
-        const elementTop = rect.top + window.pageYOffset;
-        const viewportHeight = window.innerHeight;
-        const targetScroll = elementTop - (viewportHeight * 0.15);
+    // If expanding, prevent scroll jump and center card
+    if (chatContainerRef.current) {
+      // Toggle expansion first
+      onToggle();
 
-        window.scrollTo({
-          top: targetScroll,
-          behavior: 'smooth'
+      // Wait for DOM to update with expansion
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const element = chatContainerRef.current;
+          if (!element) return;
+
+          // Get element position after expansion
+          const rect = element.getBoundingClientRect();
+          const elementTop = rect.top + window.pageYOffset;
+
+          // Calculate scroll to center card in viewport
+          const viewportHeight = window.innerHeight;
+          const cardElement = element.parentElement;
+          const cardRect = cardElement?.getBoundingClientRect();
+          const cardHeight = cardRect?.height || 0;
+
+          // Center the entire card (not just chat)
+          const targetScroll = elementTop - cardHeight - (viewportHeight / 2) + (cardHeight / 1.2);
+
+          // Smooth scroll
+          window.scrollTo({
+            top: Math.max(0, targetScroll),
+            behavior: 'smooth'
+          });
         });
-      }, 100);
+      });
+    } else {
+      onToggle();
     }
   };
 
@@ -209,7 +251,12 @@ export function ChatBox({
     <div ref={chatContainerRef} className="border-t border-zinc-800">
       {/* Collapsed Header */}
       <button
-        onClick={handleToggle}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleToggle();
+        }}
+        type="button"
         className="
           w-full px-3 py-2
           flex items-center justify-between
@@ -242,16 +289,23 @@ export function ChatBox({
       {/* Expanded Chat */}
       {isExpanded && (
         <div className="bg-[#0a0a0a] border-t border-zinc-800">
-          {/* Messages Container */}
+          {/* Messages Container - Dynamic Height */}
           <div
             ref={messagesContainerRef}
             onScroll={handleScroll}
             className="
-              h-[200px] overflow-y-auto
+              overflow-y-auto
               px-3 py-2 space-y-2
               scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent
+              transition-all duration-300
             "
+            style={{
+              height: `${messagesHeight}px`,
+              minHeight: '80px',
+              maxHeight: '266px'
+            }}
           >
+            {/* Load More Button */}
             {hasMore && messages.length >= 5 && (
               <button
                 onClick={loadMoreMessages}
@@ -265,6 +319,7 @@ export function ChatBox({
               </button>
             )}
 
+            {/* Messages or Empty State */}
             {messages.length === 0 ? (
               <div className="
                 h-full flex items-center justify-center
