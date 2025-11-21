@@ -45,6 +45,7 @@ export function Header({ userId }: HeaderProps) {
     { label: "Create Group", action: "CREATE_GROUP" },
     { label: "Join Group", action: "JOIN_GROUP" },
     { label: "My Groups", path: "/groups" },
+    { label: "Events", path: "/events" },
     { label: "Past Bets", path: "/past-bets" },
     { label: "Friends", path: "/friends" },
     { label: "Account", path: "/settings" },
