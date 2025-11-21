@@ -156,24 +156,12 @@ export function ChatBox({
   };
 
   // Handle toggle - NO SCROLL, PURE TOGGLE
-  const handleToggle = () => {
-    // Prevent any hash changes
-    if (window.location.hash) {
-      history.replaceState(null, '', window.location.pathname);
-    }
-
-    // Store current scroll position
-    const scrollY = window.pageYOffset;
-
-    // Just toggle
+  const handleToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     onToggle();
 
-    // Immediately restore scroll if it changed
-    requestAnimationFrame(() => {
-      if (window.pageYOffset !== scrollY) {
-        window.scrollTo(0, scrollY);
-      }
-    });
+    // Chat should expand in place without any scrolling
   };
 
   // Send message
@@ -226,29 +214,9 @@ export function ChatBox({
     >
       {/* Header Button */}
       <button
-        onClick={(e) => {
-          // Prevent ALL default behaviors
-          e.preventDefault();
-          e.stopPropagation();
-
-          // Pure toggle
-          handleToggle();
-        }}
-        onMouseDown={(e) => {
-          // Prevent focus-related scroll
-          e.preventDefault();
-        }}
+        onClick={handleToggle}
         type="button"
-        className="
-          w-full px-3 py-2
-          flex items-center justify-between
-          hover:bg-zinc-800/50 transition-colors
-          select-none
-        "
-        style={{
-          cursor: 'pointer',
-          WebkitTapHighlightColor: 'transparent'
-        }}
+        className="w-full px-3 py-2 flex items-center justify-between hover:bg-zinc-800/50 transition-colors"
       >
         <div className="flex items-center gap-2">
           <span className="text-white font-montserrat font-semibold text-[8px]">
