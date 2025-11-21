@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { getTournament } from '@/services/tournamentService';
-import { Tournament } from '@/types/tournament';
+import { Tournament, Match } from '@/types/tournament';
 import { useAuth } from '@/contexts/AuthContext';
+import { BracketView } from '@/components/tournaments/BracketView';
+import { MatchDetailsModal } from '@/components/tournaments/MatchDetailsModal';
 import {
   Calendar,
   Users,
@@ -327,14 +329,37 @@ export default function TournamentDetailsPage() {
   );
 }
 
-// Placeholder tab components
+// Bracket Tab with match selection and result entry
 function BracketTab({ tournament, isDirector }: { tournament: Tournament; isDirector: boolean }) {
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+
+  const handleMatchClick = (match: Match) => {
+    setSelectedMatch(match);
+  };
+
+  const handleResultEntered = () => {
+    // Refresh tournament data
+    window.location.reload();
+  };
+
   return (
-    <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800 text-center">
-      <p className="text-zinc-400">Bracket visualization coming soon</p>
-      <p className="text-zinc-500 text-sm mt-2">
-        {tournament.participants.length} participants • {tournament.type} elimination
-      </p>
+    <div>
+      <BracketView
+        tournament={tournament}
+        onMatchClick={handleMatchClick}
+      />
+
+      {/* Match Details Modal */}
+      {selectedMatch && (
+        <MatchDetailsModal
+          isOpen={!!selectedMatch}
+          onClose={() => setSelectedMatch(null)}
+          match={selectedMatch}
+          tournament={tournament}
+          isDirector={isDirector}
+          onResultEntered={handleResultEntered}
+        />
+      )}
     </div>
   );
 }
