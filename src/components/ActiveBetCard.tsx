@@ -779,6 +779,45 @@ function ActiveBetCard({
                       </div>
                     )}
                   </div>
+
+                  {/* Show all guesses with distances for CLOSEST_GUESS */}
+                  {isClosestGuess && bet.guessesWithDistances && (
+                    <div className="mt-4 p-3 bg-zinc-900 rounded-lg">
+                      <p className="text-xs font-semibold text-white mb-2">All Guesses:</p>
+                      <ul className="space-y-1 text-xs">
+                        {bet.guessesWithDistances.map((g: any) => {
+                          const isThisUser = g.userId === user.uid;
+                          const isThisWinner = bet.winners.includes(g.userId);
+                          return (
+                            <li
+                              key={g.userId}
+                              className={`flex justify-between items-center py-1.5 px-2 rounded ${
+                                isThisWinner ? 'bg-green-500/20 border border-green-500/40' : 'bg-zinc-800'
+                              }`}
+                            >
+                              <span className={`flex items-center gap-1 ${isThisUser ? 'font-semibold' : ''}`}>
+                                {isThisWinner && <span className="text-green-500">✓</span>}
+                                <span className={isThisUser ? (isH2H ? 'text-purple-400' : 'text-orange-400') : 'text-gray-400'}>
+                                  {isThisUser ? 'You' : g.userId.substring(0, 8)}
+                                </span>
+                              </span>
+                              <span className="flex items-center gap-2">
+                                <span className="font-bold text-white">{g.guess}</span>
+                                <span className="text-gray-500">({g.distance} off)</span>
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      {bet.winners.length > 1 && (
+                        <div className="mt-2 pt-2 border-t border-zinc-700">
+                          <p className="text-xs text-yellow-400 text-center">
+                            🤝 Tied for closest! Pot split {bet.winners.length} ways.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             } else {
@@ -822,6 +861,45 @@ function ActiveBetCard({
                       </div>
                     )}
                   </div>
+
+                  {/* Show all guesses with distances for CLOSEST_GUESS */}
+                  {isClosestGuess && bet.guessesWithDistances && (
+                    <div className="mt-4 p-3 bg-zinc-900 rounded-lg">
+                      <p className="text-xs font-semibold text-white mb-2">All Guesses:</p>
+                      <ul className="space-y-1 text-xs">
+                        {bet.guessesWithDistances.map((g: any) => {
+                          const isThisUser = g.userId === user.uid;
+                          const isThisWinner = bet.winners.includes(g.userId);
+                          return (
+                            <li
+                              key={g.userId}
+                              className={`flex justify-between items-center py-1.5 px-2 rounded ${
+                                isThisWinner ? 'bg-green-500/20 border border-green-500/40' : 'bg-zinc-800'
+                              }`}
+                            >
+                              <span className={`flex items-center gap-1 ${isThisUser ? 'font-semibold' : ''}`}>
+                                {isThisWinner && <span className="text-green-500">✓</span>}
+                                <span className={isThisUser ? (isH2H ? 'text-purple-400' : 'text-orange-400') : 'text-gray-400'}>
+                                  {isThisUser ? 'You' : g.userId.substring(0, 8)}
+                                </span>
+                              </span>
+                              <span className="flex items-center gap-2">
+                                <span className="font-bold text-white">{g.guess}</span>
+                                <span className="text-gray-500">({g.distance} off)</span>
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      {bet.winners.length > 1 && (
+                        <div className="mt-2 pt-2 border-t border-zinc-700">
+                          <p className="text-xs text-yellow-400 text-center">
+                            🤝 Tied for closest! Pot split {bet.winners.length} ways.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             }
@@ -889,24 +967,36 @@ function ActiveBetCard({
                   </button>
                 </div>
               ) : bet.type === "CLOSEST_GUESS" ? (
-                <div className="mt-1 flex flex-col items-center">
-                  <p className="text-[9px] sm:text-[10px] text-gray-400 mb-1 sm:mb-1.5">
-                    Your Guess:{" "}
-                    <span className={`font-bold ${isH2H ? 'text-purple-400' : 'text-orange-400'}`}>
-                      {bet.picks[user.uid]}
-                    </span>
-                    {" • "}
-                    Payout:{" "}
-                    <span className="font-bold text-green-400">
-                      ${pot.toFixed(2)}
-                    </span>
-                  </p>
+                <div className="mt-1 space-y-2">
+                  {/* You Guessed Indicator with Checkmark */}
+                  <div className="bg-emerald-900/40 border border-emerald-700 rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="text-sm font-semibold text-white">
+                        Your Guess: <span className={`${isH2H ? 'text-purple-400' : 'text-orange-400'}`}>
+                          {bet.picks[user.uid]}
+                        </span>
+                        {bet.guessType && <span className="text-xs text-gray-400"> ({bet.guessType})</span>}
+                      </span>
+                    </div>
+                  </div>
 
+                  {/* View Results Button */}
                   <button
                     onClick={() => setShowResults(!showResults)}
-                    className={`${isH2H ? 'bg-purple-500 hover:bg-purple-600' : 'bg-orange-500 hover:bg-orange-600'} text-white text-[10px] sm:text-[11px] font-semibold px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg transition`}
+                    className={`w-full py-2 ${isH2H ? 'bg-purple-500/20 hover:bg-purple-500/30 border-purple-500' : 'bg-orange-500/20 hover:bg-orange-500/30 border-orange-500'} border text-white text-sm font-semibold rounded-lg transition`}
                   >
                     {showResults ? "Hide Results" : "View Results"}
+                  </button>
+
+                  {/* Change Guess Button */}
+                  <button
+                    onClick={() => setShowChangeVoteModal(true)}
+                    className="w-full py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg font-semibold transition-colors text-sm"
+                  >
+                    Change Guess
                   </button>
 
                   {showResults && (
@@ -1169,7 +1259,7 @@ function ActiveBetCard({
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold text-white mb-4">
-              Change Your Vote
+              {bet.type === "CLOSEST_GUESS" ? "Change Your Guess" : "Change Your Vote"}
             </h3>
 
             <p className="text-zinc-400 text-sm mb-4">
@@ -1177,13 +1267,31 @@ function ActiveBetCard({
             </p>
 
             <p className="text-sm text-zinc-400 mb-4">
-              Current vote: <span className={`font-semibold ${isH2H ? 'text-purple-400' : 'text-orange-400'}`}>
+              Current {bet.type === "CLOSEST_GUESS" ? "guess" : "vote"}: <span className={`font-semibold ${isH2H ? 'text-purple-400' : 'text-orange-400'}`}>
                 {bet.picks[user?.uid]}
               </span>
             </p>
 
             <div className="space-y-2 mb-6">
-              {bet.type === "YES_NO" ? (
+              {bet.type === "CLOSEST_GUESS" ? (
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-2">Enter new guess:</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={newVoteChoice}
+                    onChange={(e) => setNewVoteChoice(e.target.value)}
+                    placeholder="Enter number..."
+                    className={`w-full p-3 bg-zinc-800 border ${
+                      isH2H ? 'border-purple-500/50 focus:border-purple-500' : 'border-orange-500/50 focus:border-orange-500'
+                    } rounded-lg text-white focus:outline-none`}
+                    autoFocus
+                  />
+                  {bet.guessType && (
+                    <p className="text-xs text-zinc-500 mt-1">({bet.guessType})</p>
+                  )}
+                </div>
+              ) : bet.type === "YES_NO" ? (
                 <>
                   <button
                     onClick={() => setNewVoteChoice("YES")}
