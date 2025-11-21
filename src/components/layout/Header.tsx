@@ -18,6 +18,7 @@ import {
 } from "firebase/firestore";
 import NotificationBell from "../NotificationBell";
 import { createActivity } from "../../lib/activityHelpers";
+import { notifyChallengeStatus } from "../../lib/notifications";
 import { ScrollableNav } from "../ui/ScrollableNav";
 import { BetWizard, WizardData } from "../wizard/BetWizard";
 
@@ -343,6 +344,102 @@ export function Header({ userId }: HeaderProps) {
     }
   };
 
+  // Handle accepting H2H challenge from notification
+  const handleAcceptChallenge = async (betId: string) => {
+    const currentUserId = userId || user?.uid;
+    if (!currentUserId) return;
+
+    try {
+      const betRef = doc(db, "bets", betId);
+      const betSnap = await getDoc(betRef);
+
+      if (!betSnap.exists()) {
+        alert("Challenge not found");
+        return;
+      }
+
+      const betData = betSnap.data();
+
+      // Update bet status to accepted
+      await updateDoc(betRef, {
+        h2hStatus: "accepted",
+        acceptedAt: new Date().toISOString(),
+        participants: [...(betData.participants || []), currentUserId],
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Get user's display name
+      const userDocRef = await getDoc(doc(db, "users", currentUserId));
+      const userData = userDocRef.exists() ? userDocRef.data() : null;
+      const responderName = userData?.displayName ||
+        `${userData?.firstName || ""} ${userData?.lastName || ""}`.trim() ||
+        "Your friend";
+
+      // Notify creator that challenge was accepted
+      await notifyChallengeStatus(
+        betData.challengerId,
+        betId,
+        betData.title,
+        true,
+        responderName
+      );
+
+      console.log("Challenge accepted!");
+    } catch (error) {
+      console.error("Error accepting challenge:", error);
+      alert("Failed to accept challenge. Please try again.");
+    }
+  };
+
+  // Handle declining H2H challenge from notification
+  const handleDeclineChallenge = async (betId: string) => {
+    const currentUserId = userId || user?.uid;
+    if (!currentUserId) return;
+
+    try {
+      const confirmed = confirm("Are you sure you want to decline this challenge?");
+      if (!confirmed) return;
+
+      const betRef = doc(db, "bets", betId);
+      const betSnap = await getDoc(betRef);
+
+      if (!betSnap.exists()) {
+        alert("Challenge not found");
+        return;
+      }
+
+      const betData = betSnap.data();
+
+      // Update bet status to declined
+      await updateDoc(betRef, {
+        h2hStatus: "declined",
+        declinedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Get user's display name
+      const userDocRef = await getDoc(doc(db, "users", currentUserId));
+      const userData = userDocRef.exists() ? userDocRef.data() : null;
+      const responderName = userData?.displayName ||
+        `${userData?.firstName || ""} ${userData?.lastName || ""}`.trim() ||
+        "Your friend";
+
+      // Notify creator that challenge was declined
+      await notifyChallengeStatus(
+        betData.challengerId,
+        betId,
+        betData.title,
+        false,
+        responderName
+      );
+
+      console.log("Challenge declined");
+    } catch (error) {
+      console.error("Error declining challenge:", error);
+      alert("Failed to decline challenge. Please try again.");
+    }
+  };
+
   return (
     <>
       <header
@@ -416,7 +513,11 @@ export function Header({ userId }: HeaderProps) {
             {/* Bell icon */}
             <div>
               {userId ? (
-                <NotificationBell userId={userId} />
+                <NotificationBell
+                  userId={userId}
+                  onAcceptChallenge={handleAcceptChallenge}
+                  onDeclineChallenge={handleDeclineChallenge}
+                />
               ) : (
                 <Bell
                   size={24}

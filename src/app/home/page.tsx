@@ -26,6 +26,7 @@ import GroupCardSkeleton from "../../components/GroupCardSkeleton";
 import { getTimeRemaining } from "../../utils/timeUtils";
 import { filterBets, sortBets, getEmptyStateMessage, searchBets } from "../../utils/betFilters";
 import { createActivity } from "../../lib/activityHelpers";
+import { notifyChallengeStatus, notifyBetResult } from "../../lib/notifications";
 
 // NEW: Import the Figma design components
 import { Header } from "../../components/layout/Header";
@@ -515,6 +516,22 @@ export default function HomePage() {
         updatedAt: new Date().toISOString(),
       });
 
+      // Get user's display name for notification
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userData = userDoc.exists() ? userDoc.data() : null;
+      const responderName = userData?.displayName ||
+        `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() ||
+        'Your friend';
+
+      // Notify creator that challenge was accepted
+      await notifyChallengeStatus(
+        betData.challengerId,
+        betId,
+        betData.title,
+        true,
+        responderName
+      );
+
       console.log('Challenge accepted!');
 
     } catch (error) {
@@ -534,6 +551,14 @@ export default function HomePage() {
       if (!confirmed) return;
 
       const betRef = doc(db, 'bets', betId);
+      const betSnap = await getDoc(betRef);
+
+      if (!betSnap.exists()) {
+        console.error('Bet not found');
+        return;
+      }
+
+      const betData = betSnap.data();
 
       // Update bet status to declined
       await updateDoc(betRef, {
@@ -541,6 +566,22 @@ export default function HomePage() {
         declinedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
+
+      // Get user's display name for notification
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userData = userDoc.exists() ? userDoc.data() : null;
+      const responderName = userData?.displayName ||
+        `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() ||
+        'Your friend';
+
+      // Notify creator that challenge was declined
+      await notifyChallengeStatus(
+        betData.challengerId,
+        betId,
+        betData.title,
+        false,
+        responderName
+      );
 
       console.log('Challenge declined');
 
@@ -686,7 +727,24 @@ export default function HomePage() {
                               judgedBy: user?.uid,
                             });
 
-                            console.log('Winner declared successfully');
+                            // Send result notifications to all participants
+                            const participants = betData.participants || [];
+                            const wagerAmount = betData.betAmount || betData.perUserWager || 0;
+
+                            for (const participantId of participants) {
+                              const won = participantId === winnerId;
+                              const amount = won ? wagerAmount : -wagerAmount;
+
+                              await notifyBetResult(
+                                participantId,
+                                betId,
+                                betData.title,
+                                won,
+                                Math.abs(amount)
+                              );
+                            }
+
+                            console.log('Winner declared and notifications sent');
                           } catch (error) {
                             console.error('Error declaring winner:', error);
                           }
