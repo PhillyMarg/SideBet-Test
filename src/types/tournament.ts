@@ -1,20 +1,25 @@
+export type TournamentType = "single" | "double";
+export type TournamentStatus = "upcoming" | "live" | "completed";
+export type BracketRound = "round1" | "round2" | "round3" | "semifinals" | "finals";
+
 export interface Participant {
-  oddsRank: number;
-  oddsScoreAggregate: number;
   userId: string;
   userName: string;
   seed: number;
-  eliminated: boolean;
+  eliminated?: boolean;
+  currentRound?: BracketRound;
 }
 
 export interface Match {
   id: string;
-  round: number;
+  round: BracketRound;
   matchNumber: number;
-  participant1Id: string | null;
-  participant2Id: string | null;
-  winnerId: string | null;
-  status: 'pending' | 'in_progress' | 'completed';
+  participant1: string; // userId
+  participant2: string; // userId
+  winner?: string; // userId
+  isPlayIn?: boolean;
+  startTime?: string;
+  completedAt?: string;
 }
 
 export interface Tournament {
@@ -23,16 +28,47 @@ export interface Tournament {
   description?: string;
   creatorId: string;
   creatorName: string;
-  startDate: string;
-  endDate: string;
-  type: 'single' | 'double';
-  maxParticipants: number;
+
+  // Dates/Times
+  startDate: string; // ISO string
+  startTime: string; // HH:MM format
+  endDate: string; // ISO string
+  endTime: string; // HH:MM format
+  createdAt: string; // ISO string
+
+  // Tournament Settings
+  type: TournamentType;
+  bracketSize: number;
   isPublic: boolean;
-  accessCode?: string;
-  status: 'draft' | 'upcoming' | 'live' | 'completed';
+  status: TournamentStatus;
+
+  // Participants
   participants: Participant[];
+  maxParticipants: number;
+
+  // Bracket
   matches: Match[];
+  currentRound: BracketRound;
+
+  // Access
+  accessCode?: string; // For private tournaments
+  invitedUserIds?: string[];
+
+  // Stats
   totalBets: number;
-  createdAt: string;
-  updatedAt: string;
+  totalBetAmount: number;
+}
+
+export interface CreateTournamentInput {
+  name: string;
+  description?: string;
+  startDate: string;
+  startTime: string;
+  endDate: string;
+  endTime: string;
+  type: TournamentType;
+  bracketSize: number;
+  isPublic: boolean;
+  creatorId: string;
+  creatorName: string;
 }
