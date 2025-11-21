@@ -238,3 +238,18 @@ footer .active {
   scrollbar-width: thin;
   scrollbar-color: #3f3f46 transparent;
 }
+
+/* ==== Prevent Scroll Anchoring ==== */
+/* Disable browser scroll anchoring to prevent jump on element resize */
+* {
+  overflow-anchor: none;
+}
+
+/* Ensure smooth scroll only when intended */
+html {
+  scroll-behavior: auto;
+}
+
+html.smooth-scroll {
+  scroll-behavior: smooth;
+}
