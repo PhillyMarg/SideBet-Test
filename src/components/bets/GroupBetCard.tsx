@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation';
 import { Trash2, ChevronDown, ChevronUp, Check } from "lucide-react";
 import { deleteDoc, doc, getDoc } from "firebase/firestore";
@@ -295,6 +295,31 @@ export function GroupBetCard({
   const [challengeeDisplayName, setChallengeeDisplayName] = useState<string>("");
   const [chatExpanded, setChatExpanded] = useState(false);
   const [currentUserName, setCurrentUserName] = useState<string>("");
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Auto-collapse chat when scrolling away from card
+  useEffect(() => {
+    if (!chatExpanded || !cardRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          // If card is less than 50% visible, collapse chat
+          if (entry.intersectionRatio < 0.5) {
+            setChatExpanded(false);
+          }
+        });
+      },
+      {
+        threshold: [0.5],
+        rootMargin: '0px'
+      }
+    );
+
+    observer.observe(cardRef.current);
+
+    return () => observer.disconnect();
+  }, [chatExpanded]);
 
   // Determine if this is an H2H bet
   const isH2H = isHeadToHeadBet(bet);
@@ -1183,6 +1208,7 @@ export function GroupBetCard({
   // Main render
   return (
     <div
+      ref={cardRef}
       className={`relative w-full max-w-[393px] ${getBgClass()} rounded-[6px] ${getPaddingClass()} ${getBorderClass()} flex flex-col gap-[4px] overflow-hidden`}
       style={{ fontFamily: "'Montserrat', sans-serif", borderColor: getBorderColor() }}
     >
