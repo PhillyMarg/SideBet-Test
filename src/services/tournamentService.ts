@@ -11,7 +11,9 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { Tournament, CreateTournamentInput, TournamentStatus } from '@/types/tournament';
+import { Tournament, CreateTournamentInput, TournamentStatus, Participant } from '@/types/tournament';
+import { generateBracketMatches } from './bracketService';
+import { generateStandardBets } from './tournamentBetService';
 
 const TOURNAMENTS_COLLECTION = 'tournaments';
 
@@ -47,7 +49,23 @@ export async function createTournament(input: CreateTournamentInput): Promise<st
   try {
     const startDateTime = `${input.startDate}T${input.startTime}`;
     const endDateTime = `${input.endDate}T${input.endTime}`;
-    const status = determineTournamentStatus(startDateTime, endDateTime);
+
+    // Determine status - if startImmediately is true, set to 'live'
+    let status: TournamentStatus;
+    if (input.startImmediately) {
+      status = 'live';
+    } else {
+      status = determineTournamentStatus(startDateTime, endDateTime);
+    }
+
+    // Get participants from input or default to empty array
+    const participants: Participant[] = input.participants || [];
+
+    // Generate bracket if we have participants
+    let matches: any[] = [];
+    if (participants.length >= 2) {
+      matches = generateBracketMatches(participants);
+    }
 
     const tournamentData: Omit<Tournament, 'id'> = {
       name: input.name,
@@ -63,9 +81,9 @@ export async function createTournament(input: CreateTournamentInput): Promise<st
       bracketSize: input.bracketSize,
       isPublic: input.isPublic,
       status,
-      participants: [],
+      participants,
       maxParticipants: input.bracketSize,
-      matches: [],
+      matches,
       currentRound: 'round1',
       accessCode: input.isPublic ? undefined : generateAccessCode(),
       invitedUserIds: [],
@@ -74,7 +92,23 @@ export async function createTournament(input: CreateTournamentInput): Promise<st
     };
 
     const docRef = await addDoc(collection(db, TOURNAMENTS_COLLECTION), tournamentData);
-    return docRef.id;
+    const tournamentId = docRef.id;
+
+    // Generate standard bets if bracket was created
+    if (matches.length > 0) {
+      try {
+        const tournamentWithId: Tournament = {
+          id: tournamentId,
+          ...tournamentData
+        };
+        await generateStandardBets(tournamentWithId);
+      } catch (betError) {
+        console.error('Error generating standard bets:', betError);
+        // Don't fail tournament creation if bet generation fails
+      }
+    }
+
+    return tournamentId;
   } catch (error) {
     console.error('Error creating tournament:', error);
     throw error;
@@ -246,6 +280,105 @@ export async function getUserTournaments(userId: string): Promise<{
     return { created, participating };
   } catch (error) {
     console.error('Error getting user tournaments:', error);
+    throw error;
+  }
+}
+
+/**
+ * Remove participant from tournament
+ */
+export async function removeParticipant(
+  tournamentId: string,
+  userId: string
+): Promise<void> {
+  try {
+    const tournament = await getTournament(tournamentId);
+    if (!tournament) throw new Error('Tournament not found');
+
+    // Cannot remove if tournament has started
+    if (tournament.status !== 'upcoming') {
+      throw new Error('Cannot remove participants from active tournament');
+    }
+
+    const updatedParticipants = tournament.participants.filter(p => p.userId !== userId);
+
+    // Reassign seeds
+    updatedParticipants.forEach((p, index) => {
+      p.seed = index + 1;
+    });
+
+    const docRef = doc(db, TOURNAMENTS_COLLECTION, tournamentId);
+    await updateDoc(docRef, {
+      participants: updatedParticipants
+    });
+  } catch (error) {
+    console.error('Error removing participant:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update tournament participant seeds
+ */
+export async function updateTournamentSeeds(
+  tournamentId: string,
+  participants: Array<{ userId: string; userName: string; seed: number }>
+): Promise<void> {
+  try {
+    const tournament = await getTournament(tournamentId);
+    if (!tournament) throw new Error('Tournament not found');
+
+    // Update participant seeds
+    const updatedParticipants = tournament.participants.map(p => {
+      const update = participants.find(u => u.userId === p.userId);
+      if (update) {
+        return { ...p, seed: update.seed };
+      }
+      return p;
+    });
+
+    // Sort by seed
+    updatedParticipants.sort((a, b) => a.seed - b.seed);
+
+    const docRef = doc(db, TOURNAMENTS_COLLECTION, tournamentId);
+    await updateDoc(docRef, {
+      participants: updatedParticipants
+    });
+  } catch (error) {
+    console.error('Error updating seeds:', error);
+    throw error;
+  }
+}
+
+/**
+ * Regenerate bracket for tournament (when participants change)
+ */
+export async function regenerateBracket(tournamentId: string): Promise<void> {
+  try {
+    const tournament = await getTournament(tournamentId);
+    if (!tournament) throw new Error('Tournament not found');
+
+    if (tournament.participants.length < 2) {
+      throw new Error('At least 2 participants required');
+    }
+
+    // Generate new bracket
+    const matches = generateBracketMatches(tournament.participants);
+
+    const docRef = doc(db, TOURNAMENTS_COLLECTION, tournamentId);
+    await updateDoc(docRef, {
+      matches
+    });
+
+    // Regenerate standard bets
+    try {
+      const updatedTournament = { ...tournament, matches };
+      await generateStandardBets(updatedTournament);
+    } catch (betError) {
+      console.error('Error generating standard bets:', betError);
+    }
+  } catch (error) {
+    console.error('Error regenerating bracket:', error);
     throw error;
   }
 }
