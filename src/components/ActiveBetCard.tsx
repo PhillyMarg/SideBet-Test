@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { deleteDoc, doc, updateDoc, addDoc, collection, arrayUnion, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../lib/firebase/client";
 import { validateBetDeletion } from "../lib/validation/betValidation";
-import { Trash2 } from "lucide-react";
+import { Trash2, Link } from "lucide-react";
 import { getTimeRemaining, getLivePercentages } from "../utils/timeUtils";
 import { fetchUserData, getUserDisplayName } from "../utils/userUtils";
+import { generateBetShareLink, copyToClipboard } from "../utils/shareUtils";
 
 interface ActiveBetCardProps {
   bet: any;
@@ -54,6 +55,9 @@ function ActiveBetCard({
   // Change Vote state
   const [showChangeVoteModal, setShowChangeVoteModal] = useState(false);
   const [newVoteChoice, setNewVoteChoice] = useState("");
+
+  // Share state
+  const [showShareSuccess, setShowShareSuccess] = useState(false);
 
   const { isClosed } = getTimeRemaining(bet.closingAt);
   const isH2H = bet.isH2H === true;
@@ -476,6 +480,21 @@ function ActiveBetCard({
     }
   };
 
+  // Share bet handler
+  const handleShareBet = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click navigation
+
+    const shareUrl = generateBetShareLink(bet.id);
+    const success = await copyToClipboard(shareUrl);
+
+    if (success) {
+      setShowShareSuccess(true);
+      setTimeout(() => setShowShareSuccess(false), 2000);
+    } else {
+      alert("Failed to copy link to clipboard");
+    }
+  };
+
   return (
     <li
       className={`
@@ -558,6 +577,19 @@ function ActiveBetCard({
           <span className={`text-[9px] sm:text-xs font-bold ${isH2H ? 'text-purple-500' : 'text-orange-500'}`}>
             {getClosingTimeDisplay()}
           </span>
+          {/* Share Button */}
+          <button
+            onClick={handleShareBet}
+            className="p-1 hover:bg-zinc-800 rounded transition relative"
+            aria-label="Share bet"
+          >
+            <Link className={`w-3 h-3 sm:w-4 sm:h-4 ${isH2H ? 'text-purple-400 hover:text-purple-300' : 'text-orange-400 hover:text-orange-300'}`} />
+            {showShareSuccess && (
+              <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-green-500 text-white text-[8px] sm:text-[10px] px-2 py-1 rounded whitespace-nowrap">
+                Link copied!
+              </span>
+            )}
+          </button>
           {isCreator && (
             <button
               onClick={() => setShowDeleteModal(true)}
