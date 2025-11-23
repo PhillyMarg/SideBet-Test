@@ -55,6 +55,9 @@ function ActiveBetCard({
   const [showChangeVoteModal, setShowChangeVoteModal] = useState(false);
   const [newVoteChoice, setNewVoteChoice] = useState("");
 
+  // Share state
+  const [showShareModal, setShowShareModal] = useState(false);
+
   const { isClosed } = getTimeRemaining(bet.closingAt);
   const isH2H = bet.isH2H === true;
   const wager = bet.perUserWager ?? bet.betAmount ?? 0;
@@ -476,9 +479,25 @@ function ActiveBetCard({
     }
   };
 
+  // Share Handler
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click navigation
+
+    const shareUrl = generateBetShareLink(bet.id);
+    const success = await copyToClipboard(shareUrl);
+
+    if (success) {
+      toast.success('Link copied to clipboard!');
+    } else {
+      // Fallback: show modal with link to manually copy
+      setShowShareModal(true);
+    }
+  };
+
   return (
     <li
       className={`
+        relative
         rounded-xl px-2 py-2 sm:px-4 sm:py-3
         flex flex-col text-left shadow-md
         hover:scale-[1.01] sm:hover:scale-[1.02]
@@ -496,6 +515,15 @@ function ActiveBetCard({
         }
       `}
     >
+      {/* Share Button - Absolute positioned bottom-right */}
+      <button
+        onClick={handleShare}
+        className="absolute bottom-3 right-3 z-10 p-2 bg-zinc-800/80 backdrop-blur-sm rounded-full text-zinc-500 hover:text-orange-500 hover:bg-zinc-700/80 transition-all duration-200 active:scale-95"
+        aria-label="Share bet"
+      >
+        <Share2 className="w-4 h-4" />
+      </button>
+
       {/* Header Row */}
       <div className="flex items-center justify-between mb-1 sm:mb-2">
         <div className="flex items-center gap-1 sm:gap-2">
@@ -1306,6 +1334,47 @@ function ActiveBetCard({
                 } disabled:text-zinc-500 text-white rounded-lg font-semibold transition-colors`}
               >
                 Confirm Change
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Share Modal (Fallback) */}
+      {showShareModal && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setShowShareModal(false)}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-white mb-4">Share Bet</h3>
+
+            <div className="bg-zinc-800 rounded-lg p-3 mb-4">
+              <p className="text-sm text-zinc-400 mb-2">Copy this link:</p>
+              <p className="text-sm text-white break-all font-mono">
+                {generateBetShareLink(bet.id)}
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-sm"
+              >
+                Close
+              </button>
+              <button
+                onClick={async () => {
+                  await copyToClipboard(generateBetShareLink(bet.id));
+                  setShowShareModal(false);
+                  toast.success('Link copied!');
+                }}
+                className="flex-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm"
+              >
+                Copy Link
               </button>
             </div>
           </div>
