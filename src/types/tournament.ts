@@ -71,4 +71,6 @@ export interface CreateTournamentInput {
   isPublic: boolean;
   creatorId: string;
   creatorName: string;
+  participants?: Participant[];
+  startImmediately?: boolean;
 }
