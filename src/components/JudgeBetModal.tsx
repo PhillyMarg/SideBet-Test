@@ -3,9 +3,10 @@
 
 import { useState } from "react";
 import { doc, updateDoc, writeBatch, getDoc } from "firebase/firestore";
-import { db } from "../lib/firebase/client";
+import { db, auth } from "../lib/firebase/client";
 import { createActivity } from "../lib/activityHelpers";
 import { notifyBetResult } from "../lib/notifications";
+import { validateBetJudging } from "../lib/validation/betValidation";
 
 interface JudgeBetModalProps {
   bet: any;
@@ -24,6 +25,25 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
     console.log('Bet Line:', bet.line);
     console.log('Participants:', bet.participants);
     console.log('Picks:', bet.picks);
+
+    // Security check: Verify user is the creator and bet can be judged
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      alert('You must be logged in to judge a bet');
+      return;
+    }
+
+    const validation = validateBetJudging(
+      bet.creatorId,
+      currentUser.uid,
+      bet.status,
+      bet.closingAt
+    );
+
+    if (!validation.valid) {
+      alert(validation.error);
+      return;
+    }
 
     setIsSubmitting(true);
 

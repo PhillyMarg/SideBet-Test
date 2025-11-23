@@ -3,10 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { deleteDoc, doc, updateDoc, addDoc, collection, arrayUnion, serverTimestamp } from "firebase/firestore";
-import { db } from "../lib/firebase/client";
-import { Trash2, Share2 } from "lucide-react";
-import { generateBetShareLink, copyToClipboard } from "../lib/utils/shareUtils";
-import { toast } from "sonner";
+import { db, auth } from "../lib/firebase/client";
+import { validateBetDeletion } from "../lib/validation/betValidation";
+import { Trash2 } from "lucide-react";
 import { getTimeRemaining, getLivePercentages } from "../utils/timeUtils";
 import { fetchUserData, getUserDisplayName } from "../utils/userUtils";
 
@@ -268,11 +267,39 @@ function ActiveBetCard({
   const handleDeleteBet = async () => {
     if (isDeleting) return; // Prevent double-click
 
+    // Security check: Verify user is the creator
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      alert('You must be logged in to delete a bet');
+      return;
+    }
+
+    const validation = validateBetDeletion(
+      bet.creatorId,
+      currentUser.uid,
+      bet.participants?.length || 0
+    );
+
+    if (!validation.valid) {
+      alert(validation.error);
+      return;
+    }
+
+    // Confirm if participants exist
+    if (bet.participants?.length > 0) {
+      const confirmed = window.confirm(
+        `${bet.participants.length} people have placed bets. Their wagers will be voided. Delete anyway?`
+      );
+      if (!confirmed) {
+        setShowDeleteModal(false);
+        return;
+      }
+    }
+
     try {
       setIsDeleting(true);
 
       // Delete from Firestore
-      // Note: Frontend check only - for production, add Firebase security rules to verify creator
       await deleteDoc(doc(db, "bets", bet.id));
 
       setShowDeleteModal(false);
