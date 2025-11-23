@@ -293,9 +293,7 @@ export default function EventsPage() {
                     <TournamentCard
                       key={tournament.id}
                       tournament={tournament}
-                      onClick={() => {
-                        console.log('View tournament:', tournament.id);
-                      }}
+                      onClick={() => router.push(`/events/${tournament.id}`)}
                     />
                   ))}
                 </div>
@@ -320,9 +318,7 @@ export default function EventsPage() {
                     <TournamentCard
                       key={tournament.id}
                       tournament={tournament}
-                      onClick={() => {
-                        console.log('View tournament:', tournament.id);
-                      }}
+                      onClick={() => router.push(`/events/${tournament.id}`)}
                     />
                   ))}
                 </div>
@@ -347,9 +343,7 @@ export default function EventsPage() {
                     <TournamentCard
                       key={tournament.id}
                       tournament={tournament}
-                      onClick={() => {
-                        console.log('View tournament:', tournament.id);
-                      }}
+                      onClick={() => router.push(`/events/${tournament.id}`)}
                     />
                   ))}
                 </div>

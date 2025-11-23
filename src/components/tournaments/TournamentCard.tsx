@@ -30,7 +30,7 @@ export function TournamentCard({ tournament, onClick }: TournamentCardProps) {
   return (
     <div
       onClick={onClick}
-      className="bg-zinc-900 rounded-lg p-4 border border-zinc-800 hover:border-[#ff6b35] transition-colors cursor-pointer"
+      className="bg-zinc-900 rounded-lg p-4 border border-zinc-800 hover:border-[#ff6b35] hover:bg-zinc-800/50 transition-all cursor-pointer active:scale-[0.98] active:transition-transform"
     >
       {/* Tournament Name */}
       <h3 className="text-lg font-bold text-white mb-2 font-montserrat">
