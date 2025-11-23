@@ -224,10 +224,11 @@ export default function GroupDetailPage() {
    */
   const deleteAllGroupBets = async (groupId: string) => {
     try {
-      // Query all bets in this group
+      // Query all bets in this group (batch delete in chunks)
       const betsQuery = query(
         collection(db, "bets"),
-        where("groupId", "==", groupId)
+        where("groupId", "==", groupId),
+        limit(500)
       );
 
       const betsSnapshot = await getDocs(betsQuery);

@@ -66,7 +66,8 @@ export default function GroupsPage() {
         // Fetch user's groups
         const groupsQuery = query(
           collection(db, "groups"),
-          where("memberIds", "array-contains", firebaseUser.uid)
+          where("memberIds", "array-contains", firebaseUser.uid),
+          limit(50)
         );
         const groupsSnap = await getDocs(groupsQuery);
         const groupsData = groupsSnap.docs.map((d) => ({

@@ -1,4 +1,4 @@
-import { collection, addDoc, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
+import { collection, addDoc, query, where, getDocs, updateDoc, doc, limit } from "firebase/firestore";
 import { db } from "./firebase/client";
 
 interface CreateNotificationParams {
@@ -177,7 +177,8 @@ export async function notifyJudgeRequired(
       collection(db, "notifications"),
       where("userId", "==", userId),
       where("betId", "==", betId),
-      where("type", "==", "judge_required")
+      where("type", "==", "judge_required"),
+      limit(1)
     );
 
     const existing = await getDocs(q);
@@ -227,7 +228,8 @@ export async function markAllNotificationsAsRead(userId: string) {
     const q = query(
       collection(db, "notifications"),
       where("userId", "==", userId),
-      where("read", "==", false)
+      where("read", "==", false),
+      limit(100)
     );
 
     const snapshot = await getDocs(q);
