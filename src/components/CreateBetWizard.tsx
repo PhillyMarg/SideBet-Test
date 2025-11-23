@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { collection, addDoc, getDocs, query, where, getDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
+import { validateBetCreation } from "@/lib/validation/betValidation";
 import { Users, Swords, Check, ChevronDown } from "lucide-react";
 
 interface CreateBetWizardProps {
@@ -139,6 +140,22 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
     // Validate challenger pick for YES_NO and OVER_UNDER
     if (betType !== "CLOSEST_GUESS" && !challengerPick) {
       alert("Please pick your side (YES/NO or OVER/UNDER)");
+      return;
+    }
+
+    // Comprehensive input validation
+    const closingDateTime = new Date(`${closingDate}T${closingTime}`).toISOString();
+    const validation = validateBetCreation({
+      title: betTitle,
+      description: betDescription,
+      betAmount: betAmount,
+      closingTime: closingDateTime,
+      type: betType,
+      line: betType === "OVER_UNDER" ? overUnderLine : undefined
+    });
+
+    if (!validation.valid) {
+      alert(validation.error);
       return;
     }
 
@@ -305,6 +322,21 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
 
     if (!closingDate || !closingTime) {
       alert("Please set a closing date and time");
+      return;
+    }
+
+    // Comprehensive input validation
+    const closingDateTime = new Date(`${closingDate}T${closingTime}`).toISOString();
+    const validation = validateBetCreation({
+      title: betTitle,
+      description: betDescription,
+      closingTime: closingDateTime,
+      type: betType,
+      line: betType === "OVER_UNDER" ? overUnderLine : undefined
+    });
+
+    if (!validation.valid) {
+      alert(validation.error);
       return;
     }
 

@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation';
 import { Trash2, ChevronDown, ChevronUp, Check } from "lucide-react";
 import { deleteDoc, doc } from "firebase/firestore";
-import { db } from "../../lib/firebase/client";
+import { db, auth } from "../../lib/firebase/client";
+import { validateBetDeletion } from "../../lib/validation/betValidation";
 import { fetchUserData, getUserDisplayName } from "../../utils/userUtils";
 import { getLivePercentages } from "../../utils/timeUtils";
 import { useCountdown } from "../../hooks/useCountdown";
@@ -411,9 +412,39 @@ export function GroupBetCard({
     return 0;
   };
 
-  // Handle delete
+  // Handle delete with security checks
   const handleDelete = async () => {
     if (isDeleting) return;
+
+    // Security check: Verify user is the creator
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      alert('You must be logged in to delete a bet');
+      return;
+    }
+
+    const validation = validateBetDeletion(
+      bet.creatorId,
+      currentUser.uid,
+      bet.participants?.length || 0
+    );
+
+    if (!validation.valid) {
+      alert(validation.error);
+      return;
+    }
+
+    // Confirm if participants exist
+    if (bet.participants?.length > 0) {
+      const confirmed = window.confirm(
+        `${bet.participants.length} people have placed bets. Their wagers will be voided. Delete anyway?`
+      );
+      if (!confirmed) {
+        setShowDeleteModal(false);
+        return;
+      }
+    }
+
     try {
       setIsDeleting(true);
       await deleteDoc(doc(db, "bets", bet.id));
@@ -421,6 +452,7 @@ export function GroupBetCard({
       onDelete?.(bet.id);
     } catch (error) {
       console.error("Error deleting bet:", error);
+      alert('Failed to delete bet. Please try again.');
     } finally {
       setIsDeleting(false);
     }
@@ -1251,4 +1283,17 @@ export function GroupBetCard({
   );
 }
 
-export default GroupBetCard;
+// Memoize the component to prevent unnecessary re-renders
+const MemoizedGroupBetCard = React.memo(GroupBetCard, (prevProps, nextProps) => {
+  // Only re-render if relevant props changed
+  return (
+    prevProps.bet.id === nextProps.bet.id &&
+    prevProps.bet.status === nextProps.bet.status &&
+    prevProps.bet.participants?.length === nextProps.bet.participants?.length &&
+    prevProps.bet.h2hStatus === nextProps.bet.h2hStatus &&
+    JSON.stringify(prevProps.bet.picks) === JSON.stringify(nextProps.bet.picks) &&
+    prevProps.currentUserId === nextProps.currentUserId
+  );
+});
+
+export default MemoizedGroupBetCard;
