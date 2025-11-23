@@ -912,7 +912,7 @@ function ActiveBetCard({
                   {/* Change Vote Button */}
                   <button
                     onClick={() => setShowChangeVoteModal(true)}
-                    className="w-full py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg font-semibold transition-colors text-sm"
+                    className="w-full py-2.5 min-h-[44px] bg-zinc-700 hover:bg-zinc-600 active:bg-zinc-500 text-white rounded-lg font-semibold transition-all active:scale-95 text-sm"
                   >
                     Change Vote
                   </button>
@@ -985,7 +985,7 @@ function ActiveBetCard({
                     onClick={() =>
                       onPick(bet, bet.type === "YES_NO" ? "YES" : "OVER")
                     }
-                    className={`flex-1 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-semibold flex flex-col items-center justify-center shadow transition-all ${isH2H ? 'bg-purple-500 hover:bg-purple-600' : 'bg-orange-500 hover:bg-orange-600'} text-white`}
+                    className={`flex-1 py-2.5 min-h-[44px] rounded-lg text-[10px] sm:text-xs font-semibold flex flex-col items-center justify-center shadow transition-all active:scale-95 ${isH2H ? 'bg-purple-500 hover:bg-purple-600 active:bg-purple-700' : 'bg-orange-500 hover:bg-orange-600 active:bg-orange-700'} text-white`}
                   >
                     <span className="leading-none">{bet.type === "YES_NO" ? "Yes" : "Over"}</span>
                     <span className="text-[9px] sm:text-[10px] text-white/80 mt-0.5">
@@ -997,7 +997,7 @@ function ActiveBetCard({
                     onClick={() =>
                       onPick(bet, bet.type === "YES_NO" ? "NO" : "UNDER")
                     }
-                    className="flex-1 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-semibold flex flex-col items-center justify-center shadow transition-all bg-white hover:bg-gray-200 text-black"
+                    className="flex-1 py-2.5 min-h-[44px] rounded-lg text-[10px] sm:text-xs font-semibold flex flex-col items-center justify-center shadow transition-all active:scale-95 bg-white hover:bg-gray-200 active:bg-gray-300 text-black"
                   >
                     <span className="leading-none">{bet.type === "YES_NO" ? "No" : "Under"}</span>
                     <span className="text-[9px] sm:text-[10px] text-gray-600 mt-0.5">
@@ -1010,9 +1010,10 @@ function ActiveBetCard({
                 <div className="flex items-center gap-1.5 sm:gap-2 mt-auto">
                   <input
                     type="text"
+                    inputMode="numeric"
                     placeholder="Enter guess..."
                     id={`guess-${bet.id}`}
-                    className={`flex-1 bg-zinc-800 text-white text-[10px] sm:text-xs p-1.5 rounded-lg border border-zinc-700 focus:outline-none ${isH2H ? 'focus:border-purple-500' : 'focus:border-orange-500'} transition`}
+                    className={`flex-1 bg-zinc-800 text-white text-[10px] sm:text-xs p-2.5 min-h-[44px] rounded-lg border border-zinc-700 focus:outline-none ${isH2H ? 'focus:border-purple-500' : 'focus:border-orange-500'} transition`}
                   />
                   <button
                     onClick={() => {
@@ -1026,7 +1027,7 @@ function ActiveBetCard({
 
                       onPick(bet, finalValue);
                     }}
-                    className={`${isH2H ? 'bg-purple-500 hover:bg-purple-600' : 'bg-orange-500 hover:bg-orange-600'} text-white text-[10px] sm:text-xs font-semibold px-2 py-1.5 sm:px-3 rounded-lg shadow transition-all`}
+                    className={`${isH2H ? 'bg-purple-500 hover:bg-purple-600 active:bg-purple-700' : 'bg-orange-500 hover:bg-orange-600 active:bg-orange-700'} text-white text-[10px] sm:text-xs font-semibold px-3 py-2.5 min-h-[44px] rounded-lg shadow transition-all active:scale-95`}
                   >
                     Submit
                   </button>
@@ -1065,7 +1066,7 @@ function ActiveBetCard({
               <button
                 onClick={() => setShowDeleteModal(false)}
                 disabled={isDeleting}
-                className="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-800/50 text-white rounded-lg text-sm transition"
+                className="flex-1 px-4 py-3 min-h-[44px] bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 disabled:bg-zinc-800/50 text-white rounded-lg text-sm transition-all active:scale-95"
               >
                 Cancel
               </button>
@@ -1073,7 +1074,7 @@ function ActiveBetCard({
               <button
                 onClick={handleDeleteBet}
                 disabled={isDeleting}
-                className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 text-white rounded-lg text-sm transition"
+                className="flex-1 px-4 py-3 min-h-[44px] bg-red-500 hover:bg-red-600 active:bg-red-700 disabled:bg-red-500/50 text-white rounded-lg text-sm transition-all active:scale-95"
               >
                 {isDeleting ? "Deleting..." : "Delete"}
               </button>
@@ -1133,7 +1134,7 @@ function ActiveBetCard({
                   setShowPickModal(false);
                   setSelectedPick("");
                 }}
-                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-semibold"
+                className="flex-1 py-3 min-h-[44px] bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 text-white rounded-lg font-semibold transition-all active:scale-95"
               >
                 Cancel
               </button>
@@ -1141,7 +1142,7 @@ function ActiveBetCard({
               <button
                 onClick={submitH2HAccept}
                 disabled={!selectedPick || !selectedPick.trim()}
-                className="flex-1 py-3 bg-purple-500 hover:bg-purple-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white rounded-lg font-semibold transition-colors"
+                className="flex-1 py-3 min-h-[44px] bg-purple-500 hover:bg-purple-600 active:bg-purple-700 disabled:bg-zinc-800 disabled:text-zinc-500 text-white rounded-lg font-semibold transition-all active:scale-95"
               >
                 Accept Challenge
               </button>
@@ -1171,14 +1172,14 @@ function ActiveBetCard({
             <div className="flex gap-2">
               <button
                 onClick={() => setShowDeclineConfirm(false)}
-                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-semibold"
+                className="flex-1 py-3 min-h-[44px] bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 text-white rounded-lg font-semibold transition-all active:scale-95"
               >
                 Cancel
               </button>
 
               <button
                 onClick={confirmDecline}
-                className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold"
+                className="flex-1 py-3 min-h-[44px] bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-lg font-semibold transition-all active:scale-95"
               >
                 Decline Challenge
               </button>
@@ -1216,7 +1217,7 @@ function ActiveBetCard({
                 <>
                   <button
                     onClick={() => setNewVoteChoice("YES")}
-                    className={`w-full p-3 rounded-lg border-2 transition-all ${
+                    className={`w-full p-3 min-h-[44px] rounded-lg border-2 transition-all active:scale-95 ${
                       newVoteChoice === "YES"
                         ? `${isH2H ? 'border-purple-500 bg-purple-500/10' : 'border-orange-500 bg-orange-500/10'}`
                         : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
@@ -1232,7 +1233,7 @@ function ActiveBetCard({
                   </button>
                   <button
                     onClick={() => setNewVoteChoice("NO")}
-                    className={`w-full p-3 rounded-lg border-2 transition-all ${
+                    className={`w-full p-3 min-h-[44px] rounded-lg border-2 transition-all active:scale-95 ${
                       newVoteChoice === "NO"
                         ? `${isH2H ? 'border-purple-500 bg-purple-500/10' : 'border-orange-500 bg-orange-500/10'}`
                         : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
@@ -1251,7 +1252,7 @@ function ActiveBetCard({
                 <>
                   <button
                     onClick={() => setNewVoteChoice("OVER")}
-                    className={`w-full p-3 rounded-lg border-2 transition-all ${
+                    className={`w-full p-3 min-h-[44px] rounded-lg border-2 transition-all active:scale-95 ${
                       newVoteChoice === "OVER"
                         ? `${isH2H ? 'border-purple-500 bg-purple-500/10' : 'border-orange-500 bg-orange-500/10'}`
                         : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
@@ -1267,7 +1268,7 @@ function ActiveBetCard({
                   </button>
                   <button
                     onClick={() => setNewVoteChoice("UNDER")}
-                    className={`w-full p-3 rounded-lg border-2 transition-all ${
+                    className={`w-full p-3 min-h-[44px] rounded-lg border-2 transition-all active:scale-95 ${
                       newVoteChoice === "UNDER"
                         ? `${isH2H ? 'border-purple-500 bg-purple-500/10' : 'border-orange-500 bg-orange-500/10'}`
                         : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
@@ -1291,7 +1292,7 @@ function ActiveBetCard({
                   setShowChangeVoteModal(false);
                   setNewVoteChoice("");
                 }}
-                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-semibold"
+                className="flex-1 py-3 min-h-[44px] bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 text-white rounded-lg font-semibold transition-all active:scale-95"
               >
                 Cancel
               </button>
@@ -1299,11 +1300,11 @@ function ActiveBetCard({
               <button
                 onClick={handleChangeVote}
                 disabled={!newVoteChoice}
-                className={`flex-1 py-3 ${
+                className={`flex-1 py-3 min-h-[44px] ${
                   isH2H
-                    ? 'bg-purple-500 hover:bg-purple-600 disabled:bg-zinc-800'
-                    : 'bg-orange-500 hover:bg-orange-600 disabled:bg-zinc-800'
-                } disabled:text-zinc-500 text-white rounded-lg font-semibold transition-colors`}
+                    ? 'bg-purple-500 hover:bg-purple-600 active:bg-purple-700 disabled:bg-zinc-800'
+                    : 'bg-orange-500 hover:bg-orange-600 active:bg-orange-700 disabled:bg-zinc-800'
+                } disabled:text-zinc-500 text-white rounded-lg font-semibold transition-all active:scale-95`}
               >
                 Confirm Change
               </button>

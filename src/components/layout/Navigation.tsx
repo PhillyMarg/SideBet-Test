@@ -36,13 +36,15 @@ export function Navigation({ selected = "CREATE GROUP", onSelect }: NavigationPr
               key={item}
               onClick={() => onSelect?.(item)}
               style={{
-                padding: "6px 12px",
+                padding: "10px 12px",
+                minHeight: "44px",
                 borderRadius: "8px",
                 border: isSelected ? "2px solid #FF6B35" : "2px solid transparent",
                 backgroundColor: "transparent",
                 cursor: "pointer",
                 flexShrink: 0,
               }}
+              className="active:scale-95 transition-transform"
             >
               <span
                 style={{

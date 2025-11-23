@@ -10,10 +10,15 @@ export default function PWAHead() {
       { rel: 'apple-touch-icon', href: '/icon-192.png' },
       { rel: 'apple-touch-icon', href: '/icon-192.png', sizes: '192x192' },
       { rel: 'apple-touch-icon', href: '/icon-512.png', sizes: '512x512' },
+      // Firebase preconnect for faster loading
+      { rel: 'preconnect', href: 'https://firestore.googleapis.com' },
+      { rel: 'preconnect', href: 'https://www.googleapis.com' },
+      { rel: 'dns-prefetch', href: 'https://firestore.googleapis.com' },
+      { rel: 'dns-prefetch', href: 'https://www.googleapis.com' },
     ];
 
     const metas = [
-      { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=5' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0' },
       { name: 'apple-mobile-web-app-capable', content: 'yes' },
       { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
       { name: 'apple-mobile-web-app-title', content: 'SideBet' },

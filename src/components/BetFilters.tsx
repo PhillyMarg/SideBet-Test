@@ -84,7 +84,7 @@ export default function BetFilters({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`relative px-3 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap rounded-md transition-colors ${
+              className={`relative px-3 sm:px-4 py-2.5 min-h-[44px] text-xs sm:text-sm whitespace-nowrap rounded-md transition-all active:scale-95 ${
                 activeTab === tab.id
                   ? tab.id === "h2h"
                     ? "bg-purple-500 text-white shadow-lg shadow-purple-500/50"
@@ -121,13 +121,13 @@ export default function BetFilters({
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder="Search..."
-                className="w-full pl-8 sm:pl-10 pr-8 sm:pr-10 py-2 text-xs sm:text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                className="w-full pl-8 sm:pl-10 pr-10 sm:pr-12 py-2.5 min-h-[44px] text-xs sm:text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
               />
 
               {searchQuery && (
                 <button
                   onClick={() => onSearchChange("")}
-                  className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2"
+                  className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-zinc-800 transition-all active:scale-95"
                 >
                   <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-400 hover:text-white" />
                 </button>
@@ -141,7 +141,7 @@ export default function BetFilters({
           <select
             value={sortBy}
             onChange={(e) => onSortChange(e.target.value as SortOption)}
-            className="w-full px-2 sm:px-3 py-2 text-xs sm:text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-orange-500"
+            className="w-full px-2 sm:px-3 py-2.5 min-h-[44px] text-xs sm:text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-orange-500"
           >
             <option value="closingSoon">Closing Soon</option>
             <option value="recent">Recent</option>

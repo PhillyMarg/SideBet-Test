@@ -54,7 +54,8 @@ export default function NotificationBell({
       {/* Bell Icon Button */}
       <button
         onClick={() => setShowPanel(true)}
-        className="relative p-2 text-zinc-400 hover:text-white transition-colors"
+        className="relative p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95"
+        aria-label="Notifications"
       >
         <Bell className="w-6 h-6" />
 

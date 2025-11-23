@@ -499,7 +499,8 @@ export function Header({ userId }: HeaderProps) {
                 color: "white",
                 fontSize: "10px",
                 fontWeight: "700",
-                padding: "8px 16px",
+                padding: "12px 16px",
+                minHeight: "44px",
                 borderRadius: "6px",
                 boxShadow: "0px 4px 4px rgba(0,0,0,0.25)",
                 border: "none",
@@ -507,6 +508,7 @@ export function Header({ userId }: HeaderProps) {
                 textTransform: "uppercase",
                 letterSpacing: "0.5px",
               }}
+              className="active:scale-95 active:bg-orange-600 transition-transform"
             >
               CREATE BET
             </button>
@@ -542,10 +544,10 @@ export function Header({ userId }: HeaderProps) {
                     key={item.label}
                     onClick={() => handleNavClick(item)}
                     className={`
-                      flex-shrink-0 px-3 py-0.5 rounded-lg
+                      flex-shrink-0 px-3 py-2.5 min-h-[44px] rounded-lg
                       font-montserrat text-[12px] text-center whitespace-nowrap
                       border-2 border-transparent
-                      transition-colors
+                      transition-all active:scale-95
                       bg-transparent cursor-pointer
                       ${isActive
                         ? 'text-[#ff6b35] font-semibold'
@@ -610,16 +612,16 @@ export function Header({ userId }: HeaderProps) {
               className="w-full bg-zinc-800 text-white p-3 rounded-md text-sm border border-zinc-700 mb-4 focus:outline-none focus:border-orange-500"
             />
 
-            <div className="flex justify-between mt-4">
+            <div className="flex justify-between mt-4 gap-3">
               <button
                 onClick={() => setShowJoinGroup(false)}
-                className="text-gray-400 border border-gray-600 px-4 py-2 rounded-md text-sm hover:bg-gray-800 transition"
+                className="flex-1 text-gray-400 border border-gray-600 px-4 py-3 min-h-[44px] rounded-md text-sm hover:bg-gray-800 transition-all active:scale-95"
               >
                 Cancel
               </button>
               <button
                 onClick={handleJoinGroup}
-                className="bg-orange-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-600 transition"
+                className="flex-1 bg-orange-500 text-white px-4 py-3 min-h-[44px] rounded-md text-sm font-medium hover:bg-orange-600 active:bg-orange-700 transition-all active:scale-95"
               >
                 Join Group
               </button>
