@@ -271,6 +271,14 @@ button, .cursor-pointer {
   -webkit-overflow-scrolling: touch;
 }
 
+/* ==== Mobile Touch Targets (44x44px minimum) ==== */
+/* Prevent iOS zoom on input focus - CRITICAL */
+input,
+textarea,
+select {
+  font-size: 16px !important;
+}
+
 /* Larger touch targets on mobile */
 @media (max-width: 640px) {
   button {
@@ -279,8 +287,80 @@ button, .cursor-pointer {
 
   input, select, textarea {
     min-height: 44px;
-    font-size: 16px; /* Prevents zoom on iOS */
+    font-size: 16px !important; /* Prevents zoom on iOS */
   }
+}
+
+/* Touch target utility classes */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.touch-target-sm {
+  min-width: 36px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ==== Active States for Touch ==== */
+button:active,
+.cursor-pointer:active {
+  transform: scale(0.95);
+  transition: transform 0.1s ease-out;
+}
+
+/* Specific active states for colored buttons */
+.btn-orange:active {
+  @apply bg-orange-600;
+}
+
+/* ==== Safe Area Insets for iOS ==== */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Footer with safe area */
+footer {
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+
+/* Modal safe areas */
+.modal-safe-area {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ==== Reduced Motion for Accessibility ==== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==== GPU-Accelerated Animations ==== */
+.animate-transform {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Remove will-change after animation completes */
+.animate-transform:not(:hover):not(:active) {
+  will-change: auto;
 }
 
 /* ==== Modal Backdrop Animation ==== */
@@ -303,4 +383,33 @@ button, .cursor-pointer {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* ==== Skeleton Loading Animation ==== */
+.skeleton {
+  @apply bg-zinc-800 rounded animate-pulse;
+}
+
+.skeleton-text {
+  @apply h-4 bg-zinc-800 rounded animate-pulse;
+}
+
+.skeleton-text-sm {
+  @apply h-3 bg-zinc-800 rounded animate-pulse;
+}
+
+/* ==== Loading Spinner ==== */
+.spinner {
+  @apply animate-spin rounded-full border-b-2 border-orange-500;
+}
+
+/* ==== Input Focus Scroll Behavior ==== */
+/* Note: For scroll-into-view on focus, use JS:
+   onFocus={(e) => setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300)}
+*/
+
+/* ==== Prevent Layout Shift ==== */
+/* Ensure consistent heights to prevent CLS */
+.min-h-content {
+  min-height: fit-content;
 }
