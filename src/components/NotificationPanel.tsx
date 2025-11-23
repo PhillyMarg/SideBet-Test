@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { collection, query, where, onSnapshot, doc, getDoc, deleteDoc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, getDoc, deleteDoc, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import {
   markNotificationAsRead,
@@ -67,7 +67,8 @@ export default function NotificationPanel({
     // Simple query without orderBy to avoid Firestore index requirement
     const q = query(
       collection(db, "notifications"),
-      where("userId", "==", userId)
+      where("userId", "==", userId),
+      limit(100)
     );
 
     const unsubscribe = onSnapshot(

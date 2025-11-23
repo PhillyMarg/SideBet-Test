@@ -9,6 +9,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { Tournament, CreateTournamentInput, TournamentStatus } from '@/types/tournament';
@@ -127,9 +128,9 @@ export async function getTournaments(filters?: {
 
     // Apply constraints and ordering
     if (constraints.length > 0) {
-      q = query(collection(db, TOURNAMENTS_COLLECTION), ...constraints, orderBy('startDate', 'desc'));
+      q = query(collection(db, TOURNAMENTS_COLLECTION), ...constraints, orderBy('startDate', 'desc'), limit(50));
     } else {
-      q = query(collection(db, TOURNAMENTS_COLLECTION), orderBy('startDate', 'desc'));
+      q = query(collection(db, TOURNAMENTS_COLLECTION), orderBy('startDate', 'desc'), limit(50));
     }
 
     const querySnapshot = await getDocs(q);
@@ -229,7 +230,8 @@ export async function getUserTournaments(userId: string): Promise<{
     const createdQuery = query(
       collection(db, TOURNAMENTS_COLLECTION),
       where('creatorId', '==', userId),
-      orderBy('startDate', 'desc')
+      orderBy('startDate', 'desc'),
+      limit(50)
     );
     const createdSnapshot = await getDocs(createdQuery);
     const created: Tournament[] = [];

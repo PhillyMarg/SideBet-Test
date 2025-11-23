@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, query, where, onSnapshot, orderBy, limit } from "firebase/firestore";
+import { collection, query, where, onSnapshot, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { Bell } from "lucide-react";
 import NotificationPanel from "./NotificationPanel";
@@ -32,7 +32,8 @@ export default function NotificationBell({
     const q = query(
       collection(db, "notifications"),
       where("userId", "==", userId),
-      where("read", "==", false)
+      where("read", "==", false),
+      limit(100)
     );
 
     const unsubscribe = onSnapshot(

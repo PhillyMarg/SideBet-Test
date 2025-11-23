@@ -13,7 +13,9 @@ import {
   doc,
   getDoc,
   getDocs,
-  or
+  or,
+  limit,
+  documentId
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase/client";
 import { onAuthStateChanged } from "firebase/auth";
@@ -127,7 +129,8 @@ export default function FriendsPage() {
       or(
         where("user1Id", "==", user.uid),
         where("user2Id", "==", user.uid)
-      )
+      ),
+      limit(100)
     );
 
     const unsubscribe = onSnapshot(friendshipsQuery, async (snapshot) => {
@@ -142,13 +145,22 @@ export default function FriendsPage() {
         f.user1Id === user.uid ? f.user2Id : f.user1Id
       );
 
-      // Fetch friend user data
-      const friendsData = await Promise.all(
-        friendIds.map(async (id) => {
-          const userDoc = await getDoc(doc(db, "users", id));
-          return { uid: id, ...userDoc.data() } as User;
-        })
-      );
+      // Fetch friend user data (batched)
+      const friendsData: User[] = [];
+      if (friendIds.length > 0) {
+        // Batch fetch users in groups of 30 (Firestore limit)
+        for (let i = 0; i < friendIds.length; i += 30) {
+          const batch = friendIds.slice(i, i + 30);
+          const usersQuery = query(
+            collection(db, "users"),
+            where(documentId(), "in", batch)
+          );
+          const usersSnapshot = await getDocs(usersQuery);
+          usersSnapshot.forEach(doc => {
+            friendsData.push({ uid: doc.id, ...doc.data() } as User);
+          });
+        }
+      }
       setFriends(friendsData);
 
       // Incoming requests (others sent to me)
@@ -158,12 +170,21 @@ export default function FriendsPage() {
       const incomingIds = incoming.map(f =>
         f.user1Id === user.uid ? f.user2Id : f.user1Id
       );
-      const incomingData = await Promise.all(
-        incomingIds.map(async (id) => {
-          const userDoc = await getDoc(doc(db, "users", id));
-          return { uid: id, ...userDoc.data() } as User;
-        })
-      );
+      // Fetch incoming request user data (batched)
+      const incomingData: User[] = [];
+      if (incomingIds.length > 0) {
+        for (let i = 0; i < incomingIds.length; i += 30) {
+          const batch = incomingIds.slice(i, i + 30);
+          const usersQuery = query(
+            collection(db, "users"),
+            where(documentId(), "in", batch)
+          );
+          const usersSnapshot = await getDocs(usersQuery);
+          usersSnapshot.forEach(doc => {
+            incomingData.push({ uid: doc.id, ...doc.data() } as User);
+          });
+        }
+      }
       setIncomingRequests(incomingData);
 
       // Sent requests (I sent to others)
@@ -173,12 +194,21 @@ export default function FriendsPage() {
       const sentIds = sent.map(f =>
         f.user1Id === user.uid ? f.user2Id : f.user1Id
       );
-      const sentData = await Promise.all(
-        sentIds.map(async (id) => {
-          const userDoc = await getDoc(doc(db, "users", id));
-          return { uid: id, ...userDoc.data() } as User;
-        })
-      );
+      // Fetch sent request user data (batched)
+      const sentData: User[] = [];
+      if (sentIds.length > 0) {
+        for (let i = 0; i < sentIds.length; i += 30) {
+          const batch = sentIds.slice(i, i + 30);
+          const usersQuery = query(
+            collection(db, "users"),
+            where(documentId(), "in", batch)
+          );
+          const usersSnapshot = await getDocs(usersQuery);
+          usersSnapshot.forEach(doc => {
+            sentData.push({ uid: doc.id, ...doc.data() } as User);
+          });
+        }
+      }
       setSentRequests(sentData);
     });
 
@@ -193,7 +223,8 @@ export default function FriendsPage() {
       try {
         const groupsQuery = query(
           collection(db, "groups"),
-          where("memberIds", "array-contains", user.uid)
+          where("memberIds", "array-contains", user.uid),
+          limit(50)
         );
         const snapshot = await getDocs(groupsQuery);
         const groupsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -235,19 +266,21 @@ export default function FriendsPage() {
           id => !excludeIds.has(id)
         );
 
-        // Fetch user data for suggestions
-        const suggestionsData = await Promise.all(
-          suggestionIds.slice(0, 10).map(async (id) => {
-            const userDoc = await getDoc(doc(db, "users", id));
-            if (userDoc.exists()) {
-              return { uid: id, ...userDoc.data() } as User;
-            }
-            return null;
-          })
-        );
+        // Fetch user data for suggestions (batched)
+        const suggestionsData: User[] = [];
+        const suggestionBatch = suggestionIds.slice(0, 10);
+        if (suggestionBatch.length > 0) {
+          const usersQuery = query(
+            collection(db, "users"),
+            where(documentId(), "in", suggestionBatch)
+          );
+          const usersSnapshot = await getDocs(usersQuery);
+          usersSnapshot.forEach(doc => {
+            suggestionsData.push({ uid: doc.id, ...doc.data() } as User);
+          });
+        }
 
-        // Filter out nulls and set
-        setSuggestions(suggestionsData.filter(s => s !== null) as User[]);
+        setSuggestions(suggestionsData);
 
       } catch (error) {
         console.error("Error loading suggestions:", error);
