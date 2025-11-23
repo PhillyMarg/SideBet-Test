@@ -1,0 +1,427 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence, PanInfo } from "framer-motion";
+import { Bet, GroupBetCard, GroupBetCardProps } from "./bets/GroupBetCard";
+import { Grid3X3, Layers } from "lucide-react";
+
+interface CardStackProps {
+  cards: Bet[];
+  currentUserId: string;
+  onDismiss?: (cardId: string) => void;
+  onSeeAll?: () => void;
+  // Pass through GroupBetCard props
+  groupNameGetter?: (groupId: string) => string;
+  onVote?: (betId: string, vote: string) => void;
+  onSubmitGuess?: (betId: string, guess: number) => void;
+  onChangeVote?: (betId: string) => void;
+  onJudge?: (betId: string, result: any) => void;
+  onDeclareWinner?: (betId: string, winnerId: string) => void;
+  onDelete?: (betId: string) => void;
+  onAcceptChallenge?: (betId: string) => void;
+  onDeclineChallenge?: (betId: string) => void;
+}
+
+// Preview card component - shows only essential info
+function PreviewCard({
+  bet,
+  stackPosition,
+  themeColor
+}: {
+  bet: Bet;
+  stackPosition: number;
+  themeColor: string;
+}) {
+  const textShadow = "[text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]";
+
+  // Get closing time display
+  const getClosingTimeDisplay = () => {
+    if (!bet.closingAt) return "No close time";
+
+    const now = Date.now();
+    const closingTime = new Date(bet.closingAt).getTime();
+
+    if (isNaN(closingTime)) return "No close time";
+    if (closingTime <= now) return "CLOSED";
+
+    const timeUntilClose = closingTime - now;
+    const hours = Math.floor(timeUntilClose / (60 * 60 * 1000));
+    const days = Math.floor(timeUntilClose / (24 * 60 * 60 * 1000));
+
+    if (days > 0) {
+      return `${days}d`;
+    } else if (hours > 0) {
+      return `${hours}h`;
+    } else {
+      const minutes = Math.floor(timeUntilClose / (60 * 1000));
+      return `${minutes}m`;
+    }
+  };
+
+  // Get bet type icon
+  const getBetTypeIcon = () => {
+    switch (bet.type) {
+      case "YES_NO":
+        return "?";
+      case "OVER_UNDER":
+        return "O/U";
+      case "CLOSEST_GUESS":
+        return "#";
+      default:
+        return "?";
+    }
+  };
+
+  return (
+    <div
+      className="w-full bg-[#1E293B] rounded-xl px-4 py-3 border border-[#334155] relative overflow-hidden"
+      style={{
+        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)"
+      }}
+    >
+      <div className="flex items-center justify-between">
+        {/* Left: Bet type icon + Title */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <span
+            className={`text-xs font-bold px-1.5 py-0.5 rounded ${textShadow}`}
+            style={{ backgroundColor: themeColor, color: 'white' }}
+          >
+            {getBetTypeIcon()}
+          </span>
+          <p className={`text-sm font-semibold text-white truncate ${textShadow}`}>
+            {bet.title}
+          </p>
+        </div>
+
+        {/* Right: Closing time */}
+        <span
+          className={`text-xs font-semibold ml-2 flex-shrink-0 ${textShadow}`}
+          style={{ color: themeColor }}
+        >
+          {getClosingTimeDisplay()}
+        </span>
+      </div>
+
+      {/* Gradient fade at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-t from-[#1E293B] to-transparent" />
+    </div>
+  );
+}
+
+export default function CardStack({
+  cards,
+  currentUserId,
+  onDismiss,
+  onSeeAll,
+  groupNameGetter,
+  onVote,
+  onSubmitGuess,
+  onChangeVote,
+  onJudge,
+  onDeclareWinner,
+  onDelete,
+  onAcceptChallenge,
+  onDeclineChallenge,
+}: CardStackProps) {
+  const [visibleCards, setVisibleCards] = useState(cards);
+  const [dismissedCards, setDismissedCards] = useState<string[]>([]);
+  const [dragY, setDragY] = useState(0);
+
+  // Update visible cards when cards prop changes
+  useEffect(() => {
+    setVisibleCards(cards.filter(card => !dismissedCards.includes(card.id)));
+  }, [cards, dismissedCards]);
+
+  // Handle card dismiss
+  const dismissCard = (cardId: string) => {
+    setDismissedCards(prev => [...prev, cardId]);
+    onDismiss?.(cardId);
+
+    // Haptic feedback on mobile
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+  };
+
+  // Handle drag end
+  const handleDragEnd = (
+    event: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo,
+    cardId: string
+  ) => {
+    const { offset, velocity } = info;
+
+    // Swipe up to dismiss
+    if (offset.y < -100 || velocity.y < -500) {
+      dismissCard(cardId);
+    }
+
+    setDragY(0);
+  };
+
+  // Get theme color for card
+  const getThemeColor = (bet: Bet) => {
+    const isH2H = !!bet.friendId && !bet.groupId;
+    return isH2H ? '#A855F7' : '#FF6B35';
+  };
+
+  // Empty state
+  if (visibleCards.length === 0) {
+    return (
+      <div className="text-center py-12 text-slate-400">
+        <p className="mb-4">No active bets</p>
+        <button className="text-blue-500 font-medium text-sm">
+          Create your first bet
+        </button>
+      </div>
+    );
+  }
+
+  // Single card - no stack needed
+  if (visibleCards.length === 1) {
+    const bet = visibleCards[0];
+    return (
+      <div className="px-4">
+        <GroupBetCard
+          bet={bet}
+          currentUserId={currentUserId}
+          groupName={bet.groupId && groupNameGetter ? groupNameGetter(bet.groupId) : undefined}
+          onVote={onVote}
+          onSubmitGuess={onSubmitGuess}
+          onChangeVote={onChangeVote}
+          onJudge={onJudge}
+          onDeclareWinner={onDeclareWinner}
+          onDelete={onDelete}
+          onAcceptChallenge={onAcceptChallenge}
+          onDeclineChallenge={onDeclineChallenge}
+        />
+
+        {/* See all footer */}
+        <div className="mt-4 text-center">
+          <button
+            onClick={onSeeAll}
+            className="text-blue-500 font-medium text-sm hover:text-blue-400 transition"
+          >
+            See all {cards.length} bets →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Multiple cards - show stack
+  return (
+    <div className="relative px-4" style={{ minHeight: "280px" }}>
+      {/* Stacked cards container */}
+      <div className="relative">
+        <AnimatePresence mode="popLayout">
+          {visibleCards.slice(0, 3).map((bet, index) => {
+            const isTopCard = index === 0;
+            const themeColor = getThemeColor(bet);
+
+            // Calculate stack styling
+            const scale = 1 - (index * 0.05);
+            const offsetY = index * 12;
+            const opacity = 1 - (index * 0.1);
+            const zIndex = 30 - (index * 10);
+
+            // Width calculation for preview cards
+            const widthPercent = isTopCard ? 100 : (100 - (index * 5));
+
+            return (
+              <motion.div
+                key={bet.id}
+                layout
+                initial={{
+                  y: -50,
+                  opacity: 0,
+                  scale: 0.9
+                }}
+                animate={{
+                  y: offsetY,
+                  opacity: opacity,
+                  scale: scale,
+                  transition: {
+                    type: "spring",
+                    stiffness: 400,
+                    damping: 25,
+                    delay: index * 0.05
+                  }
+                }}
+                exit={{
+                  y: -300,
+                  opacity: 0,
+                  scale: 0.8,
+                  transition: {
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 30
+                  }
+                }}
+                style={{
+                  position: index === 0 ? "relative" : "absolute",
+                  top: 0,
+                  left: `${(100 - widthPercent) / 2}%`,
+                  width: `${widthPercent}%`,
+                  zIndex: zIndex,
+                }}
+                drag={isTopCard ? "y" : false}
+                dragConstraints={{ top: 0, bottom: 0 }}
+                dragElastic={0.2}
+                onDrag={(e, info) => {
+                  if (isTopCard) {
+                    setDragY(info.offset.y);
+                  }
+                }}
+                onDragEnd={(e, info) => {
+                  if (isTopCard) {
+                    handleDragEnd(e, info, bet.id);
+                  }
+                }}
+              >
+                {isTopCard ? (
+                  // Full card for top position
+                  <div
+                    className="cursor-grab active:cursor-grabbing"
+                    style={{
+                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+                      borderRadius: "12px"
+                    }}
+                  >
+                    <GroupBetCard
+                      bet={bet}
+                      currentUserId={currentUserId}
+                      groupName={bet.groupId && groupNameGetter ? groupNameGetter(bet.groupId) : undefined}
+                      onVote={onVote}
+                      onSubmitGuess={onSubmitGuess}
+                      onChangeVote={onChangeVote}
+                      onJudge={onJudge}
+                      onDeclareWinner={onDeclareWinner}
+                      onDelete={onDelete}
+                      onAcceptChallenge={onAcceptChallenge}
+                      onDeclineChallenge={onDeclineChallenge}
+                    />
+
+                    {/* Drag indicator */}
+                    {dragY < -20 && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-8 text-xs text-slate-400"
+                      >
+                        ↑ Release to dismiss
+                      </motion.div>
+                    )}
+                  </div>
+                ) : (
+                  // Preview card for stacked positions
+                  <PreviewCard
+                    bet={bet}
+                    stackPosition={index}
+                    themeColor={themeColor}
+                  />
+                )}
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </div>
+
+      {/* Additional cards indicator */}
+      {visibleCards.length > 3 && (
+        <div
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 text-xs text-slate-500"
+          style={{ bottom: "-20px" }}
+        >
+          +{visibleCards.length - 3} more
+        </div>
+      )}
+
+      {/* See all footer */}
+      <div className="mt-16 text-center">
+        <button
+          onClick={onSeeAll}
+          className="text-blue-500 font-medium text-sm hover:text-blue-400 transition"
+        >
+          See all {cards.length} bets →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Grid view component for "See all" mode
+export function BetGrid({
+  cards,
+  currentUserId,
+  groupNameGetter,
+  onVote,
+  onSubmitGuess,
+  onChangeVote,
+  onJudge,
+  onDeclareWinner,
+  onDelete,
+  onAcceptChallenge,
+  onDeclineChallenge,
+  onBackToStack,
+}: CardStackProps & { onBackToStack?: () => void }) {
+  return (
+    <div className="px-4">
+      {/* Back to stack button */}
+      {onBackToStack && (
+        <div className="mb-4 flex justify-end">
+          <button
+            onClick={onBackToStack}
+            className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition"
+          >
+            <Layers size={16} />
+            Stack view
+          </button>
+        </div>
+      )}
+
+      {/* Grid of cards */}
+      <div className="space-y-3">
+        {cards.map((bet) => (
+          <GroupBetCard
+            key={bet.id}
+            bet={bet}
+            currentUserId={currentUserId}
+            groupName={bet.groupId && groupNameGetter ? groupNameGetter(bet.groupId) : undefined}
+            onVote={onVote}
+            onSubmitGuess={onSubmitGuess}
+            onChangeVote={onChangeVote}
+            onJudge={onJudge}
+            onDeclareWinner={onDeclareWinner}
+            onDelete={onDelete}
+            onAcceptChallenge={onAcceptChallenge}
+            onDeclineChallenge={onDeclineChallenge}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// View toggle button component
+export function ViewToggle({
+  viewMode,
+  onToggle,
+}: {
+  viewMode: "stack" | "grid";
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition"
+      aria-label={viewMode === "stack" ? "Switch to grid view" : "Switch to stack view"}
+    >
+      {viewMode === "stack" ? (
+        <Grid3X3 size={18} className="text-slate-400" />
+      ) : (
+        <Layers size={18} className="text-slate-400" />
+      )}
+    </button>
+  );
+}
