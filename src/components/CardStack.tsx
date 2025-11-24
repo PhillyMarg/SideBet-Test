@@ -201,7 +201,7 @@ export default function CardStack({
   // Multiple cards - show stack
   return (
     <>
-    <div className="relative px-4" style={{ minHeight: "320px", paddingBottom: "60px" }}>
+    <div className="relative px-4" style={{ minHeight: "320px", paddingBottom: "60px", paddingTop: "45px" }}>
       {/* Stacked cards container */}
       <div className="relative" style={{ zIndex: 1 }}>
         <AnimatePresence mode="popLayout">
@@ -213,9 +213,9 @@ export default function CardStack({
             // index 0 = top card (frontmost), index 1 = middle, index 2 = back
             const baseZIndex = 100;
             const zIndex = baseZIndex - index; // 0 → 100, 1 → 99, 2 → 98
-            const scale = 1 - index * 0.02; // 0 → 1, 1 → 0.98, 2 → 0.96
-            const offsetY = index * 30; // 0 → 0px, 1 → 30px, 2 → 60px
-            const opacity = 1 - index * 0.08;
+            const scale = 1 - index * 0.01; // 0 → 1, 1 → 0.99, 2 → 0.98 (reduced scaling)
+            const offsetY = index * -15; // Negative to stack upward: 0 → 0px, 1 → -15px, 2 → -30px
+            // Remove opacity - cards should be fully visible, only borders/shadows fade
 
             // Width calculation for preview cards
             const widthPercent = isTopCard ? 100 : 100 - index * 3;
@@ -231,7 +231,7 @@ export default function CardStack({
                 }}
                 animate={{
                   y: offsetY,
-                  opacity: opacity,
+                  // opacity removed - cards stay fully visible
                   scale: scale,
                   transition: {
                     type: "spring",
@@ -328,7 +328,7 @@ export default function CardStack({
           onClick={() => setShowAllBetsModal(true)}
           className="w-full py-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-white font-medium hover:bg-zinc-800 hover:border-zinc-700 transition-colors mt-4"
           style={{
-            transform: `translateY(${Math.min(3, visibleCards.length - 1) * 30}px)`,
+            transform: `translateY(${Math.min(3, visibleCards.length - 1) * 15}px)`,
             position: 'relative',
             zIndex: 1,
           }}
