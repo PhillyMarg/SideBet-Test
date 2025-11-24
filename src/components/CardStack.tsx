@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { Bet, GroupBetCard, GroupBetCardProps } from "./bets/GroupBetCard";
-import { Grid3X3, Layers } from "lucide-react";
+import { Grid3X3, Layers, X } from "lucide-react";
 
 interface CardStackProps {
   cards: Bet[];
@@ -126,6 +126,7 @@ export default function CardStack({
   const [visibleCards, setVisibleCards] = useState(cards);
   const [dismissedCards, setDismissedCards] = useState<string[]>([]);
   const [dragY, setDragY] = useState(0);
+  const [showAllBetsModal, setShowAllBetsModal] = useState(false);
 
   // Update visible cards when cards prop changes
   useEffect(() => {
@@ -168,11 +169,9 @@ export default function CardStack({
   // Empty state
   if (visibleCards.length === 0) {
     return (
-      <div className="text-center py-12 text-slate-400">
-        <p className="mb-4">No active bets</p>
-        <button className="text-blue-500 font-medium text-sm">
-          Create your first bet
-        </button>
+      <div className="text-center py-12 px-4">
+        <p className="text-zinc-400 mb-2">No active bets</p>
+        <p className="text-sm text-zinc-500">Create a bet or join one to get started</p>
       </div>
     );
   }
@@ -195,23 +194,14 @@ export default function CardStack({
           onAcceptChallenge={onAcceptChallenge}
           onDeclineChallenge={onDeclineChallenge}
         />
-
-        {/* See all footer */}
-        <div className="mt-4 text-center">
-          <button
-            onClick={onSeeAll}
-            className="text-blue-500 font-medium text-sm hover:text-blue-400 transition"
-          >
-            See all {cards.length} bets →
-          </button>
-        </div>
       </div>
     );
   }
 
   // Multiple cards - show stack
   return (
-    <div className="relative px-4" style={{ minHeight: "280px" }}>
+    <>
+    <div className="relative px-4" style={{ minHeight: "320px", paddingBottom: "60px" }}>
       {/* Stacked cards container */}
       <div className="relative">
         <AnimatePresence mode="popLayout">
@@ -219,14 +209,14 @@ export default function CardStack({
             const isTopCard = index === 0;
             const themeColor = getThemeColor(bet);
 
-            // Calculate stack styling
-            const scale = 1 - (index * 0.05);
-            const offsetY = index * 12;
-            const opacity = 1 - (index * 0.1);
-            const zIndex = 30 - (index * 10);
+            // Calculate stack styling - Apple Wallet style
+            const scale = 1 - (index * 0.02); // Subtle scale reduction
+            const offsetY = index * 30; // 30px offset per card
+            const opacity = 1 - (index * 0.08);
+            const zIndex = 100 - (index * 10);
 
             // Width calculation for preview cards
-            const widthPercent = isTopCard ? 100 : (100 - (index * 5));
+            const widthPercent = isTopCard ? 100 : (100 - (index * 3));
 
             return (
               <motion.div
@@ -243,9 +233,10 @@ export default function CardStack({
                   scale: scale,
                   transition: {
                     type: "spring",
-                    stiffness: 400,
-                    damping: 25,
-                    delay: index * 0.05
+                    stiffness: 300,
+                    damping: 30,
+                    duration: 0.3,
+                    delay: index * 0.03
                   }
                 }}
                 exit={{
@@ -264,6 +255,8 @@ export default function CardStack({
                   left: `${(100 - widthPercent) / 2}%`,
                   width: `${widthPercent}%`,
                   zIndex: zIndex,
+                  // Add shadow for depth effect
+                  filter: index > 0 ? `drop-shadow(0 ${index * 4}px ${index * 8}px rgba(0,0,0,${0.2 + index * 0.1}))` : 'none',
                 }}
                 drag={isTopCard ? "y" : false}
                 dragConstraints={{ top: 0, bottom: 0 }}
@@ -327,26 +320,72 @@ export default function CardStack({
         </AnimatePresence>
       </div>
 
-      {/* Additional cards indicator */}
+      {/* "See All X Bets" button - Apple Wallet style */}
       {visibleCards.length > 3 && (
-        <div
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 text-xs text-slate-500"
-          style={{ bottom: "-20px" }}
+        <button
+          onClick={() => setShowAllBetsModal(true)}
+          className="w-full py-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-white font-medium hover:bg-zinc-800 hover:border-zinc-700 transition-colors mt-4"
+          style={{
+            transform: `translateY(${Math.min(3, visibleCards.length - 1) * 30}px)`,
+            position: 'relative',
+            zIndex: 1,
+          }}
         >
-          +{visibleCards.length - 3} more
-        </div>
+          See All {visibleCards.length} Bets
+        </button>
       )}
 
-      {/* See all footer */}
-      <div className="mt-16 text-center">
-        <button
-          onClick={onSeeAll}
-          className="text-blue-500 font-medium text-sm hover:text-blue-400 transition"
-        >
-          See all {cards.length} bets →
-        </button>
-      </div>
+      {/* Small "See All" link when 3 or fewer cards */}
+      {visibleCards.length <= 3 && visibleCards.length > 1 && (
+        <div className="mt-8 text-center">
+          <button
+            onClick={() => setShowAllBetsModal(true)}
+            className="text-blue-500 font-medium text-sm hover:text-blue-400 transition"
+          >
+            See all {cards.length} bets →
+          </button>
+        </div>
+      )}
     </div>
+
+    {/* Full Page Modal for "See All" */}
+    {showAllBetsModal && (
+      <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50 overflow-y-auto">
+        <div className="min-h-screen p-4">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6 sticky top-0 bg-black/80 backdrop-blur-sm py-4 -mx-4 px-4 z-10">
+            <h2 className="text-xl font-bold text-white">All Active Bets ({visibleCards.length})</h2>
+            <button
+              onClick={() => setShowAllBetsModal(false)}
+              className="p-2 hover:bg-zinc-800 rounded-lg transition"
+            >
+              <X className="w-6 h-6 text-zinc-400" />
+            </button>
+          </div>
+
+          {/* All bets grid */}
+          <div className="space-y-4 max-w-2xl mx-auto pb-8">
+            {visibleCards.map(bet => (
+              <GroupBetCard
+                key={bet.id}
+                bet={bet}
+                currentUserId={currentUserId}
+                groupName={bet.groupId && groupNameGetter ? groupNameGetter(bet.groupId) : undefined}
+                onVote={onVote}
+                onSubmitGuess={onSubmitGuess}
+                onChangeVote={onChangeVote}
+                onJudge={onJudge}
+                onDeclareWinner={onDeclareWinner}
+                onDelete={onDelete}
+                onAcceptChallenge={onAcceptChallenge}
+                onDeclineChallenge={onDeclineChallenge}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
