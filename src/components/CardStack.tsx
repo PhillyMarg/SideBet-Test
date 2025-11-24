@@ -203,22 +203,22 @@ export default function CardStack({
     <>
     <div className="relative px-4" style={{ minHeight: "320px", paddingBottom: "60px" }}>
       {/* Stacked cards container */}
-      <div className="relative">
+      <div className="relative" style={{ zIndex: 1 }}>
         <AnimatePresence mode="popLayout">
           {visibleCards.slice(0, 3).map((bet, index) => {
             const isTopCard = index === 0;
             const themeColor = getThemeColor(bet);
-            const stackIndex = index;
 
             // Calculate stack styling - Apple Wallet style
-            const baseZIndex = 200;
-            const scale = isTopCard ? 1 : 1 - stackIndex * 0.02; // Subtle scale reduction for previews
-            const offsetY = stackIndex * 30; // 30px offset per card
-            const opacity = 1 - stackIndex * 0.08;
-            const zIndex = baseZIndex - stackIndex; // Explicit z-index ordering
+            // index 0 = top card (frontmost), index 1 = middle, index 2 = back
+            const baseZIndex = 100;
+            const zIndex = baseZIndex - index; // 0 → 100, 1 → 99, 2 → 98
+            const scale = 1 - index * 0.02; // 0 → 1, 1 → 0.98, 2 → 0.96
+            const offsetY = index * 30; // 0 → 0px, 1 → 30px, 2 → 60px
+            const opacity = 1 - index * 0.08;
 
             // Width calculation for preview cards
-            const widthPercent = isTopCard ? 100 : 100 - stackIndex * 3;
+            const widthPercent = isTopCard ? 100 : 100 - index * 3;
 
             return (
               <motion.div
@@ -252,7 +252,7 @@ export default function CardStack({
                   }
                 }}
                 style={{
-                  position: index === 0 ? "relative" : "absolute",
+                  position: isTopCard ? "relative" : "absolute",
                   top: 0,
                   left: `${(100 - widthPercent) / 2}%`,
                   width: `${widthPercent}%`,
