@@ -20,7 +20,6 @@ import {
 import { signOut } from "firebase/auth";
 import JudgeBetModal from "../../components/JudgeBetModal";
 import { GroupBetCard, determineCardState } from "../../components/bets/GroupBetCard";
-import { SeeMoreButton } from "../../components/ui/SeeMoreButton";
 import BetCardSkeleton from "../../components/BetCardSkeleton";
 import GroupCardSkeleton from "../../components/GroupCardSkeleton";
 import { getTimeRemaining } from "../../utils/timeUtils";
@@ -34,7 +33,6 @@ import { FilterTabs } from "../../components/home/FilterTabs";
 import { SearchBar } from "../../components/home/SearchBar";
 import { SectionTitle } from "../../components/home/SectionTitle";
 import FeedGroupCard from "../../components/FeedGroupCard";
-import CardStack, { BetGrid, ViewToggle } from "../../components/CardStack";
 
 // Lazy load heavy wizard components
 const CreateBetWizard = lazy(() => import("../../components/CreateBetWizard"));
@@ -65,10 +63,6 @@ export default function HomePage() {
   // Active bets state
   const [activeFilter, setActiveFilter] = useState<FilterOption>("ALL");
   const [activeSearchQuery, setActiveSearchQuery] = useState("");
-  const [activeExpanded, setActiveExpanded] = useState(false);
-  const [activeDisplayCount, setActiveDisplayCount] = useState(3);
-  const [viewMode, setViewMode] = useState<"stack" | "grid">("stack");
-  const [dismissedBets, setDismissedBets] = useState<string[]>([]);
 
   // Groups filtering state
   const [groupSearchQuery, setGroupSearchQuery] = useState("");
@@ -323,36 +317,13 @@ export default function HomePage() {
     return sorted;
   }, [activeBets, activeFilter, activeSearchQuery, user]);
 
-
-  // Determine what to display based on pagination
-  const activeToShow = useMemo(() => {
-    return filteredAndSortedActiveBets.slice(0, activeDisplayCount);
-  }, [filteredAndSortedActiveBets, activeDisplayCount]);
-
-  // Handlers for expanding/collapsing
-  const handleActiveSeeMore = () => {
-    if (activeExpanded) {
-      // Collapse back to 3
-      setActiveExpanded(false);
-      setActiveDisplayCount(3);
-    } else {
-      // Expand by 3 more
-      setActiveDisplayCount(prev => prev + 3);
-      setActiveExpanded(true);
-    }
-  };
-
-  // Reset display count when filters/search change
+  // Handler for filter change
   const handleActiveFilterChange = (filter: string) => {
     setActiveFilter(filter as FilterOption);
-    setActiveDisplayCount(3);
-    setActiveExpanded(false);
   };
 
   const handleActiveSearchChange = (query: string) => {
     setActiveSearchQuery(query);
-    setActiveDisplayCount(3);
-    setActiveExpanded(false);
   };
 
   // Track last active bet time per group
@@ -666,10 +637,6 @@ export default function HomePage() {
               <span className="text-sm text-zinc-400">({filteredAndSortedActiveBets.length})</span>
             )}
           </div>
-          <ViewToggle
-            viewMode={viewMode}
-            onToggle={() => setViewMode(mode => mode === 'stack' ? 'grid' : 'stack')}
-          />
         </div>
 
         {/* Active Filter Tabs */}
@@ -686,184 +653,41 @@ export default function HomePage() {
         />
 
         {/* Active Bet Cards */}
-        <section style={{ padding: "0" }}>
+        <section className="px-4">
           {loading ? (
-            <div style={{ padding: "0 16px" }}>
+            <div>
               {[...Array(3)].map((_, i) => (
                 <BetCardSkeleton key={i} />
               ))}
             </div>
-          ) : (
-            <>
-              {filteredAndSortedActiveBets.length > 0 ? (
-                viewMode === "stack" ? (
-                  <CardStack
-                    cards={filteredAndSortedActiveBets}
-                    currentUserId={user?.uid || ''}
-                    onDismiss={(cardId) => {
-                      setDismissedBets(prev => [...prev, cardId]);
-                    }}
-                    onSeeAll={() => setViewMode('grid')}
-                    groupNameGetter={getGroupName}
-                    onVote={(betId, vote) => {
-                      const targetBet = bets.find(b => b.id === betId);
-                      if (targetBet) handleUserPick(targetBet, vote);
-                    }}
-                    onSubmitGuess={(betId, guess) => {
-                      const targetBet = bets.find(b => b.id === betId);
-                      if (targetBet) handleUserPick(targetBet, guess);
-                    }}
-                    onChangeVote={(betId) => {
-                      console.log('Change vote:', betId);
-                    }}
-                    onJudge={(betId, result) => {
-                      const targetBet = bets.find(b => b.id === betId);
-                      if (targetBet) setJudgingBet(targetBet);
-                    }}
-                    onDeclareWinner={async (betId, winnerId) => {
-                      try {
-                        console.log('Declaring winner:', { betId, winnerId });
-
-                        // Get the bet
-                        const betRef = doc(db, 'bets', betId);
-                        const betSnap = await getDoc(betRef);
-
-                        if (!betSnap.exists()) {
-                          console.error('Bet not found');
-                          return;
-                        }
-
-                        const betData = betSnap.data();
-                        const winnerGuess = betData.picks?.[winnerId];
-
-                        // Update bet with result (winner's guess is the actual result)
-                        await updateDoc(betRef, {
-                          actualValue: winnerGuess,
-                          winners: [winnerId],
-                          status: 'JUDGED',
-                          judgedAt: new Date().toISOString(),
-                          judgedBy: user?.uid,
-                        });
-
-                        // Send result notifications to all participants
-                        const participants = betData.participants || [];
-                        const wagerAmount = betData.betAmount || betData.perUserWager || 0;
-
-                        for (const participantId of participants) {
-                          const won = participantId === winnerId;
-                          const amount = won ? wagerAmount : -wagerAmount;
-
-                          await notifyBetResult(
-                            participantId,
-                            betId,
-                            betData.title,
-                            won,
-                            Math.abs(amount)
-                          );
-                        }
-
-                        console.log('Winner declared and notifications sent');
-                      } catch (error) {
-                        console.error('Error declaring winner:', error);
-                      }
-                    }}
-                    onDelete={async (betId) => {
-                      console.log('Delete bet:', betId);
-                    }}
-                    onAcceptChallenge={handleAcceptChallenge}
-                    onDeclineChallenge={handleDeclineChallenge}
-                  />
-                ) : (
-                  <BetGrid
-                    cards={filteredAndSortedActiveBets}
-                    currentUserId={user?.uid || ''}
-                    onBackToStack={() => setViewMode('stack')}
-                    groupNameGetter={getGroupName}
-                    onVote={(betId, vote) => {
-                      const targetBet = bets.find(b => b.id === betId);
-                      if (targetBet) handleUserPick(targetBet, vote);
-                    }}
-                    onSubmitGuess={(betId, guess) => {
-                      const targetBet = bets.find(b => b.id === betId);
-                      if (targetBet) handleUserPick(targetBet, guess);
-                    }}
-                    onChangeVote={(betId) => {
-                      console.log('Change vote:', betId);
-                    }}
-                    onJudge={(betId, result) => {
-                      const targetBet = bets.find(b => b.id === betId);
-                      if (targetBet) setJudgingBet(targetBet);
-                    }}
-                    onDeclareWinner={async (betId, winnerId) => {
-                      try {
-                        console.log('Declaring winner:', { betId, winnerId });
-
-                        // Get the bet
-                        const betRef = doc(db, 'bets', betId);
-                        const betSnap = await getDoc(betRef);
-
-                        if (!betSnap.exists()) {
-                          console.error('Bet not found');
-                          return;
-                        }
-
-                        const betData = betSnap.data();
-                        const winnerGuess = betData.picks?.[winnerId];
-
-                        // Update bet with result (winner's guess is the actual result)
-                        await updateDoc(betRef, {
-                          actualValue: winnerGuess,
-                          winners: [winnerId],
-                          status: 'JUDGED',
-                          judgedAt: new Date().toISOString(),
-                          judgedBy: user?.uid,
-                        });
-
-                        // Send result notifications to all participants
-                        const participants = betData.participants || [];
-                        const wagerAmount = betData.betAmount || betData.perUserWager || 0;
-
-                        for (const participantId of participants) {
-                          const won = participantId === winnerId;
-                          const amount = won ? wagerAmount : -wagerAmount;
-
-                          await notifyBetResult(
-                            participantId,
-                            betId,
-                            betData.title,
-                            won,
-                            Math.abs(amount)
-                          );
-                        }
-
-                        console.log('Winner declared and notifications sent');
-                      } catch (error) {
-                        console.error('Error declaring winner:', error);
-                      }
-                    }}
-                    onDelete={async (betId) => {
-                      console.log('Delete bet:', betId);
-                    }}
-                    onAcceptChallenge={handleAcceptChallenge}
-                    onDeclineChallenge={handleDeclineChallenge}
-                  />
-                )
-              ) : (
-                <p
-                  style={{
-                    textAlign: "center",
-                    fontSize: "12px",
-                    color: "#71717A",
-                    marginTop: "24px",
-                    padding: "0 16px",
-                  }}
-                >
-                  {activeSearchQuery.trim()
-                    ? `No active bets found for "${activeSearchQuery}"`
-                    : getEmptyStateMessage(mapFilterToTab(activeFilter) as any)}
-                </p>
+          ) : filteredAndSortedActiveBets.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-zinc-400 mb-2">
+                {activeSearchQuery.trim()
+                  ? `No active bets found for "${activeSearchQuery}"`
+                  : getEmptyStateMessage(mapFilterToTab(activeFilter) as any)}
+              </p>
+              {!activeSearchQuery.trim() && activeFilter === "ALL" && (
+                <p className="text-sm text-zinc-500">Create a bet or join one to get started</p>
               )}
-            </>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredAndSortedActiveBets.map((bet) => (
+                <GroupBetCard
+                  key={bet.id}
+                  bet={bet}
+                  currentUserId={user?.uid || ''}
+                  groupName={getGroupName(bet.groupId)}
+                  onVote={(vote) => handleUserPick(bet, vote)}
+                  onSubmitGuess={(guess) => handleUserPick(bet, guess)}
+                  onChangeVote={() => console.log('Change vote:', bet.id)}
+                  onJudge={() => setJudgingBet(bet)}
+                  onAcceptChallenge={() => handleAcceptChallenge(bet.id)}
+                  onDeclineChallenge={() => handleDeclineChallenge(bet.id)}
+                />
+              ))}
+            </div>
           )}
         </section>
 
