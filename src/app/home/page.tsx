@@ -33,6 +33,7 @@ import { FilterTabs } from "../../components/home/FilterTabs";
 import { SearchBar } from "../../components/home/SearchBar";
 import { SectionTitle } from "../../components/home/SectionTitle";
 import FeedGroupCard from "../../components/FeedGroupCard";
+import { StackedBetCards } from "../../components/StackedBetCards";
 
 // Lazy load heavy wizard components
 const CreateBetWizard = lazy(() => import("../../components/CreateBetWizard"));
@@ -652,10 +653,10 @@ export default function HomePage() {
           placeholder="Search Active Bets..."
         />
 
-        {/* Active Bet Cards */}
-        <section className="px-4">
+        {/* Active Bet Cards - Stacked View */}
+        <section>
           {loading ? (
-            <div>
+            <div className="px-4">
               {[...Array(3)].map((_, i) => (
                 <BetCardSkeleton key={i} />
               ))}
@@ -672,22 +673,19 @@ export default function HomePage() {
               )}
             </div>
           ) : (
-            <div className="space-y-4">
-              {filteredAndSortedActiveBets.map((bet) => (
-                <GroupBetCard
-                  key={bet.id}
-                  bet={bet}
-                  currentUserId={user?.uid || ''}
-                  groupName={getGroupName(bet.groupId)}
-                  onVote={(vote) => handleUserPick(bet, vote)}
-                  onSubmitGuess={(guess) => handleUserPick(bet, guess)}
-                  onChangeVote={() => console.log('Change vote:', bet.id)}
-                  onJudge={() => setJudgingBet(bet)}
-                  onAcceptChallenge={() => handleAcceptChallenge(bet.id)}
-                  onDeclineChallenge={() => handleDeclineChallenge(bet.id)}
-                />
-              ))}
-            </div>
+            <StackedBetCards
+              bets={filteredAndSortedActiveBets}
+              currentUserId={user?.uid || ''}
+              groupNameGetter={getGroupName}
+              onVote={(betId, vote) => {
+                const bet = filteredAndSortedActiveBets.find(b => b.id === betId);
+                if (bet) handleUserPick(bet, vote);
+              }}
+              onSubmitGuess={(betId, guess) => {
+                const bet = filteredAndSortedActiveBets.find(b => b.id === betId);
+                if (bet) handleUserPick(bet, guess);
+              }}
+            />
           )}
         </section>
 
