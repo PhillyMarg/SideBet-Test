@@ -660,7 +660,12 @@ export default function HomePage() {
       >
         {/* ============ ACTIVE BETS SECTION ============ */}
         <div className="flex items-center justify-between px-4">
-          <SectionTitle>ACTIVE BETS</SectionTitle>
+          <div className="flex items-center gap-2">
+            <SectionTitle>ACTIVE BETS</SectionTitle>
+            {filteredAndSortedActiveBets.length > 0 && (
+              <span className="text-sm text-zinc-400">({filteredAndSortedActiveBets.length})</span>
+            )}
+          </div>
           <ViewToggle
             viewMode={viewMode}
             onToggle={() => setViewMode(mode => mode === 'stack' ? 'grid' : 'stack')}
