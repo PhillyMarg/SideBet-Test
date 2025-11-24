@@ -220,16 +220,17 @@ export default function CardStack({
           {stackLayers.map(({ bet, stackPosition }) => {
             const isTopCard = stackPosition === 0;
             const themeColor = getThemeColor(bet);
+            const stackIndex = index;
 
             // Calculate stack styling - Apple Wallet style
-            const scale = isTopCard ? 1 : 1 - stackPosition * stackConfig.scaleStep; // Subtle scale reduction for previews
-            const offsetY = stackPosition * stackConfig.yOffsetStep; // Offset per card
-            const opacity = 1 - stackPosition * stackConfig.opacityStep;
-            const zIndex = stackConfig.baseZIndex - stackPosition; // Explicit z-index ordering
+            const baseZIndex = 200;
+            const scale = isTopCard ? 1 : 1 - stackIndex * 0.02; // Subtle scale reduction for previews
+            const offsetY = stackIndex * 30; // 30px offset per card
+            const opacity = 1 - stackIndex * 0.08;
+            const zIndex = baseZIndex - stackIndex; // Explicit z-index ordering
 
             // Width calculation for preview cards
-            const widthPercent = isTopCard ? 100 : 100 - stackPosition * stackConfig.widthStep;
-            const leftOffsetPercent = (100 - widthPercent) / 2;
+            const widthPercent = isTopCard ? 100 : 100 - stackIndex * 3;
 
             return (
               <motion.div
