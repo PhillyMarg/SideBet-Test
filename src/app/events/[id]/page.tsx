@@ -49,10 +49,24 @@ export default function TournamentDetailsPage() {
         }
 
         // Check access for private tournaments
-        if (!data.isPublic && user?.uid !== data.creatorId) {
-          // TODO: Check if user has access code or is invited
-          setError('You do not have access to this tournament');
-          return;
+        if (!data.isPublic) {
+          // Check if user is the creator
+          const isCreator = user?.uid === data.creatorId;
+
+          // Check if user is a participant (robust against missing/invalid participants)
+          const isParticipant = Array.isArray(data.participants) &&
+            data.participants.some(p => p.userId === user?.uid);
+
+          // Check if user is in invitedUserIds (robust against missing/invalid invitedUserIds)
+          const isInvited = Array.isArray(data.invitedUserIds) &&
+            data.invitedUserIds.includes(user?.uid);
+
+          const hasAccess = isCreator || isParticipant || isInvited;
+
+          if (!hasAccess) {
+            setError('You do not have access to this tournament');
+            return;
+          }
         }
 
         setTournament(data);
