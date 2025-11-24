@@ -48,9 +48,17 @@ export default function TournamentDetailsPage() {
           return;
         }
 
-        // Check access for private tournaments
-        if (!data.isPublic && user?.uid !== data.creatorId) {
-          // TODO: Check if user has access code or is invited
+        const participants = Array.isArray(data.participants) ? data.participants : [];
+        const invitedUserIds = Array.isArray(data.invitedUserIds) ? data.invitedUserIds : [];
+        const viewerId = user?.uid;
+
+        const isCreator = viewerId === data.creatorId;
+        const isParticipant = Boolean(viewerId) && participants.some((participant) => participant.userId === viewerId);
+        const isInvited = Boolean(viewerId) && invitedUserIds.includes(viewerId);
+        const isPublic = Boolean(data.isPublic);
+        const hasAccess = isPublic || isCreator || isParticipant || isInvited;
+
+        if (!hasAccess) {
           setError('You do not have access to this tournament');
           return;
         }

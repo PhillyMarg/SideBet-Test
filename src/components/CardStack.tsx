@@ -199,25 +199,35 @@ export default function CardStack({
   }
 
   // Multiple cards - show stack
+  const stackedCards = visibleCards.slice(0, 3);
+  const stackConfig = {
+    baseZIndex: 300,
+    yOffsetStep: 30,
+    scaleStep: 0.02,
+    widthStep: 3,
+    opacityStep: 0.08
+  };
+
   return (
     <>
     <div className="relative px-4" style={{ minHeight: "320px", paddingBottom: "60px" }}>
       {/* Stacked cards container */}
       <div className="relative">
         <AnimatePresence mode="popLayout">
-          {visibleCards.slice(0, 3).map((bet, index) => {
+          {stackedCards.map((bet, index) => {
             const isTopCard = index === 0;
             const themeColor = getThemeColor(bet);
+            const stackIndex = index;
 
             // Calculate stack styling - Apple Wallet style
-            const scale = 1 - (index * 0.02); // Subtle scale reduction
-            const offsetY = index * 30; // 30px offset per card
-            const opacity = 1 - (index * 0.08);
-            // z-index: first card highest (100), decreasing by 1 for each subsequent card
-            const zIndex = 100 - index;
+            const scale = isTopCard ? 1 : 1 - stackIndex * stackConfig.scaleStep; // Subtle scale reduction for previews
+            const offsetY = stackIndex * stackConfig.yOffsetStep; // Offset per card
+            const opacity = 1 - stackIndex * stackConfig.opacityStep;
+            const zIndex = stackConfig.baseZIndex - stackIndex; // Explicit z-index ordering
 
             // Width calculation for preview cards
-            const widthPercent = isTopCard ? 100 : (100 - (index * 3));
+            const widthPercent = isTopCard ? 100 : 100 - stackIndex * stackConfig.widthStep;
+            const leftOffsetPercent = (100 - widthPercent) / 2;
 
             return (
               <motion.div
@@ -253,7 +263,7 @@ export default function CardStack({
                 style={{
                   position: index === 0 ? "relative" : "absolute",
                   top: 0,
-                  left: `${(100 - widthPercent) / 2}%`,
+                  left: `${leftOffsetPercent}%`,
                   width: `${widthPercent}%`,
                   zIndex: zIndex,
                   // Add shadow for depth effect
