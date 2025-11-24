@@ -59,7 +59,8 @@ export default function TournamentDetailsPage() {
 
           // Check if user is in invitedUserIds (robust against missing/invalid invitedUserIds)
           const isInvited = Array.isArray(data.invitedUserIds) &&
-            data.invitedUserIds.includes(user?.uid);
+            user?.uid !== undefined &&
+            data.invitedUserIds.includes(user.uid);
 
           const hasAccess = isCreator || isParticipant || isInvited;
 
