@@ -63,6 +63,7 @@ export default function HomePage() {
   // Active bets state
   const [activeFilter, setActiveFilter] = useState<FilterOption>("ALL");
   const [activeSearchQuery, setActiveSearchQuery] = useState("");
+  const [expandedBetId, setExpandedBetId] = useState<string | null>(null);
 
   // Groups filtering state
   const [groupSearchQuery, setGroupSearchQuery] = useState("");
@@ -324,6 +325,10 @@ export default function HomePage() {
 
   const handleActiveSearchChange = (query: string) => {
     setActiveSearchQuery(query);
+  };
+
+  const handleToggleExpand = (betId: string) => {
+    setExpandedBetId(prev => prev === betId ? null : betId);
   };
 
   // Track last active bet time per group
@@ -685,6 +690,8 @@ export default function HomePage() {
                   onJudge={() => setJudgingBet(bet)}
                   onAcceptChallenge={() => handleAcceptChallenge(bet.id)}
                   onDeclineChallenge={() => handleDeclineChallenge(bet.id)}
+                  isExpanded={expandedBetId === bet.id}
+                  onToggleExpand={() => handleToggleExpand(bet.id)}
                 />
               ))}
             </div>

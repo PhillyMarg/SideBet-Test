@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation';
-import { Trash2, ChevronDown, ChevronUp, Check } from "lucide-react";
+import { Trash2, ChevronDown, ChevronUp, Check, Share2, Users } from "lucide-react";
 import { deleteDoc, doc } from "firebase/firestore";
 import { db, auth } from "../../lib/firebase/client";
 import { validateBetDeletion } from "../../lib/validation/betValidation";
@@ -89,6 +89,8 @@ export interface GroupBetCardProps {
   onDelete?: (betId: string) => void;
   onAcceptChallenge?: (betId: string) => void;
   onDeclineChallenge?: (betId: string) => void;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
 // ============ VOTE PROGRESS BAR COMPONENT ============
@@ -281,6 +283,8 @@ export function GroupBetCard({
   onDelete,
   onAcceptChallenge,
   onDeclineChallenge,
+  isExpanded = false,
+  onToggleExpand,
 }: GroupBetCardProps) {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
@@ -944,6 +948,295 @@ export function GroupBetCard({
   const h2hChallengeDisplayName = challengerDisplayName && challengeeDisplayName
     ? `${challengerDisplayName.split(' ')[0]} v. ${challengeeDisplayName.split(' ')[0]}`
     : bet.isH2H ? 'H2H Challenge' : '';
+
+  // Helper: Get bet type label
+  const getBetTypeLabel = (type: BetType): string => {
+    const labels = {
+      'YES_NO': 'Yes/No',
+      'OVER_UNDER': 'Over/Under',
+      'CLOSEST_GUESS': 'Closest Guess'
+    };
+    return labels[type] || type;
+  };
+
+  // Helper: Calculate percentage for each option
+  const calculatePercentage = (optionValue: string): number => {
+    const total = bet.participants?.length || 0;
+    if (total === 0) return 0;
+
+    const count = Object.values(bet.picks || {}).filter(pick => pick === optionValue).length;
+    return Math.round((count / total) * 100);
+  };
+
+  // Helper: Get options based on bet type
+  const getBetOptions = (): Array<{ label: string; value: string }> => {
+    switch(bet.type) {
+      case 'YES_NO':
+        return [
+          { label: 'No', value: 'NO' },
+          { label: 'Yes', value: 'YES' }
+        ];
+      case 'OVER_UNDER':
+        return [
+          { label: 'Under', value: 'UNDER' },
+          { label: 'Over', value: 'OVER' }
+        ];
+      default:
+        return [];
+    }
+  };
+
+  // Helper: Handle share
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    // Create share URL
+    const shareUrl = `${window.location.origin}/bet/${bet.id}`;
+    const shareText = `Join my bet: ${bet.title}`;
+
+    // Try native share API first
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: bet.title,
+          text: shareText,
+          url: shareUrl
+        });
+      } catch (err) {
+        // User cancelled or error occurred
+        console.log('Share cancelled or failed:', err);
+      }
+    } else {
+      // Fallback: Copy to clipboard
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        alert('Link copied to clipboard!');
+      } catch (err) {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy link');
+      }
+    }
+  };
+
+  // Render collapsed card (60px height)
+  const renderCollapsedCard = () => {
+    return (
+      <div
+        onClick={onToggleExpand}
+        className="h-[60px] px-4 py-3 bg-zinc-900 border rounded-xl cursor-pointer hover:bg-zinc-800/50 transition-all duration-200"
+        style={{
+          fontFamily: "'Montserrat', sans-serif",
+          borderColor: themeColor
+        }}
+      >
+        {/* Top row: Group + Closing time */}
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold" style={{ color: themeColor }}>
+            {displayName}
+          </span>
+          <span
+            className={`text-xs font-semibold ${isUnderOneHour ? 'pulse-yellow' : ''}`}
+            style={{ color: isUnderOneHour ? undefined : themeColor }}
+          >
+            Closes: {timeRemaining}
+          </span>
+        </div>
+
+        {/* Bottom row: Title + Chevron */}
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-medium text-white truncate flex-1 pr-2">
+            {bet.title}
+          </h3>
+          <ChevronDown className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+        </div>
+      </div>
+    );
+  };
+
+  // Render expanded card (~340px height)
+  const renderExpandedCard = () => {
+    return (
+      <div
+        className="min-h-[340px] p-5 bg-zinc-900 border rounded-2xl relative transition-all duration-300"
+        style={{
+          fontFamily: "'Montserrat', sans-serif",
+          borderColor: themeColor
+        }}
+      >
+        {/* Header with share */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex-1">
+            <div className="flex items-center justify-between pr-12">
+              <span className="text-xs text-zinc-400">
+                {displayName}
+              </span>
+              <span
+                className={`text-xs font-semibold ${isUnderOneHour ? 'pulse-yellow' : ''}`}
+                style={{ color: isUnderOneHour ? undefined : themeColor }}
+              >
+                Closes: {timeRemaining}
+              </span>
+            </div>
+          </div>
+
+          {/* Share button */}
+          <button
+            onClick={handleShare}
+            className="absolute top-4 right-4 p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 rounded-full transition-colors"
+          >
+            <Share2 className="w-4 h-4 text-zinc-400" />
+          </button>
+        </div>
+
+        {/* Title section */}
+        <div className="mb-4">
+          <h2 className="text-xl font-bold text-white mb-1">
+            {bet.title}
+          </h2>
+          {bet.description && (
+            <p className="text-sm text-zinc-400 mb-1">
+              {bet.description}
+            </p>
+          )}
+          <p className="text-xs text-zinc-500">
+            {getBetTypeLabel(bet.type)}
+            {bet.type === 'OVER_UNDER' && bet.line && ` • Line: ${bet.line}`}
+          </p>
+        </div>
+
+        {/* Stats section */}
+        <div className="mb-6 space-y-1">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-white">Wager:</span>
+            <span className="font-semibold" style={{ color: themeColor }}>
+              {formatCurrency(wager)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-white">Payout:</span>
+            <span className="font-semibold" style={{ color: themeColor }}>
+              {formatCurrency(calculatePayout())}
+            </span>
+          </div>
+          <div className="text-sm text-zinc-400 flex items-center">
+            <Users className="w-4 h-4 inline mr-1" />
+            {people} {people === 1 ? 'Player' : 'Players'}
+          </div>
+        </div>
+
+        {/* Options buttons - for ACTIVE state */}
+        {cardState === 'ACTIVE' && bet.type !== 'CLOSEST_GUESS' && (
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            {getBetOptions().map((option, index) => {
+              const percentage = calculatePercentage(option.value);
+              const isHigher = percentage > 50;
+
+              return (
+                <button
+                  key={option.value}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onVote?.(bet.id, option.value);
+                  }}
+                  className={`py-3 px-4 min-h-[48px] rounded-lg font-semibold text-sm transition-colors ${
+                    isHigher || (percentage === 50 && index === 1)
+                      ? 'text-white'
+                      : 'border border-zinc-800 hover:bg-zinc-800 text-zinc-400'
+                  }`}
+                  style={{
+                    backgroundColor: (isHigher || (percentage === 50 && index === 1)) ? themeColor : 'transparent'
+                  }}
+                >
+                  {option.label.toUpperCase()} {percentage}%
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Options buttons - for PLACED state */}
+        {cardState === 'PLACED' && bet.type !== 'CLOSEST_GUESS' && (
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            {getBetOptions().map((option) => {
+              const percentage = calculatePercentage(option.value);
+              const isUserPick = userPick === option.value;
+
+              return (
+                <button
+                  key={option.value}
+                  disabled
+                  className={`py-3 px-4 min-h-[48px] rounded-lg font-semibold text-sm transition-colors ${
+                    isUserPick
+                      ? 'text-white'
+                      : 'border border-zinc-800 text-zinc-400'
+                  }`}
+                  style={{
+                    backgroundColor: isUserPick ? themeColor : 'transparent',
+                    opacity: isUserPick ? 1 : 0.6
+                  }}
+                >
+                  {option.label.toUpperCase()} {percentage}%
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* For CLOSEST_GUESS type */}
+        {bet.type === 'CLOSEST_GUESS' && cardState === 'ACTIVE' && (
+          <div className="mb-4">
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={guessInput}
+                onChange={(e) => setGuessInput(e.target.value)}
+                placeholder="Enter your guess"
+                className="flex-1 h-[48px] bg-zinc-800 text-white rounded-lg text-sm px-4 border border-zinc-700 focus:outline-none focus:border-orange-500"
+              />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (guessInput) {
+                    onSubmitGuess?.(bet.id, parseFloat(guessInput));
+                    setGuessInput("");
+                  }
+                }}
+                className="h-[48px] text-white rounded-lg text-sm font-semibold px-6 hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: themeColor }}
+              >
+                SUBMIT
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* For PLACED with CLOSEST_GUESS */}
+        {bet.type === 'CLOSEST_GUESS' && cardState === 'PLACED' && (
+          <div className="mb-4 p-4 bg-zinc-800 rounded-lg border border-zinc-700">
+            <p className="text-sm text-white">
+              Your Guess: <span className="font-semibold" style={{ color: themeColor }}>{userPick}</span>
+            </p>
+          </div>
+        )}
+
+        {/* Collapse button */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleExpand?.();
+          }}
+          className="absolute bottom-4 right-4 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-zinc-800 rounded-lg transition-colors"
+        >
+          <ChevronUp className="w-4 h-4 text-zinc-500" />
+        </button>
+      </div>
+    );
+  };
+
+  // === COLLAPSED/EXPANDED VIEWS for ACTIVE and PLACED states ===
+  if ((cardState === 'ACTIVE' || cardState === 'PLACED') && onToggleExpand) {
+    return isExpanded ? renderExpandedCard() : renderCollapsedCard();
+  }
 
   // === CHALLENGED STATE (User being challenged) ===
   if (cardState === 'CHALLENGED') {
