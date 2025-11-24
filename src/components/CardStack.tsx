@@ -213,7 +213,8 @@ export default function CardStack({
             const scale = 1 - (index * 0.02); // Subtle scale reduction
             const offsetY = index * 30; // 30px offset per card
             const opacity = 1 - (index * 0.08);
-            const zIndex = 100 - (index * 10);
+            // z-index: first card highest (100), decreasing by 1 for each subsequent card
+            const zIndex = 100 - index;
 
             // Width calculation for preview cards
             const widthPercent = isTopCard ? 100 : (100 - (index * 3));
