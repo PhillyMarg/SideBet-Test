@@ -200,6 +200,9 @@ export default function CardStack({
 
   // Multiple cards - show stack
   const stackedCards = visibleCards.slice(0, 3);
+  const stackLayers = stackedCards
+    .map((bet, stackPosition) => ({ bet, stackPosition }))
+    .reverse(); // Render from back to front so the top card is last in the DOM
   const stackConfig = {
     baseZIndex: 300,
     yOffsetStep: 30,
@@ -214,19 +217,18 @@ export default function CardStack({
       {/* Stacked cards container */}
       <div className="relative">
         <AnimatePresence mode="popLayout">
-          {stackedCards.map((bet, index) => {
-            const isTopCard = index === 0;
+          {stackLayers.map(({ bet, stackPosition }) => {
+            const isTopCard = stackPosition === 0;
             const themeColor = getThemeColor(bet);
-            const stackIndex = index;
 
             // Calculate stack styling - Apple Wallet style
-            const scale = isTopCard ? 1 : 1 - stackIndex * stackConfig.scaleStep; // Subtle scale reduction for previews
-            const offsetY = stackIndex * stackConfig.yOffsetStep; // Offset per card
-            const opacity = 1 - stackIndex * stackConfig.opacityStep;
-            const zIndex = stackConfig.baseZIndex - stackIndex; // Explicit z-index ordering
+            const scale = isTopCard ? 1 : 1 - stackPosition * stackConfig.scaleStep; // Subtle scale reduction for previews
+            const offsetY = stackPosition * stackConfig.yOffsetStep; // Offset per card
+            const opacity = 1 - stackPosition * stackConfig.opacityStep;
+            const zIndex = stackConfig.baseZIndex - stackPosition; // Explicit z-index ordering
 
             // Width calculation for preview cards
-            const widthPercent = isTopCard ? 100 : 100 - stackIndex * stackConfig.widthStep;
+            const widthPercent = isTopCard ? 100 : 100 - stackPosition * stackConfig.widthStep;
             const leftOffsetPercent = (100 - widthPercent) / 2;
 
             return (
@@ -247,7 +249,7 @@ export default function CardStack({
                     stiffness: 300,
                     damping: 30,
                     duration: 0.3,
-                    delay: index * 0.03
+                    delay: stackPosition * 0.03
                   }
                 }}
                 exit={{
@@ -261,13 +263,13 @@ export default function CardStack({
                   }
                 }}
                 style={{
-                  position: index === 0 ? "relative" : "absolute",
+                  position: stackPosition === 0 ? "relative" : "absolute",
                   top: 0,
                   left: `${leftOffsetPercent}%`,
                   width: `${widthPercent}%`,
                   zIndex: zIndex,
                   // Add shadow for depth effect
-                  filter: index > 0 ? `drop-shadow(0 ${index * 4}px ${index * 8}px rgba(0,0,0,${0.2 + index * 0.1}))` : 'none',
+                  filter: stackPosition > 0 ? `drop-shadow(0 ${stackPosition * 4}px ${stackPosition * 8}px rgba(0,0,0,${0.2 + stackPosition * 0.1}))` : 'none',
                 }}
                 drag={isTopCard ? "y" : false}
                 dragConstraints={{ top: 0, bottom: 0 }}
@@ -321,7 +323,7 @@ export default function CardStack({
                   // Preview card for stacked positions
                   <PreviewCard
                     bet={bet}
-                    stackPosition={index}
+                    stackPosition={stackPosition}
                     themeColor={themeColor}
                   />
                 )}
