@@ -495,141 +495,142 @@ function ActiveBetCard({
     }
   };
 
-  return (
-    <li
-      className={`
-        rounded-xl px-2 py-2 sm:px-4 sm:py-3
-        flex flex-col text-left shadow-md
-        hover:scale-[1.01] sm:hover:scale-[1.02]
-        transition-transform duration-200
-        text-xs sm:text-sm
-        w-full
-        ${
-          needsJudging
-            ? isH2H
-              ? "bg-purple-500/10 border-2 border-purple-500/50 hover:border-purple-500"
-              : "bg-orange-500/10 border-2 border-orange-500/50 hover:border-orange-500"
-            : isH2H
-              ? "bg-zinc-900 border border-zinc-800 hover:border-purple-500"
-              : "bg-zinc-900 border border-zinc-800 hover:border-orange-500"
-        }
-      `}
-    >
-      {/* Header Row */}
-      <div className="flex items-center justify-between mb-1 sm:mb-2">
-        <div className="flex items-center gap-1 sm:gap-2">
-          {/* H2H Header - Show Full Names */}
-          {isH2H ? (
-            <div className="flex flex-col gap-1">
-              {/* H2H vs Display with FULL NAMES - NO LABELS */}
-              <p className="text-[9px] sm:text-xs font-bold text-purple-500">
-                {bet.challengerName || 'Challenger'} v {bet.challengeeName || 'Challengee'}
-              </p>
+  // Collapsed/Expanded state management
+  const [isExpanded, setIsExpanded] = useState(false);
 
-              {/* H2H Status Badges */}
-              <div className="flex items-center gap-1 flex-wrap">
-                {bet.h2hStatus === "pending" && bet.challengeeId === user?.uid && (
-                  <div className="bg-red-500/20 border border-red-500/40 rounded-full px-1.5 py-0.5 animate-pulse">
-                    <span className="text-[8px] sm:text-[9px] text-red-500 font-bold">RESPOND NOW</span>
-                  </div>
-                )}
+  // Base styles matching Figma exactly
+  const baseStyle = {
+    width: '345px',
+    borderRadius: '6px',
+    border: '1px solid #FF6B35',
+    background: '#18181B',
+    boxShadow: '0 4px 4px 0 rgba(0, 0, 0, 0.25)',
+  };
 
-                {bet.h2hStatus === "pending" && bet.challengerId === user?.uid && (
-                  <div className="bg-purple-500/20 border border-purple-500/40 rounded-full px-1.5 py-0.5">
-                    <span className="text-[8px] sm:text-[9px] text-purple-400 font-medium">AWAITING RESPONSE</span>
-                  </div>
-                )}
+  // Collapsed state - 60px height
+  if (!isExpanded) {
+    return (
+      <li className="list-none">
+        <div
+          onClick={() => setIsExpanded(true)}
+          className="flex flex-col items-start gap-1 shrink-0 cursor-pointer hover:bg-zinc-800/50 transition-all duration-300"
+          style={{
+            ...baseStyle,
+            height: '60px',
+            padding: '12px',
+          }}
+        >
+          {/* Row 1: Group + Closing time */}
+          <div className="flex items-center justify-between w-full">
+            <span className="text-xs font-semibold text-orange-500">
+              {isH2H ? 'H2H' : (groupName || 'Group')}
+            </span>
+            <span className="text-xs font-semibold text-orange-500">
+              {getClosingTimeDisplay()}
+            </span>
+          </div>
 
-                {bet.h2hStatus === "accepted" && (
-                  <div className="bg-green-500/20 border border-green-500/40 rounded-full px-1.5 py-0.5">
-                    <span className="text-[8px] sm:text-[9px] text-green-500 font-medium">ACTIVE</span>
-                  </div>
-                )}
-
-                {/* Odds Badge - PURPLE */}
-                {bet.h2hOdds && (
-                  <div className="bg-purple-500/20 border border-purple-500/40 rounded-full px-1.5 py-0.5">
-                    <span className="text-[8px] sm:text-[9px] text-purple-400 font-medium">
-                      {bet.h2hOdds.challenger}:{bet.h2hOdds.challengee}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            /* Regular Group Header - ORANGE */
-            <>
-              {groupName && (
-                <button
-                  onClick={() => router.push(`/groups/${bet.groupId}`)}
-                  className="text-[9px] sm:text-xs font-medium border border-orange-500 text-orange-400 rounded-full px-1.5 py-0.5 sm:px-2 sm:py-[2px] hover:bg-orange-500 hover:text-white transition"
-                >
-                  {groupName}
-                </button>
-              )}
-              <span className="text-[9px] sm:text-xs text-gray-400">
-                by {loadingCreator ? bet.creatorId?.substring(0, 8) : creatorName}
-              </span>
-            </>
-          )}
+          {/* Row 2: Title + Chevron */}
+          <div className="flex items-center justify-between w-full">
+            <h3 className="text-base font-medium text-white truncate flex-1 pr-2">
+              {bet.title}
+            </h3>
+            <svg className="w-4 h-4 text-zinc-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
         </div>
-        <div className="flex items-center gap-1 sm:gap-2">
-          <span className={`text-[9px] sm:text-xs font-bold ${isH2H ? 'text-purple-500' : 'text-orange-500'}`}>
+      </li>
+    );
+  }
+
+  // Expanded state - 246px height with full functionality
+  return (
+    <li className="list-none relative">
+      <div
+        className="flex flex-col items-start gap-1 relative transition-all duration-300"
+        style={{
+          ...baseStyle,
+          height: 'auto',
+          minHeight: '246px',
+          padding: '12px 12px 43px 12px',
+          zIndex: isExpanded ? 1000 : 1,
+        }}
+      >
+      {/* Header with share button */}
+      <div className="flex items-center justify-between w-full mb-1">
+        <div className="flex-1 flex items-center justify-between pr-10">
+          <span className="text-xs text-zinc-400">
+            {isH2H ? 'H2H' : (groupName || 'Group')}
+          </span>
+          <span className="text-xs text-orange-500">
             {getClosingTimeDisplay()}
           </span>
-          {/* Share Button */}
-          <button
-            onClick={handleShareBet}
-            className="p-1 hover:bg-zinc-800 rounded transition relative"
-            aria-label="Share bet"
-          >
-            <Link className={`w-3 h-3 sm:w-4 sm:h-4 ${isH2H ? 'text-purple-400 hover:text-purple-300' : 'text-orange-400 hover:text-orange-300'}`} />
-            {showShareSuccess && (
-              <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-green-500 text-white text-[8px] sm:text-[10px] px-2 py-1 rounded whitespace-nowrap">
-                Link copied!
-              </span>
-            )}
-          </button>
-          {isCreator && (
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              className="p-1 hover:bg-zinc-800 rounded transition"
-              aria-label="Delete bet"
-            >
-              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 text-red-500 hover:text-red-600" />
-            </button>
-          )}
         </div>
+
+        {/* Share button - absolute positioned */}
+        <button
+          onClick={handleShareBet}
+          className="absolute top-2 right-2 p-2 min-w-[40px] min-h-[40px] flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 rounded-full transition-colors"
+          style={{ zIndex: 10 }}
+          aria-label="Share bet"
+        >
+          <Link className="w-4 h-4 text-zinc-400" />
+          {showShareSuccess && (
+            <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-green-500 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap">
+              Link copied!
+            </span>
+          )}
+        </button>
+
+        {/* Delete button for creator - absolute positioned near share */}
+        {isCreator && (
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="absolute top-2 right-14 p-2 min-w-[40px] min-h-[40px] flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 rounded-full transition-colors"
+            style={{ zIndex: 10 }}
+            aria-label="Delete bet"
+          >
+            <Trash2 className="w-4 h-4 text-red-500 hover:text-red-600" />
+          </button>
+        )}
       </div>
 
-      {/* Title */}
-      <p className="font-semibold text-white mb-0.5 sm:mb-1 text-xs sm:text-sm leading-tight line-clamp-1 sm:line-clamp-2">
-        {bet.title}
-      </p>
-
-      {/* Description - Hide on mobile */}
-      {bet.description && (
-        <p className="hidden sm:block text-sm text-gray-300 mb-3 line-clamp-2">
-          {bet.description}
-        </p>
-      )}
-
-      {/* Over/Under Line Display */}
-      {bet.type === "OVER_UNDER" && bet.line !== undefined && (
-        <div className="mb-2 sm:mb-3">
-          <p className={`text-xs sm:text-sm font-bold ${isH2H ? 'text-purple-500' : 'text-orange-500'}`}>
-            O/U Line: {bet.line}
+      {/* Title section */}
+      <div className="w-full mb-2">
+        <h2 className="text-lg font-bold text-white line-clamp-1 mb-0.5">
+          {bet.title}
+        </h2>
+        {bet.description && (
+          <p className="text-xs text-zinc-400 line-clamp-1 mb-0.5">
+            {bet.description}
           </p>
-        </div>
-      )}
+        )}
+        <p className="text-xs text-zinc-500">
+          {bet.type === "YES_NO" ? "Yes/No" : bet.type === "OVER_UNDER" ? `Over/Under ${bet.line !== undefined ? `(${bet.line})` : ''}` : "Closest Guess"}
+        </p>
+      </div>
 
-      {/* Stats Row - Compact on mobile */}
-      <div className="flex justify-between text-[10px] sm:text-sm text-gray-400 mb-1.5 sm:mb-4">
-        <span className="sm:inline">Wager: ${wager.toFixed(2)}</span>
-        <span className="hidden sm:inline">Players: {people}</span>
-        <span className={`font-semibold ${isH2H ? 'text-purple-400' : 'text-orange-400'}`}>
-          Pot: ${pot.toFixed(2)}
-        </span>
+      {/* Stats section */}
+      <div className="w-full mb-2 space-y-0.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-white">Wager:</span>
+          <span className="text-orange-500 font-semibold">
+            ${wager.toFixed(2)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-white">Pot:</span>
+          <span className="text-orange-500 font-semibold">
+            ${pot.toFixed(2)}
+          </span>
+        </div>
+        <div className="text-xs text-zinc-400 flex items-center gap-1">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <span>{people} Player{people !== 1 ? 's' : ''}</span>
+        </div>
       </div>
 
       {/* H2H DECLINED STATE */}
@@ -890,184 +891,105 @@ function ActiveBetCard({
         </div>
       )}
 
-      {/* Betting Interface */}
-      {canVote && (
-        <>
-          {userHasPicked ? (
-            <>
-              {bet.type === "YES_NO" || bet.type === "OVER_UNDER" ? (
-                <div className="mt-1 space-y-2">
-                  {/* You Voted Indicator with Checkmark */}
-                  <div className="bg-emerald-900/40 border border-emerald-700 rounded-lg px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-sm font-semibold text-white">
-                        You Voted: <span className={`${isH2H ? 'text-purple-400' : 'text-orange-400'}`}>
-                          {bet.picks[user?.uid]}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
+      {/* Options buttons section - simplified for Figma specs */}
+      {canVote && !userHasPicked && (bet.type === "YES_NO" || bet.type === "OVER_UNDER") && (
+        <div className="w-full grid grid-cols-2 gap-2 mb-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onPick(bet, bet.type === "YES_NO" ? "YES" : "OVER");
+            }}
+            className={`py-2 px-3 rounded-md font-semibold text-xs transition-colors ${
+              yes >= 50
+                ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                : 'bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-400'
+            }`}
+            style={{ minHeight: '36px' }}
+          >
+            {bet.type === "YES_NO" ? "YES" : "OVER"} {yes}%
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onPick(bet, bet.type === "YES_NO" ? "NO" : "UNDER");
+            }}
+            className={`py-2 px-3 rounded-md font-semibold text-xs transition-colors ${
+              no >= 50
+                ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                : 'bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-400'
+            }`}
+            style={{ minHeight: '36px' }}
+          >
+            {bet.type === "YES_NO" ? "NO" : "UNDER"} {no}%
+          </button>
+        </div>
+      )}
 
-                  {/* Current Results Label */}
-                  <p className="text-xs text-gray-400 font-medium">Current Results:</p>
+      {/* Show pick status if user has voted */}
+      {canVote && userHasPicked && (bet.type === "YES_NO" || bet.type === "OVER_UNDER") && (
+        <div className="w-full mb-2">
+          <div className="bg-emerald-900/40 border border-emerald-700 rounded-lg px-3 py-2 mb-2">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-xs font-semibold text-white">
+                You Voted: <span className="text-orange-400">{bet.picks[user?.uid]}</span>
+              </span>
+            </div>
+          </div>
+          <div className="w-full grid grid-cols-2 gap-2">
+            <div className={`py-2 px-3 rounded-md font-semibold text-xs text-center ${
+              yes >= 50 ? 'bg-orange-500 text-white' : 'bg-zinc-900 border border-zinc-800 text-zinc-400'
+            }`} style={{ minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {bet.type === "YES_NO" ? "YES" : "OVER"} {yes}%
+            </div>
+            <div className={`py-2 px-3 rounded-md font-semibold text-xs text-center ${
+              no >= 50 ? 'bg-orange-500 text-white' : 'bg-zinc-900 border border-zinc-800 text-zinc-400'
+            }`} style={{ minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {bet.type === "YES_NO" ? "NO" : "UNDER"} {no}%
+            </div>
+          </div>
+        </div>
+      )}
 
-                  {/* Progress Bar - ORANGE for YES side */}
-                  <div className="bg-zinc-800 rounded-lg overflow-hidden h-6 flex items-center relative">
-                    {/* YES/OVER Side */}
-                    <div
-                      className="bg-[#FF6B35] h-full flex items-center justify-start px-2 transition-all duration-500 min-w-0"
-                      style={{ width: `${yes}%` }}
-                    >
-                      {yes >= 10 && (
-                        <span className="text-white text-xs font-bold whitespace-nowrap">
-                          {bet.type === "YES_NO" ? "YES" : "OVER"} {yes}%
-                        </span>
-                      )}
-                    </div>
+      {/* Closest Guess interface */}
+      {canVote && bet.type === "CLOSEST_GUESS" && !userHasPicked && (
+        <div className="w-full flex items-center gap-2 mb-2">
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="Enter guess..."
+            id={`guess-${bet.id}`}
+            className="flex-1 bg-zinc-800 text-white text-xs p-2.5 min-h-[36px] rounded-lg border border-zinc-700 focus:outline-none focus:border-orange-500 transition"
+          />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const value = (document.getElementById(`guess-${bet.id}`) as HTMLInputElement)?.value;
+              if (!value || !value.trim()) return alert("Please enter a guess.");
+              const numValue = parseFloat(value);
+              const finalValue = isNaN(numValue) ? value.trim() : numValue;
+              onPick(bet, finalValue);
+            }}
+            className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-3 py-2.5 min-h-[36px] rounded-lg transition"
+          >
+            Submit
+          </button>
+        </div>
+      )}
 
-                    {/* NO/UNDER Side */}
-                    <div
-                      className="bg-zinc-700 h-full flex items-center justify-end px-2 transition-all duration-500 min-w-0"
-                      style={{ width: `${no}%` }}
-                    >
-                      {no >= 10 && (
-                        <span className="text-white text-xs font-bold whitespace-nowrap">
-                          {bet.type === "YES_NO" ? "NO" : "UNDER"} {no}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Change Vote Button */}
-                  <button
-                    onClick={() => setShowChangeVoteModal(true)}
-                    className="w-full py-2.5 min-h-[44px] bg-zinc-700 hover:bg-zinc-600 active:bg-zinc-500 text-white rounded-lg font-semibold transition-all active:scale-95 text-sm"
-                  >
-                    Change Vote
-                  </button>
-                </div>
-              ) : bet.type === "CLOSEST_GUESS" ? (
-                <div className="mt-1 flex flex-col items-center">
-                  <p className="text-[9px] sm:text-[10px] text-gray-400 mb-1 sm:mb-1.5">
-                    Your Guess:{" "}
-                    <span className={`font-bold ${isH2H ? 'text-purple-400' : 'text-orange-400'}`}>
-                      {bet.picks[user.uid]}
-                    </span>
-                    {" • "}
-                    Payout:{" "}
-                    <span className="font-bold text-green-400">
-                      ${pot.toFixed(2)}
-                    </span>
-                  </p>
-
-                  <button
-                    onClick={() => setShowResults(!showResults)}
-                    className={`${isH2H ? 'bg-purple-500 hover:bg-purple-600' : 'bg-orange-500 hover:bg-orange-600'} text-white text-[10px] sm:text-[11px] font-semibold px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg transition`}
-                  >
-                    {showResults ? "Hide Results" : "View Results"}
-                  </button>
-
-                  {showResults && (
-                    <div className="w-full mt-2 bg-zinc-800 rounded-lg p-2 transition-all duration-300">
-                      <p className="text-[10px] sm:text-xs font-semibold text-white mb-1.5">
-                        All Guesses:
-                      </p>
-                      {bet.picks && Object.keys(bet.picks).length > 0 ? (
-                        <ul className="space-y-0.5 text-[10px] sm:text-[11px] text-gray-300">
-                          {Object.entries(bet.picks)
-                            .sort(([, a]: any, [, b]: any) => {
-                              const numA = parseFloat(a);
-                              const numB = parseFloat(b);
-                              if (!isNaN(numA) && !isNaN(numB)) {
-                                return numA - numB;
-                              }
-                              return String(a).localeCompare(String(b));
-                            })
-                            .map(([userId, guess]: any) => (
-                              <li key={userId} className="flex justify-between">
-                                <span
-                                  className={
-                                    userId === user.uid
-                                      ? `${isH2H ? 'text-purple-400' : 'text-orange-400'} font-semibold`
-                                      : ""
-                                  }
-                                >
-                                  {userId === user.uid ? "You" : userId.substring(0, 8)}
-                                </span>
-                                <span className="font-bold">{guess}</span>
-                              </li>
-                            ))}
-                        </ul>
-                      ) : (
-                        <p className="text-[9px] sm:text-[10px] text-gray-500">No guesses yet.</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <>
-              {bet.type === "YES_NO" || bet.type === "OVER_UNDER" ? (
-                <div className="flex gap-1.5 sm:gap-2 mt-auto">
-                  <button
-                    onClick={() =>
-                      onPick(bet, bet.type === "YES_NO" ? "YES" : "OVER")
-                    }
-                    className={`flex-1 py-2.5 min-h-[44px] rounded-lg text-[10px] sm:text-xs font-semibold flex flex-col items-center justify-center shadow transition-all active:scale-95 ${isH2H ? 'bg-purple-500 hover:bg-purple-600 active:bg-purple-700' : 'bg-orange-500 hover:bg-orange-600 active:bg-orange-700'} text-white`}
-                  >
-                    <span className="leading-none">{bet.type === "YES_NO" ? "Yes" : "Over"}</span>
-                    <span className="text-[9px] sm:text-[10px] text-white/80 mt-0.5">
-                      ${calculateEstimatedPayout("yes").toFixed(2)}
-                    </span>
-                    <span className="text-[8px] sm:text-[9px] text-white/60">{yes}%</span>
-                  </button>
-                  <button
-                    onClick={() =>
-                      onPick(bet, bet.type === "YES_NO" ? "NO" : "UNDER")
-                    }
-                    className="flex-1 py-2.5 min-h-[44px] rounded-lg text-[10px] sm:text-xs font-semibold flex flex-col items-center justify-center shadow transition-all active:scale-95 bg-white hover:bg-gray-200 active:bg-gray-300 text-black"
-                  >
-                    <span className="leading-none">{bet.type === "YES_NO" ? "No" : "Under"}</span>
-                    <span className="text-[9px] sm:text-[10px] text-gray-600 mt-0.5">
-                      ${calculateEstimatedPayout("no").toFixed(2)}
-                    </span>
-                    <span className="text-[8px] sm:text-[9px] text-gray-500">{no}%</span>
-                  </button>
-                </div>
-              ) : bet.type === "CLOSEST_GUESS" ? (
-                <div className="flex items-center gap-1.5 sm:gap-2 mt-auto">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="Enter guess..."
-                    id={`guess-${bet.id}`}
-                    className={`flex-1 bg-zinc-800 text-white text-[10px] sm:text-xs p-2.5 min-h-[44px] rounded-lg border border-zinc-700 focus:outline-none ${isH2H ? 'focus:border-purple-500' : 'focus:border-orange-500'} transition`}
-                  />
-                  <button
-                    onClick={() => {
-                      const value = (
-                        document.getElementById(`guess-${bet.id}`) as HTMLInputElement
-                      )?.value;
-                      if (!value || !value.trim()) return alert("Please enter a guess.");
-
-                      const numValue = parseFloat(value);
-                      const finalValue = isNaN(numValue) ? value.trim() : numValue;
-
-                      onPick(bet, finalValue);
-                    }}
-                    className={`${isH2H ? 'bg-purple-500 hover:bg-purple-600 active:bg-purple-700' : 'bg-orange-500 hover:bg-orange-600 active:bg-orange-700'} text-white text-[10px] sm:text-xs font-semibold px-3 py-2.5 min-h-[44px] rounded-lg shadow transition-all active:scale-95`}
-                  >
-                    Submit
-                  </button>
-                </div>
-              ) : null}
-            </>
-          )}
-        </>
+      {canVote && bet.type === "CLOSEST_GUESS" && userHasPicked && (
+        <div className="w-full mb-2 bg-emerald-900/40 border border-emerald-700 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="text-xs font-semibold text-white">
+              Your Guess: <span className="text-orange-400">{bet.picks[user.uid]}</span>
+            </span>
+          </div>
+        </div>
       )}
 
       {/* Delete Confirmation Modal */}
@@ -1344,6 +1266,21 @@ function ActiveBetCard({
           </div>
         </div>
       )}
+
+      {/* Collapse button - positioned at bottom right */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsExpanded(false);
+        }}
+        className="absolute bottom-2 right-2 p-2 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-zinc-800 rounded-lg transition-colors"
+        style={{ zIndex: 10 }}
+      >
+        <svg className="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+        </svg>
+      </button>
+      </div>
     </li>
   );
 }
