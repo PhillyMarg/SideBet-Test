@@ -33,6 +33,7 @@ import { FilterTabs } from "../../components/home/FilterTabs";
 import { SearchBar } from "../../components/home/SearchBar";
 import { SectionTitle } from "../../components/home/SectionTitle";
 import FeedGroupCard from "../../components/FeedGroupCard";
+import BottomNav from "../../components/BottomNav";
 
 // Lazy load heavy wizard components
 const CreateBetWizard = lazy(() => import("../../components/CreateBetWizard"));
@@ -43,7 +44,7 @@ function getActiveBetCount(bets: any[], groupId: string) {
   return bets.filter((b) => b.groupId === groupId && b.status !== "JUDGED").length;
 }
 
-type FilterOption = "ALL" | "OPEN" | "MY PICKS" | "PENDING" | "SOON" | "H2H";
+type FilterOption = "ALL" | "OPEN" | "MY PICKS" | "PENDING" | "SOON";
 
 export default function HomePage() {
   const router = useRouter();
@@ -274,7 +275,6 @@ export default function HomePage() {
       "MY PICKS": "picks",
       "PENDING": "pending",
       "SOON": "soon",
-      "H2H": "h2h",
     };
     return mapping[filter];
   };
@@ -289,7 +289,7 @@ export default function HomePage() {
     });
   }, [bets, user]);
 
-  // Filter and sort active bets (group and H2H combined)
+  // Filter and sort active bets with new Figma design sorting logic
   const filteredAndSortedActiveBets = useMemo(() => {
     if (!user) return [];
 
@@ -298,21 +298,35 @@ export default function HomePage() {
     // 2. Apply search filter
     const searchFiltered = searchBets(tabFiltered, activeSearchQuery);
 
-    // 3. Sort: CHALLENGED first, PENDING second, then by closing time
+    // 3. NEW SORTING LOGIC: Bets closing < 1 hour first, then by pot size
     const sorted = [...searchFiltered].sort((a, b) => {
-      const stateA = determineCardState(a, user.uid);
-      const stateB = determineCardState(b, user.uid);
+      const now = Date.now();
+      const oneHour = 60 * 60 * 1000;
 
-      // CHALLENGED always at top
-      if (stateA === 'CHALLENGED' && stateB !== 'CHALLENGED') return -1;
-      if (stateA !== 'CHALLENGED' && stateB === 'CHALLENGED') return 1;
+      const aClosingTime = new Date(a.closingAt).getTime();
+      const bClosingTime = new Date(b.closingAt).getTime();
 
-      // Then PENDING (creator waiting)
-      if (stateA === 'PENDING' && stateB !== 'PENDING') return -1;
-      if (stateA !== 'PENDING' && stateB === 'PENDING') return 1;
+      const aClosingSoon = (aClosingTime - now) <= oneHour && (aClosingTime - now) > 0;
+      const bClosingSoon = (bClosingTime - now) <= oneHour && (bClosingTime - now) > 0;
 
-      // Then sort by closing time (soonest first)
-      return new Date(a.closingAt).getTime() - new Date(b.closingAt).getTime();
+      // Priority 1: Closing soon bets first (with pulsing shadow)
+      if (aClosingSoon && !bClosingSoon) return -1;
+      if (!aClosingSoon && bClosingSoon) return 1;
+
+      // Within closing soon group, sort by time (soonest first)
+      if (aClosingSoon && bClosingSoon) {
+        return aClosingTime - bClosingTime;
+      }
+
+      // Priority 2: Sort by pot size (largest first)
+      const aPot = a.totalPot || 0;
+      const bPot = b.totalPot || 0;
+      if (aPot !== bPot) {
+        return bPot - aPot;
+      }
+
+      // Tie-breaker: closing time (soonest first)
+      return aClosingTime - bClosingTime;
     });
 
     return sorted;
@@ -630,7 +644,7 @@ export default function HomePage() {
         className="min-h-screen flex flex-col overflow-y-auto"
         style={{
           paddingTop: "120px", // 60px header + 40px nav + 20px buffer
-          paddingBottom: "80px",
+          paddingBottom: "128px", // Increased for bottom nav (68px) + CREATE BET button (36px) + spacing
           color: "white",
         }}
       >
@@ -748,6 +762,25 @@ export default function HomePage() {
           </div>
         </section>
       </main>
+
+      {/* CREATE BET Button - Floating above bottom nav */}
+      <button
+        onClick={() => setShowCreateBet(true)}
+        className="
+          fixed bottom-[84px] right-6 z-40
+          bg-[rgba(255,107,53,0.52)] hover:bg-[rgba(255,107,53,0.65)]
+          px-6 py-2 rounded-md h-9
+          shadow-lg shadow-[#ff6b35]/30
+          transition-all
+        "
+      >
+        <p className="font-montserrat font-semibold text-[10px] text-white whitespace-nowrap">
+          CREATE BET
+        </p>
+      </button>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
 
       {showOnboarding && (
         <Suspense fallback={null}>

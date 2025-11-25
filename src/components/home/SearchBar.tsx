@@ -10,59 +10,21 @@ interface SearchBarProps {
 
 export function SearchBar({ value, onChange, placeholder = "Search Bets..." }: SearchBarProps) {
   return (
-    <div
-      style={{
-        padding: "12px 16px",
-        backgroundColor: "#0a0a0a",
-      }}
-    >
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-        }}
-      >
-        <Search
-          size={16}
-          style={{
-            position: "absolute",
-            left: "12px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            color: "#FF6B35",
-          }}
-        />
+    <div className="px-6 py-2" style={{ backgroundColor: "#0a0a0a" }}>
+      <div className="bg-[#1e1e1e] rounded-md px-3 py-2 flex items-center gap-2 h-10">
+        <Search className="w-4 h-4 text-[#ff6b35] flex-shrink-0" />
         <input
           type="text"
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          style={{
-            width: "100%",
-            backgroundColor: "#000000",
-            border: "1px solid #27272A",
-            borderRadius: "8px",
-            paddingLeft: "40px",
-            paddingRight: "16px",
-            paddingTop: "10px",
-            paddingBottom: "10px",
-            color: "#FFFFFF",
-            fontSize: "12px",
-            fontWeight: "500",
-            fontFamily: "'Montserrat', sans-serif",
-            outline: "none",
-          }}
-          className="search-input"
+          className="
+            flex-1 bg-transparent border-none outline-none
+            text-[#b3b3b3] placeholder:text-[#b3b3b3]
+            font-montserrat font-semibold text-[12px]
+          "
         />
       </div>
-      <style jsx>{`
-        .search-input::placeholder {
-          color: #71717A;
-        }
-        .search-input:focus {
-          border-color: #FF6B35;
-        }
-      `}</style>
     </div>
   );
 }
