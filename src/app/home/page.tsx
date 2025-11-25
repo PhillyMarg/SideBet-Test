@@ -1,305 +1,154 @@
 "use client";
 
-import { useEffect, useState, lazy, Suspense, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { db, auth } from "../../lib/firebase/client";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  addDoc,
-  onSnapshot,
-  doc,
-  updateDoc,
-  getDoc,
-  setDoc,
-  limit,
-} from "firebase/firestore";
-import { signOut } from "firebase/auth";
-import JudgeBetModal from "../../components/JudgeBetModal";
-import { GroupBetCard, determineCardState } from "../../components/bets/GroupBetCard";
-import BetCardSkeleton from "../../components/BetCardSkeleton";
-import GroupCardSkeleton from "../../components/GroupCardSkeleton";
-import { getTimeRemaining } from "../../utils/timeUtils";
-import { filterBets, sortBets, getEmptyStateMessage, searchBets } from "../../utils/betFilters";
-import { createActivity } from "../../lib/activityHelpers";
-import { notifyChallengeStatus, notifyBetResult } from "../../lib/notifications";
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase/client';
+import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
+import { Search } from 'lucide-react';
+import Header from '@/components/Header';
+import BottomNav from '@/components/BottomNav';
+import ActiveBetCard from '@/components/ActiveBetCard';
+import CreateBetWizard from '@/components/CreateBetWizard';
 
-// NEW: Import the Figma design components
-import { Header } from "../../components/layout/Header";
-import { FilterTabs } from "../../components/home/FilterTabs";
-import { SearchBar } from "../../components/home/SearchBar";
-import { SectionTitle } from "../../components/home/SectionTitle";
-import FeedGroupCard from "../../components/FeedGroupCard";
-import BottomNav from "../../components/BottomNav";
-
-// Lazy load heavy wizard components
-const CreateBetWizard = lazy(() => import("../../components/CreateBetWizard"));
-const CreateGroupWizard = lazy(() => import("../../components/CreateGroupWizard"));
-const OnboardingWizard = lazy(() => import("../../components/OnboardingWizard"));
-
-function getActiveBetCount(bets: any[], groupId: string) {
-  return bets.filter((b) => b.groupId === groupId && b.status !== "JUDGED").length;
-}
-
-type FilterOption = "ALL" | "OPEN" | "MY PICKS" | "PENDING" | "SOON";
+type FilterType = 'ALL' | 'OPEN' | 'MY PICKS' | 'PENDING' | 'SOON';
 
 export default function HomePage() {
   const router = useRouter();
-  const [, forceUpdate] = useState(0);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const [activeFilter, setActiveFilter] = useState<FilterType>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [bets, setBets] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreateBet, setShowCreateBet] = useState(false);
-  const [showCreateGroup, setShowCreateGroup] = useState(false);
-  const [showJoinGroup, setShowJoinGroup] = useState(false);
-  const [joinInput, setJoinInput] = useState("");
-  const [judgingBet, setJudgingBet] = useState<any>(null);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [onboardingCompleted, setOnboardingCompleted] = useState(true);
+  const [showCreateBetWizard, setShowCreateBetWizard] = useState(false);
 
-  // Active bets state
-  const [activeFilter, setActiveFilter] = useState<FilterOption>("ALL");
-  const [activeSearchQuery, setActiveSearchQuery] = useState("");
-  const [expandedBetId, setExpandedBetId] = useState<string | null>(null);
-
-  // Groups filtering state
-  const [groupSearchQuery, setGroupSearchQuery] = useState("");
-  const [groupView, setGroupView] = useState("all");
-  const [groupBetsMap, setGroupBetsMap] = useState<{ [groupId: string]: any[] }>({});
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      router.push("/login");
-    } catch (error: any) {
-      console.error("❌ Logout error:", error);
-      alert(`Failed to logout: ${error.message || error}`);
-    }
-  };
-
-  const handleOnboardingComplete = async () => {
-    if (!user) return;
-
-    try {
-      const userDocRef = doc(db, "users", user.uid);
-      await setDoc(userDocRef, { onboardingCompleted: true }, { merge: true });
-      setOnboardingCompleted(true);
-      setShowOnboarding(false);
-    } catch (error) {
-      console.error("Error updating onboarding status:", error);
-    }
-  };
-
-  // 🔁 Countdown force re-render (only if there are active bets with countdowns)
-  useEffect(() => {
-    const activeBets = bets.filter((bet) => bet.status !== "JUDGED");
-    const hasActiveCountdowns = activeBets.some(
-      (bet) => !getTimeRemaining(bet.closingAt).isClosed
-    );
-
-    if (!hasActiveCountdowns) return;
-
-    const timer = setInterval(() => forceUpdate((n) => n + 1), 1000);
-    return () => clearInterval(timer);
-  }, [bets]);
-
-  // 👤 Auth + Firestore (fixed real-time listener)
+  // Redirect if not authenticated
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
         setUser(null);
         setLoading(false);
-        router.push("/login");
+        router.push('/login');
         return;
       }
 
-      // ✅ Fetch complete user profile from Firestore
       try {
-        const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();
-
-          // ✅ Merge Firebase Auth + Firestore data into user object
           const completeUser = {
             ...firebaseUser,
             firstName: userData.firstName,
             lastName: userData.lastName,
             displayName: userData.displayName,
           } as any;
-
-          console.log("✅ Complete user object loaded in home page:", completeUser);
           setUser(completeUser);
         } else {
-          console.warn("⚠️ User document not found in Firestore");
           setUser(firebaseUser);
         }
       } catch (error) {
-        console.error("Error fetching user data:", error);
+        console.error('Error fetching user data:', error);
         setUser(firebaseUser);
       }
-
-      const uid = firebaseUser.uid;
-
-      // ✅ Real-time listener for groups
-      const groupsQuery = query(
-        collection(db, "groups"),
-        where("memberIds", "array-contains", uid),
-        limit(50)
-      );
-      const unsubGroups = onSnapshot(groupsQuery, (snapshot) => {
-        const groupsData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setGroups(groupsData);
-        setLoading(false);
-      });
-
-      // ✅ Real-time listener for bets created OR joined OR challenged (H2H)
-      const betsCreatedQuery = query(
-        collection(db, "bets"),
-        where("creatorId", "==", uid),
-        limit(50)
-      );
-      const betsJoinedQuery = query(
-        collection(db, "bets"),
-        where("participants", "array-contains", uid),
-        limit(50)
-      );
-      // NEW: Query for H2H bets where user is the challengee
-      const betsH2HChallengeQuery = query(
-        collection(db, "bets"),
-        where("challengeeId", "==", uid),
-        limit(50)
-      );
-
-      const unsubCreated = onSnapshot(betsCreatedQuery, (snapshot) => {
-        console.log("Bets created snapshot:", snapshot.docs.length);
-        const created = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setBets((prev) => {
-          return [
-            ...prev.filter((b) => !created.some((c) => c.id === b.id)),
-            ...created,
-          ];
-        });
-      });
-
-      const unsubJoined = onSnapshot(betsJoinedQuery, (snapshot) => {
-        console.log("Bets joined snapshot:", snapshot.docs.length);
-        const joined = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setBets((prev) => {
-          return [
-            ...prev.filter((b) => !joined.some((j) => j.id === b.id)),
-            ...joined,
-          ];
-        });
-      });
-
-      const unsubH2HChallenges = onSnapshot(betsH2HChallengeQuery, (snapshot) => {
-        console.log("H2H challenges snapshot:", snapshot.docs.length);
-        const h2hChallenges = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setBets((prev) => {
-          return [
-            ...prev.filter((b) => !h2hChallenges.some((h) => h.id === b.id)),
-            ...h2hChallenges,
-          ];
-        });
-      });
-
-      // ✅ Cleanup all listeners
-      return () => {
-        unsubGroups();
-        unsubCreated();
-        unsubJoined();
-        unsubH2HChallenges();
-      };
+      setLoading(false);
     });
 
     return () => unsubAuth();
   }, [router]);
 
-  // Check onboarding status
+  // Fetch user's groups
   useEffect(() => {
-    const checkOnboarding = async () => {
-      if (!user) return;
+    if (!user) return;
 
-      try {
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
+    const groupsQuery = query(
+      collection(db, 'groups'),
+      where('memberIds', 'array-contains', user.uid)
+    );
 
-        if (!userDoc.exists() || !userDoc.data()?.onboardingCompleted) {
-          setOnboardingCompleted(false);
-          setShowOnboarding(true);
-        } else {
-          setOnboardingCompleted(true);
-          setShowOnboarding(false);
-        }
-      } catch (error) {
-        console.error("Error checking onboarding status:", error);
-      }
-    };
+    const unsubscribe = onSnapshot(groupsQuery, (snapshot) => {
+      const groupsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setGroups(groupsData);
+    });
 
-    checkOnboarding();
+    return () => unsubscribe();
   }, [user]);
 
-  // 🔁 Real-time active bet count per group
+  // Fetch all bets from user's groups
   useEffect(() => {
-    if (!bets.length || !groups.length) return;
+    if (!user || groups.length === 0) {
+      setBets([]);
+      return;
+    }
 
-    setGroups((prevGroups) =>
-      prevGroups.map((g) => ({
-        ...g,
-        activeCount: getActiveBetCount(bets, g.id),
-      }))
+    const groupIds = groups.map(g => g.id);
+
+    // Firestore 'in' query has a limit of 10, so we need to batch if more groups
+    if (groupIds.length === 0) {
+      setBets([]);
+      return;
+    }
+
+    // For simplicity, take first 10 groups (you can implement batching if needed)
+    const limitedGroupIds = groupIds.slice(0, 10);
+
+    const betsQuery = query(
+      collection(db, 'bets'),
+      where('groupId', 'in', limitedGroupIds)
     );
-  }, [bets]);
 
-  // Organize bets by group for filtering
-  useEffect(() => {
-    if (groups.length === 0) return;
-
-    const betsMap: { [groupId: string]: any[] } = {};
-    groups.forEach(group => {
-      betsMap[group.id] = bets.filter(bet => bet.groupId === group.id);
+    const unsubscribe = onSnapshot(betsQuery, (snapshot) => {
+      const betsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setBets(betsData);
     });
 
-    setGroupBetsMap(betsMap);
-  }, [groups, bets]);
+    return () => unsubscribe();
+  }, [user, groups]);
 
-  // Map FilterOption to existing FilterTab types for compatibility
-  const mapFilterToTab = (filter: FilterOption): string => {
-    const mapping: Record<FilterOption, string> = {
-      "ALL": "all",
-      "OPEN": "open",
-      "MY PICKS": "picks",
-      "PENDING": "pending",
-      "SOON": "soon",
-    };
-    return mapping[filter];
-  };
-
-  // Filter for active bets only (both group and H2H)
-  const activeBets = useMemo(() => {
+  // Filter and sort bets
+  const filteredAndSortedBets = useMemo(() => {
     if (!user) return [];
 
-    return bets.filter(bet => {
-      const state = determineCardState(bet, user.uid);
-      return ['ACTIVE', 'PLACED', 'CHALLENGED', 'PENDING', 'JUDGE', 'WAITING_JUDGEMENT'].includes(state);
-    });
-  }, [bets, user]);
+    let filtered = bets;
 
-  // Filter and sort active bets with new Figma design sorting logic
-  const filteredAndSortedActiveBets = useMemo(() => {
-    if (!user) return [];
+    // Apply filter
+    switch (activeFilter) {
+      case 'OPEN':
+        filtered = filtered.filter(bet => bet.status === 'OPEN');
+        break;
+      case 'MY PICKS':
+        filtered = filtered.filter(bet => bet.picks?.[user.uid]);
+        break;
+      case 'PENDING':
+        filtered = filtered.filter(bet => bet.status === 'CLOSED');
+        break;
+      case 'SOON':
+        const now = Date.now();
+        const oneDayFromNow = now + (24 * 60 * 60 * 1000);
+        filtered = filtered.filter(bet => {
+          if (!bet.closingAt) return false;
+          const closingTime = new Date(bet.closingAt).getTime();
+          return closingTime > now && closingTime <= oneDayFromNow;
+        });
+        break;
+    }
 
-    // 1. Filter by active tab
-    const tabFiltered = filterBets(activeBets, mapFilterToTab(activeFilter) as any, user.uid);
-    // 2. Apply search filter
-    const searchFiltered = searchBets(tabFiltered, activeSearchQuery);
+    // Apply search
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(bet =>
+        bet.title?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
 
-    // 3. NEW SORTING LOGIC: Bets closing < 1 hour first, then by pot size
-    const sorted = [...searchFiltered].sort((a, b) => {
+    // Sort by priority
+    return filtered.sort((a, b) => {
       const now = Date.now();
       const oneHour = 60 * 60 * 1000;
 
@@ -309,413 +158,138 @@ export default function HomePage() {
       const aClosingSoon = (aClosingTime - now) <= oneHour && (aClosingTime - now) > 0;
       const bClosingSoon = (bClosingTime - now) <= oneHour && (bClosingTime - now) > 0;
 
-      // Priority 1: Closing soon bets first (with pulsing shadow)
+      // Priority 1: Closing soon bets first
       if (aClosingSoon && !bClosingSoon) return -1;
       if (!aClosingSoon && bClosingSoon) return 1;
 
-      // Within closing soon group, sort by time (soonest first)
+      // Within closing soon group, sort by time
       if (aClosingSoon && bClosingSoon) {
         return aClosingTime - bClosingTime;
       }
 
-      // Priority 2: Sort by pot size (largest first)
+      // Priority 2: Sort by pot size
       const aPot = a.totalPot || 0;
       const bPot = b.totalPot || 0;
       if (aPot !== bPot) {
         return bPot - aPot;
       }
 
-      // Tie-breaker: closing time (soonest first)
+      // Tie-breaker: closing time
       return aClosingTime - bClosingTime;
     });
+  }, [bets, activeFilter, searchQuery, user]);
 
-    return sorted;
-  }, [activeBets, activeFilter, activeSearchQuery, user]);
-
-  // Handler for filter change
-  const handleActiveFilterChange = (filter: string) => {
-    setActiveFilter(filter as FilterOption);
+  // Get group name for a bet
+  const getGroupName = (groupId: string) => {
+    const group = groups.find(g => g.id === groupId);
+    return group?.name || 'Group';
   };
 
-  const handleActiveSearchChange = (query: string) => {
-    setActiveSearchQuery(query);
+  // Add group name to bets for ActiveBetCard
+  const betsWithGroupNames = useMemo(() => {
+    return filteredAndSortedBets.map(bet => ({
+      ...bet,
+      groupName: getGroupName(bet.groupId)
+    }));
+  }, [filteredAndSortedBets, groups]);
+
+  // Handle bet pick
+  const handleBetPick = async (bet: any, pick: string | number) => {
+    // This will be handled by ActiveBetCard internally
+    console.log('Pick made:', bet.id, pick);
   };
 
-  const handleToggleExpand = (betId: string) => {
-    setExpandedBetId(prev => prev === betId ? null : betId);
+  // Handle judge bet
+  const handleJudgeBet = (bet: any) => {
+    console.log('Judge bet:', bet.id);
+    // You can implement judge modal here
   };
 
-  // Track last active bet time per group
-  const getLastBetTime = (groupId: string): number => {
-    const groupBets = groupBetsMap[groupId] || [];
-    if (groupBets.length === 0) return 0;
-
-    const times = groupBets.map(bet => {
-      const created = new Date(bet.createdAt).getTime();
-      const updated = bet.updatedAt ? new Date(bet.updatedAt).getTime() : created;
-      return Math.max(created, updated);
-    });
-
-    return Math.max(...times);
-  };
-
-  // Filter and sort groups
-  const filteredAndSortedGroups = useMemo(() => {
-    let displayGroups = groups;
-
-    // 1. Apply search
-    if (groupSearchQuery.trim()) {
-      displayGroups = displayGroups.filter(group => {
-        const query = groupSearchQuery.toLowerCase();
-        const name = group.name.toLowerCase();
-        const tagline = group.tagline?.toLowerCase() || "";
-        return name.includes(query) || tagline.includes(query);
-      });
-    }
-
-    // 2. Apply view (All vs Recent)
-    if (groupView === "recent") {
-      const sortedGroups = [...displayGroups].sort((a, b) => {
-        return getLastBetTime(b.id) - getLastBetTime(a.id);
-      });
-      displayGroups = sortedGroups;
-    } else {
-      const sortedGroups = [...displayGroups].sort((a, b) =>
-        a.name.localeCompare(b.name)
-      );
-      displayGroups = sortedGroups;
-    }
-
-    return displayGroups;
-  }, [groups, groupSearchQuery, groupView, groupBetsMap]);
-
-  const getGroupName = (groupId: string) =>
-    groups.find((g) => g.id === groupId)?.name || "Unknown Group";
-
-  const handleCreateBet = async (betData: any) => {
-    if (betData.type === "OVER_UNDER" && !betData.line) {
-      alert("Please set a valid line ending in .5 for Over/Under bets.");
-      return;
-    }
-
-    if (!user || !betData.title.trim() || !betData.groupId || !betData.wager) {
-      alert("Please complete all required fields.");
-      return;
-    }
-
-    const betDoc = {
-      title: betData.title,
-      description: betData.description || "",
-      type: betData.type,
-      status: "OPEN",
-      line: betData.line || null,
-      perUserWager: parseFloat(betData.wager),
-      participants: [],
-      picks: {},
-      creatorId: user.uid,
-      groupId: betData.groupId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      closingAt: betData.closingAt,
-    };
-
-    try {
-      const betRef = await addDoc(collection(db, "bets"), betDoc);
-
-      // Get user's display name
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      const userData = userDoc.data();
-      const userName = userData?.displayName ||
-                      `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() ||
-                      user.email ||
-                      "Unknown User";
-
-      // Create activity
-      await createActivity({
-        groupId: betData.groupId,
-        type: "bet_created",
-        userId: user.uid,
-        userName: userName,
-        betId: betRef.id,
-        betTitle: betData.title
-      });
-
-      setShowCreateBet(false);
-    } catch (err) {
-      console.error("Error creating bet:", err);
-      alert("Failed to create bet. Please try again.");
-    }
-  };
-
-  const handleUserPick = async (bet: any, pick: string | number) => {
-    if (!user) return;
-
-    const uid = user.uid;
-
-    try {
-      const updatedPicks = { ...bet.picks, [uid]: pick };
-      const updatedParticipants = Array.from(
-        new Set([...(bet.participants || []), uid])
-      );
-
-      const betRef = doc(db, "bets", bet.id);
-      await updateDoc(betRef, {
-        picks: updatedPicks,
-        participants: updatedParticipants,
-        updatedAt: new Date().toISOString(),
-      });
-
-      setBets((prev) =>
-        prev.map((b) =>
-          b.id === bet.id
-            ? {
-                ...b,
-                picks: updatedPicks,
-                participants: updatedParticipants,
-                userPick: pick,
-              }
-            : b
-        )
-      );
-    } catch (err) {
-      console.error("Error updating bet pick:", err);
-      alert("Failed to place bet. Please try again.");
-    }
-  };
-
-  // Handle accepting H2H challenge
-  const handleAcceptChallenge = async (betId: string) => {
-    if (!user) return;
-
-    try {
-      console.log('Accepting challenge:', betId);
-
-      const betRef = doc(db, 'bets', betId);
-      const betSnap = await getDoc(betRef);
-
-      if (!betSnap.exists()) {
-        console.error('Bet not found');
-        alert('Challenge not found');
-        return;
-      }
-
-      const betData = betSnap.data();
-
-      // Update bet status to accepted and add challengee as participant
-      await updateDoc(betRef, {
-        h2hStatus: 'accepted',
-        acceptedAt: new Date().toISOString(),
-        participants: [...(betData.participants || []), user.uid],
-        updatedAt: new Date().toISOString(),
-      });
-
-      // Get user's display name for notification
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      const userData = userDoc.exists() ? userDoc.data() : null;
-      const responderName = userData?.displayName ||
-        `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() ||
-        'Your friend';
-
-      // Notify creator that challenge was accepted
-      await notifyChallengeStatus(
-        betData.challengerId,
-        betId,
-        betData.title,
-        true,
-        responderName
-      );
-
-      console.log('Challenge accepted!');
-
-    } catch (error) {
-      console.error('Error accepting challenge:', error);
-      alert('Failed to accept challenge. Please try again.');
-    }
-  };
-
-  // Handle declining H2H challenge
-  const handleDeclineChallenge = async (betId: string) => {
-    if (!user) return;
-
-    try {
-      console.log('Declining challenge:', betId);
-
-      const confirmed = confirm('Are you sure you want to decline this challenge?');
-      if (!confirmed) return;
-
-      const betRef = doc(db, 'bets', betId);
-      const betSnap = await getDoc(betRef);
-
-      if (!betSnap.exists()) {
-        console.error('Bet not found');
-        return;
-      }
-
-      const betData = betSnap.data();
-
-      // Update bet status to declined
-      await updateDoc(betRef, {
-        h2hStatus: 'declined',
-        declinedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-
-      // Get user's display name for notification
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      const userData = userDoc.exists() ? userDoc.data() : null;
-      const responderName = userData?.displayName ||
-        `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() ||
-        'Your friend';
-
-      // Notify creator that challenge was declined
-      await notifyChallengeStatus(
-        betData.challengerId,
-        betId,
-        betData.title,
-        false,
-        responderName
-      );
-
-      console.log('Challenge declined');
-
-    } catch (error) {
-      console.error('Error declining challenge:', error);
-      alert('Failed to decline challenge. Please try again.');
-    }
-  };
-
-  const handleCreateGroup = async (groupData: any) => {
-    if (!user) {
-      alert("You must be signed in to create a group.");
-      return;
-    }
-
-    const groupDoc = {
-      name: groupData.name,
-      tagline: groupData.tagline || "",
-      admin_id: user.uid,
-      memberIds: [user.uid],
-      settings: {
-        min_bet: groupData.min_bet || 0,
-        max_bet: groupData.max_bet || 0,
-        starting_balance: 0,
-        season_enabled: groupData.season_enabled,
-        season_type: groupData.season_type || "none",
-        season_end_date: groupData.season_end_date || null,
-        auto_renew: groupData.auto_renew,
-      },
-      inviteType: groupData.inviteType,
-      joinLink: groupData.joinLink,
-      accessCode: groupData.accessCode,
-      created_at: new Date().toISOString(),
-    };
-
-    try {
-      await addDoc(collection(db, "groups"), groupDoc);
-      alert("✅ Group created successfully!");
-    } catch (error: any) {
-      console.error("Error creating group:", error);
-      alert(`Failed to create group. Error: ${error.message || JSON.stringify(error)}`);
-    }
-  };
-
-  // Only redirect if not loading and no user
-  if (!loading && !user) {
+  if (loading) {
     return (
-      <main className="flex items-center justify-center min-h-screen bg-black text-white">
-        <p>Redirecting to login...</p>
-      </main>
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
     );
   }
 
+  if (!user) return null;
+
+  const filters: FilterType[] = ['ALL', 'OPEN', 'MY PICKS', 'PENDING', 'SOON'];
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#0a0a0a",
-        fontFamily: "'Montserrat', sans-serif",
-      }}
-    >
-      {/* Header with integrated navigation */}
+    <div className="min-h-screen bg-zinc-950">
+      {/* Header */}
       <Header userId={user?.uid} />
 
       {/* Main Content */}
-      <main
-        className="min-h-screen flex flex-col overflow-y-auto"
-        style={{
-          paddingTop: "56px", // 56px header (h-14)
-          paddingBottom: "96px", // 68px bottom nav + 28px spacing for CREATE BET button
-          color: "white",
-        }}
-      >
-        {/* ============ ACTIVE BETS SECTION ============ */}
-        <div className="flex items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <SectionTitle>ACTIVE BETS</SectionTitle>
-            {filteredAndSortedActiveBets.length > 0 && (
-              <span className="text-sm text-zinc-400">({filteredAndSortedActiveBets.length})</span>
-            )}
+      <main className="pt-14 pb-24">
+
+        {/* Filter Pills */}
+        <div className="flex gap-2 px-6 py-2 overflow-x-auto scrollbar-hide">
+          {filters.map((filter) => (
+            <button
+              key={filter}
+              onClick={() => setActiveFilter(filter)}
+              className={`
+                px-4 py-1 rounded-md font-montserrat font-semibold text-[10px] whitespace-nowrap
+                border-2 border-[#ff6b35] transition-all flex-shrink-0
+                ${activeFilter === filter
+                  ? 'bg-[#ff6b35] text-white'
+                  : 'bg-transparent text-white hover:bg-[#ff6b35]/10'
+                }
+              `}
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
+
+        {/* Search Bar */}
+        <div className="px-6 py-2">
+          <div className="bg-[#1e1e1e] rounded-md px-3 py-2 flex items-center gap-2">
+            <Search className="w-4 h-4 text-[#ff6b35] flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="Search Bets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="
+                flex-1 bg-transparent border-none outline-none
+                text-[#b3b3b3] placeholder:text-[#b3b3b3]
+                font-montserrat font-semibold text-[12px]
+              "
+            />
           </div>
         </div>
 
-        {/* Active Filter Tabs */}
-        <FilterTabs
-          selected={activeFilter}
-          onSelect={handleActiveFilterChange}
-        />
-
-        {/* Active Search Bar */}
-        <SearchBar
-          value={activeSearchQuery}
-          onChange={handleActiveSearchChange}
-          placeholder="Search Active Bets..."
-        />
-
-        {/* Active Bet Cards */}
-        <section className="px-4">
-          {loading ? (
-            <div>
-              {[...Array(3)].map((_, i) => (
-                <BetCardSkeleton key={i} />
-              ))}
-            </div>
-          ) : filteredAndSortedActiveBets.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-zinc-400 mb-2">
-                {activeSearchQuery.trim()
-                  ? `No active bets found for "${activeSearchQuery}"`
-                  : getEmptyStateMessage(mapFilterToTab(activeFilter) as any)}
+        {/* Bet Cards List */}
+        <div className="px-6 flex flex-col gap-4 mt-4">
+          {betsWithGroupNames.length === 0 ? (
+            <div className="text-center text-white/50 py-12">
+              <p className="font-montserrat">
+                {searchQuery ? 'No bets found' : 'No active bets'}
               </p>
-              {!activeSearchQuery.trim() && activeFilter === "ALL" && (
-                <p className="text-sm text-zinc-500">Create a bet or join one to get started</p>
-              )}
             </div>
           ) : (
-            <div className="space-y-4">
-              {filteredAndSortedActiveBets.map((bet) => (
-                <GroupBetCard
-                  key={bet.id}
-                  bet={bet}
-                  currentUserId={user?.uid || ''}
-                  groupName={getGroupName(bet.groupId)}
-                  onVote={(vote) => handleUserPick(bet, vote)}
-                  onSubmitGuess={(guess) => handleUserPick(bet, guess)}
-                  onChangeVote={() => console.log('Change vote:', bet.id)}
-                  onJudge={() => setJudgingBet(bet)}
-                  onAcceptChallenge={() => handleAcceptChallenge(bet.id)}
-                  onDeclineChallenge={() => handleDeclineChallenge(bet.id)}
-                  isExpanded={expandedBetId === bet.id}
-                  onToggleExpand={() => handleToggleExpand(bet.id)}
-                />
-              ))}
-            </div>
+            betsWithGroupNames.map((bet) => (
+              <ActiveBetCard
+                key={bet.id}
+                bet={bet}
+                user={user}
+                onPick={handleBetPick}
+                onJudge={handleJudgeBet}
+                groupName={bet.groupName}
+              />
+            ))
           )}
-        </section>
+        </div>
+
       </main>
 
-      {/* CREATE BET Button - Floating above bottom nav */}
+      {/* CREATE BET Floating Button */}
       <button
-        onClick={() => setShowCreateBet(true)}
+        onClick={() => setShowCreateBetWizard(true)}
         className="
           fixed bottom-[84px] right-6 z-40
           bg-[rgba(255,107,53,0.52)] hover:bg-[rgba(255,107,53,0.65)]
@@ -724,192 +298,30 @@ export default function HomePage() {
           transition-all
         "
       >
-        <p className="font-montserrat font-semibold text-[10px] text-white whitespace-nowrap">
+        <span className="font-montserrat font-semibold text-[10px] text-white whitespace-nowrap">
           CREATE BET
-        </p>
+        </span>
       </button>
 
       {/* Bottom Navigation */}
       <BottomNav />
 
-      {showOnboarding && (
-        <Suspense fallback={null}>
-          <OnboardingWizard
-            isOpen={showOnboarding}
-            onClose={() => setShowOnboarding(false)}
-            onComplete={handleOnboardingComplete}
-            onCreateGroup={() => {
-              setShowOnboarding(false);
-              setShowCreateGroup(true);
-            }}
-            onJoinGroup={() => {
-              setShowOnboarding(false);
-              setShowJoinGroup(true);
-            }}
-          />
-        </Suspense>
-      )}
-
-      {showCreateBet && (
+      {/* Modals */}
+      {showCreateBetWizard && (
         <div
           className="fixed inset-0 flex justify-center items-center z-50 bg-black/60 p-4"
-          onClick={() => setShowCreateBet(false)}
+          onClick={() => setShowCreateBetWizard(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             className="w-[90%] max-w-[380px] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto p-5"
           >
-            <Suspense fallback={null}>
-              <CreateBetWizard
-                user={user}
-                onClose={() => setShowCreateBet(false)}
-              />
-            </Suspense>
-          </div>
-        </div>
-      )}
-
-      {showCreateGroup && (
-        <Suspense fallback={null}>
-          <CreateGroupWizard
-            isOpen={showCreateGroup}
-            onClose={() => setShowCreateGroup(false)}
-            onCreateGroup={handleCreateGroup}
-          />
-        </Suspense>
-      )}
-
-      {/* Join Group Modal */}
-      {showJoinGroup && (
-        <div
-          className="fixed inset-0 flex justify-center items-center z-50 bg-black/60 transition-opacity duration-300 ease-out"
-          onClick={() => setShowJoinGroup(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-[95%] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl px-5 py-5 transform transition-all duration-300 ease-out"
-          >
-            <h3 className="text-lg font-semibold mb-4 text-center text-white">
-              Join a Group
-            </h3>
-
-            <p className="text-sm text-gray-400 mb-3 text-center">
-              Enter an <span className="text-orange-400 font-medium">Access Code</span>{" "}
-              or paste a{" "}
-              <span className="text-orange-400 font-medium">Join Link</span> to join a
-              group.
-            </p>
-
-            <input
-              type="text"
-              placeholder="Enter access code or join link"
-              value={joinInput}
-              onChange={(e) => setJoinInput(e.target.value.trim())}
-              className="w-full bg-zinc-800 text-white p-3 rounded-md text-sm border border-zinc-700 mb-4 focus:outline-none focus:border-orange-500"
+            <CreateBetWizard
+              user={user}
+              onClose={() => setShowCreateBetWizard(false)}
             />
-
-            <div className="flex justify-between mt-4">
-              <button
-                onClick={() => setShowJoinGroup(false)}
-                className="text-gray-400 border border-gray-600 px-4 py-2 rounded-md text-sm hover:bg-gray-800 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  if (!joinInput) return alert("Please enter a code or link.");
-                  if (!user) return alert("You must be signed in to join a group.");
-
-                  try {
-                    const input = joinInput.trim().toUpperCase();
-                    const groupsRef = collection(db, "groups");
-
-                    const codeQuery = query(
-                      groupsRef,
-                      where("accessCode", "==", input)
-                    );
-                    const linkQuery = query(
-                      groupsRef,
-                      where("joinLink", "==", input)
-                    );
-
-                    const [codeSnap, linkSnap] = await Promise.all([
-                      getDocs(codeQuery),
-                      getDocs(linkQuery),
-                    ]);
-
-                    const matchSnap = !codeSnap.empty
-                      ? codeSnap.docs[0]
-                      : !linkSnap.empty
-                      ? linkSnap.docs[0]
-                      : null;
-
-                    if (!matchSnap) {
-                      alert("No group found. Please check the code or link.");
-                      return;
-                    }
-
-                    const groupRef = matchSnap.ref;
-                    const groupData = matchSnap.data();
-
-                    if (groupData.memberIds?.includes(user.uid)) {
-                      alert("You're already a member of this group!");
-                      return;
-                    }
-
-                    // Update group with new member
-                    await updateDoc(groupRef, {
-                      memberIds: [...(groupData.memberIds || []), user.uid],
-                    });
-
-                    // Get user's display name
-                    const userDoc = await getDoc(doc(db, "users", user.uid));
-                    const userData = userDoc.data();
-                    const userName = userData?.displayName ||
-                                    `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() ||
-                                    user.email ||
-                                    "Unknown User";
-
-                    // Create activity for user joining
-                    await createActivity({
-                      groupId: matchSnap.id,
-                      type: "user_joined",
-                      userId: user.uid,
-                      userName: userName
-                    });
-
-                    // Check for milestone
-                    const newMemberCount = (groupData.memberIds || []).length + 1;
-                    if (newMemberCount === 5 || newMemberCount === 10 || newMemberCount === 20) {
-                      await createActivity({
-                        groupId: matchSnap.id,
-                        type: "milestone",
-                        userId: "group_system",
-                        userName: "Group",
-                        milestoneCount: newMemberCount
-                      });
-                    }
-
-                    alert(`✅ Successfully joined "${groupData.name}"`);
-                    setShowJoinGroup(false);
-                    setJoinInput("");
-                  } catch (err) {
-                    console.error("Error joining group:", err);
-                    alert("Failed to join group. Please try again.");
-                  }
-                }}
-                className="bg-orange-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-600 transition"
-              >
-                Join Group
-              </button>
-            </div>
           </div>
         </div>
-      )}
-
-      {/* Judge Bet Modal */}
-      {judgingBet && (
-        <JudgeBetModal bet={judgingBet} onClose={() => setJudgingBet(null)} />
       )}
     </div>
   );

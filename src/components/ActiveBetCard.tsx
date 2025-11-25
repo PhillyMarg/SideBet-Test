@@ -525,7 +525,7 @@ function ActiveBetCard({
     boxShadow: '0 4px 4px 0 rgba(0, 0, 0, 0.25)',
   };
 
-  // Collapsed state - New Figma design
+  // Collapsed state - Figma design exact match
   if (!isExpanded) {
     return (
       <li className="list-none">
@@ -533,36 +533,36 @@ function ActiveBetCard({
           onClick={() => setIsExpanded(true)}
           className={`
             w-full
-            bg-[rgba(24,24,27,0.4)]
+            bg-zinc-900/40
             rounded-md
             p-3
             flex flex-col gap-1
             cursor-pointer
-            hover:bg-[rgba(24,24,27,0.5)]
+            hover:bg-zinc-900/50
             transition-all
             ${isClosingSoon ? 'shadow-[2px_2px_4px_0px_#ff6b35] animate-pulse-shadow' : ''}
           `}
         >
           {/* Row 1: Group Name (left) and Closing Time (right) */}
           <div className="flex items-center justify-between w-full">
-            <p className="text-[#ff6b35] text-[8px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] leading-normal">
-              {groupName}
+            <p className="text-[#ff6b35] text-[8px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
+              {groupName || 'Group'}
             </p>
-            <p className="text-[#ff6b35] text-[8px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] leading-normal">
+            <p className="text-[#ff6b35] text-[8px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
               Closes: {formatClosingDate(bet.closingAt)}
             </p>
           </div>
 
-          {/* Row 2: Bet Title/Question */}
+          {/* Row 2: Bet Title */}
           <div className="flex items-center w-full">
-            <p className="text-white text-[12px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] leading-normal line-clamp-2">
+            <p className="text-white text-[12px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] line-clamp-2">
               {bet.title}
             </p>
           </div>
 
-          {/* Row 3: Pot + Players (left) and Chevron (right) */}
+          {/* Row 3: Pot Info (left) and Chevron (right) */}
           <div className="flex items-center justify-between w-full">
-            <p className="text-[#ff6b35] text-[10px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] leading-normal">
+            <p className="text-[#ff6b35] text-[10px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
               Pot: ${(bet.totalPot || 0).toFixed(2)} | {(bet.participants || []).length} Players
             </p>
             <ChevronDown className="w-[14px] h-[14px] text-white flex-shrink-0" />
