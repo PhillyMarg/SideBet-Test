@@ -12,6 +12,7 @@ export default function SignupPage() {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [venmoUsername, setVenmoUsername] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -30,7 +31,7 @@ export default function SignupPage() {
       const trimmedLastName = lastName.trim();
       const displayName = `${trimmedFirstName} ${trimmedLastName}`;
 
-      await setDoc(doc(db, 'users', user.uid), {
+      const userData: any = {
         id: user.uid,
         firstName: trimmedFirstName,
         lastName: trimmedLastName,
@@ -38,7 +39,14 @@ export default function SignupPage() {
         email: email.trim().toLowerCase(),
         joined_groups: [],
         total_stats: { totalBets: 0, wins: 0, losses: 0, net: 0 },
-      });
+      };
+
+      // Add venmoUsername if provided
+      if (venmoUsername.trim()) {
+        userData.venmoUsername = venmoUsername.trim();
+      }
+
+      await setDoc(doc(db, 'users', user.uid), userData);
 
       router.push('/home');
     } catch (err: any) {
@@ -153,7 +161,7 @@ export default function SignupPage() {
           required
           minLength={6}
           className="
-            w-full h-9 px-3 mb-12
+            w-full h-9 px-3 mb-8
             bg-zinc-900/40
             border-2 border-[#ff6b35]
             rounded-md
@@ -163,6 +171,34 @@ export default function SignupPage() {
             focus:outline-none focus:border-[#ff6b35]
           "
         />
+
+        {/* Venmo Username Label */}
+        <p className="font-montserrat font-light italic text-[20px] text-white [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] px-4 mb-2">
+          Venmo Username (optional)
+        </p>
+
+        {/* Venmo Username Input */}
+        <input
+          type="text"
+          value={venmoUsername}
+          onChange={(e) => setVenmoUsername(e.target.value)}
+          placeholder="@your-username"
+          className="
+            w-full h-9 px-3 mb-2
+            bg-zinc-900/40
+            border-2 border-[#ff6b35]
+            rounded-md
+            shadow-[2px_2px_4px_0px_#ff6b35]
+            text-[#757579] placeholder:text-[#757579]
+            font-montserrat text-[14px]
+            focus:outline-none focus:border-[#ff6b35]
+          "
+        />
+
+        {/* Helper Text */}
+        <p className="font-montserrat text-[12px] text-zinc-400 italic px-4 mb-12">
+          Used for easy settlement with friends
+        </p>
 
         {/* Error Message */}
         {error && (
