@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { deleteDoc, doc, updateDoc, addDoc, collection, arrayUnion, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../lib/firebase/client";
 import { validateBetDeletion } from "../lib/validation/betValidation";
-import { Trash2, Link } from "lucide-react";
+import { Trash2, Link, ChevronDown } from "lucide-react";
 import { getTimeRemaining, getLivePercentages } from "../utils/timeUtils";
 import { fetchUserData, getUserDisplayName } from "../utils/userUtils";
 import { generateBetShareLink, copyToClipboard } from "../utils/shareUtils";
@@ -165,6 +165,23 @@ function ActiveBetCard({
       const minutes = Math.floor(timeUntilClose / (60 * 1000));
       return `Closes in ${minutes} min`;
     }
+  };
+
+  // Helper function to check if bet is closing within 1 hour
+  const isClosingSoon = useMemo(() => {
+    const closingTime = new Date(bet.closingAt).getTime();
+    const now = Date.now();
+    const oneHour = 60 * 60 * 1000;
+    return (closingTime - now) <= oneHour && (closingTime - now) > 0;
+  }, [bet.closingAt]);
+
+  // Helper function to format closing date as MM/DD/YYYY
+  const formatClosingDate = (isoString: string) => {
+    const date = new Date(isoString);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
   };
 
   // Fetch creator data on mount
@@ -507,37 +524,46 @@ function ActiveBetCard({
     boxShadow: '0 4px 4px 0 rgba(0, 0, 0, 0.25)',
   };
 
-  // Collapsed state - 60px height
+  // Collapsed state - New Figma design
   if (!isExpanded) {
     return (
       <li className="list-none">
         <div
           onClick={() => setIsExpanded(true)}
-          className="flex flex-col items-start gap-1 shrink-0 cursor-pointer hover:bg-zinc-800/50 transition-all duration-300"
-          style={{
-            ...baseStyle,
-            height: '60px',
-            padding: '12px',
-          }}
+          className={`
+            bg-zinc-900/40
+            rounded-md
+            p-3
+            flex flex-col gap-1
+            cursor-pointer
+            hover:bg-zinc-900/50
+            transition-all
+            ${isClosingSoon ? 'shadow-[2px_2px_4px_0px_#ff6b35] pulse-shadow' : ''}
+          `}
         >
-          {/* Row 1: Group + Closing time */}
+          {/* Top Row - Group Name and Closing Time */}
           <div className="flex items-center justify-between w-full">
-            <span className="text-xs font-semibold text-orange-500">
-              {isH2H ? 'H2H' : (groupName || 'Group')}
-            </span>
-            <span className="text-xs font-semibold text-orange-500">
-              {getClosingTimeDisplay()}
-            </span>
+            <p className="text-[#ff6b35] text-[8px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
+              {groupName}
+            </p>
+            <p className="text-[#ff6b35] text-[8px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
+              Closes: {formatClosingDate(bet.closingAt)}
+            </p>
           </div>
 
-          {/* Row 2: Title + Chevron */}
-          <div className="flex items-center justify-between w-full">
-            <h3 className="text-base font-medium text-white truncate flex-1 pr-2">
+          {/* Bet Title Row */}
+          <div className="flex items-center w-full">
+            <p className="text-white text-[12px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] truncate">
               {bet.title}
-            </h3>
-            <svg className="w-4 h-4 text-zinc-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            </p>
+          </div>
+
+          {/* Bottom Row - Pot Info and Chevron */}
+          <div className="flex items-center justify-between w-full h-[12px]">
+            <p className="text-[#ff6b35] text-[10px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
+              Pot: ${bet.totalPot.toFixed(2)} | {bet.participants.length} Players
+            </p>
+            <ChevronDown className="w-[14px] h-[14px] text-white flex-shrink-0" />
           </div>
         </div>
       </li>
