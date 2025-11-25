@@ -214,5 +214,3 @@ export function Header({ userId, onAcceptChallenge, onDeclineChallenge }: Header
     </header>
   );
 }
-
-export default Header;
