@@ -19,6 +19,7 @@ import { Search, X, LogOut, Users, Dices } from "lucide-react";
 import { removeUserFromGroupBets } from "../../utils/groupHelpers";
 import { arrayRemove, doc } from "firebase/firestore";
 import { Header } from "../../components/layout/Header";
+import BottomNav from "../../components/BottomNav";
 
 export default function GroupsPage() {
   const router = useRouter();
@@ -413,7 +414,7 @@ export default function GroupsPage() {
       <Header userId={user?.uid} />
       <main
         className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center"
-        style={{ "--content-width": "500px", paddingTop: "100px" } as React.CSSProperties}
+        style={{ "--content-width": "500px", paddingTop: "56px", paddingBottom: "96px" } as React.CSSProperties}
       >
       <div
         className="w-[92%] mx-auto py-6"
@@ -845,6 +846,9 @@ export default function GroupsPage() {
       </div>
     )}
       </main>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '../../lib/firebase/client';
+import { Header } from '../../components/layout/Header';
 import BottomNav from '@/components/BottomNav';
 
 export default function SettlePage() {
@@ -26,7 +27,7 @@ export default function SettlePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-white">Loading...</div>
       </div>
     );
@@ -37,25 +38,21 @@ export default function SettlePage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 pb-20">
+    <div className="min-h-screen bg-[#0a0a0a]">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 bg-zinc-900 border-b border-zinc-800 h-14 z-50 flex items-center justify-between px-6">
-        <h1 className="font-montserrat font-bold text-white text-[16px]">
-          SIDEBET
-        </h1>
-      </header>
+      <Header userId={user?.uid} />
 
-      {/* Content */}
-      <div className="pt-20 px-6">
+      {/* Main Content */}
+      <main className="pt-14 pb-24 px-6">
         <div className="text-center py-12">
           <h2 className="font-montserrat font-bold text-white text-2xl mb-4">
-            Settle Page
+            Settle
           </h2>
           <p className="font-montserrat text-white/50">
-            Coming Soon - This page will show money balances and settlement options
+            Coming Soon - Money balances and settlement
           </p>
         </div>
-      </div>
+      </main>
 
       {/* Bottom Navigation */}
       <BottomNav />

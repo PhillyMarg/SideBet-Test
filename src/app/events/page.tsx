@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "../../lib/firebase/client";
 import { Header } from "../../components/layout/Header";
+import BottomNav from "../../components/BottomNav";
 import { Search, X, Plus } from 'lucide-react';
 import { CreateTournamentWizard } from '@/components/tournaments/CreateTournamentWizard';
 import { TournamentCard } from '@/components/tournaments/TournamentCard';
@@ -99,7 +100,7 @@ export default function EventsPage() {
     return (
       <div className="min-h-screen bg-[#0a0a0a]">
         <Header userId={user?.uid} />
-        <main className="pt-[120px] pb-20">
+        <main className="pt-14 pb-24">
           <div className="px-4 sm:px-6">
             <div className="animate-pulse">
               <div className="h-8 bg-zinc-800 rounded w-32 mb-4"></div>
@@ -107,6 +108,7 @@ export default function EventsPage() {
             </div>
           </div>
         </main>
+        <BottomNav />
       </div>
     );
   }
@@ -115,7 +117,7 @@ export default function EventsPage() {
     <div className="min-h-screen bg-[#0a0a0a]">
       <Header userId={user?.uid} />
 
-      <main className="pt-4 pb-20">
+      <main className="pt-14 pb-24">
         {/* Page Title */}
         <div className="px-4 sm:px-6 mb-4">
           <div className="flex items-center justify-between">
@@ -359,6 +361,9 @@ export default function EventsPage() {
         isOpen={showCreateWizard}
         onClose={() => setShowCreateWizard(false)}
       />
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }

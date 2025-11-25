@@ -643,8 +643,8 @@ export default function HomePage() {
       <main
         className="min-h-screen flex flex-col overflow-y-auto"
         style={{
-          paddingTop: "120px", // 60px header + 40px nav + 20px buffer
-          paddingBottom: "128px", // Increased for bottom nav (68px) + CREATE BET button (36px) + spacing
+          paddingTop: "56px", // 56px header (h-14)
+          paddingBottom: "96px", // 68px bottom nav + 28px spacing for CREATE BET button
           color: "white",
         }}
       >
@@ -710,56 +710,6 @@ export default function HomePage() {
               ))}
             </div>
           )}
-        </section>
-
-        {/* MY GROUPS Section */}
-        <section style={{ marginTop: "32px" }}>
-          <SectionTitle>MY GROUPS</SectionTitle>
-
-          {/* Groups Search Bar */}
-          <SearchBar
-            value={groupSearchQuery}
-            onChange={setGroupSearchQuery}
-            placeholder="Search Groups..."
-          />
-
-          {/* Group Cards */}
-          <div style={{ padding: "0 16px" }}>
-            {loading ? (
-              <div>
-                {[...Array(2)].map((_, i) => (
-                  <GroupCardSkeleton key={i} />
-                ))}
-              </div>
-            ) : (
-              <>
-                {filteredAndSortedGroups.length > 0 ? (
-                  <div>
-                    {filteredAndSortedGroups.map((group) => (
-                      <FeedGroupCard
-                        key={group.id}
-                        group={group}
-                        activeBets={getActiveBetCount(bets, group.id)}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <p
-                    style={{
-                      textAlign: "center",
-                      fontSize: "12px",
-                      color: "#71717A",
-                      marginTop: "24px",
-                    }}
-                  >
-                    {groupSearchQuery.trim()
-                      ? `No groups found for "${groupSearchQuery}"`
-                      : "You haven't joined any groups yet."}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
         </section>
       </main>
 

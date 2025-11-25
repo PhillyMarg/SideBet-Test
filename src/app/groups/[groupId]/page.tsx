@@ -24,6 +24,7 @@ import {
 import JudgeBetModal from "../../../components/JudgeBetModal";
 import { GroupBetCard } from "../../../components/bets/GroupBetCard";
 import { Header } from "../../../components/layout/Header";
+import BottomNav from "../../../components/BottomNav";
 import BetFilters, { FilterTab, SortOption } from "../../../components/BetFilters";
 import { SeeMoreButton } from "../../../components/ui/SeeMoreButton";
 import ActivityFeed from "../../../components/ActivityFeed";
@@ -549,7 +550,7 @@ export default function GroupDetailPage() {
   return (
     <>
       <Header userId={user?.uid} />
-      <main className="min-h-screen bg-black text-white flex flex-col items-center relative overflow-y-auto" style={{ paddingTop: "100px" }}>
+      <main className="min-h-screen bg-black text-white flex flex-col items-center relative overflow-y-auto" style={{ paddingTop: "56px", paddingBottom: "96px" }}>
         <div className="w-full max-w-2xl px-4">
         {/* 🧩 GROUP INFO */}
         <section className="w-full mt-6 px-2">
@@ -908,6 +909,9 @@ export default function GroupDetailPage() {
         </div>
       )}
     </main>
+
+    {/* Bottom Navigation */}
+    <BottomNav />
     </>
   );
 }

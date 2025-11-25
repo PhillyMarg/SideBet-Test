@@ -1,57 +1,26 @@
 "use client";
 
-import { useState, lazy, Suspense, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "../../lib/firebase/client";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  addDoc,
-  updateDoc,
-  getDoc,
-  doc,
-  limit,
-} from "firebase/firestore";
+import { getDoc, doc } from "firebase/firestore";
 import NotificationBell from "../NotificationBell";
-import { createActivity } from "../../lib/activityHelpers";
 import { notifyChallengeStatus } from "../../lib/notifications";
-import { ScrollableNav } from "../ui/ScrollableNav";
-import { BetWizard, WizardData } from "../wizard/BetWizard";
-
-// Lazy load wizard components
-const CreateGroupWizard = lazy(() => import("../CreateGroupWizard"));
+import { updateDoc } from "firebase/firestore";
 
 interface HeaderProps {
   userId?: string;
+  onAcceptChallenge?: (betId: string) => void;
+  onDeclineChallenge?: (betId: string) => void;
 }
 
-export function Header({ userId }: HeaderProps) {
+export function Header({ userId, onAcceptChallenge, onDeclineChallenge }: HeaderProps) {
   const router = useRouter();
-  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
 
-  // Modal states
-  const [showCreateBet, setShowCreateBet] = useState(false);
-  const [showCreateGroup, setShowCreateGroup] = useState(false);
-  const [showJoinGroup, setShowJoinGroup] = useState(false);
-  const [joinInput, setJoinInput] = useState("");
-  const [groups, setGroups] = useState<any[]>([]);
-
-  const navItems = [
-    { label: "Create Group", action: "CREATE_GROUP" },
-    { label: "Join Group", action: "JOIN_GROUP" },
-    { label: "My Groups", path: "/groups" },
-    { label: "Events", path: "/events" },
-    { label: "Past Bets", path: "/past-bets" },
-    { label: "Friends", path: "/friends" },
-    { label: "Account", path: "/settings" },
-  ];
-
-  // Fetch user and groups when userId is available
+  // Fetch user when userId is available
   useEffect(() => {
     if (!userId) return;
 
@@ -65,16 +34,6 @@ export function Header({ userId }: HeaderProps) {
             ...userData,
           } as any);
         }
-
-        // Fetch groups for bet creation
-        const groupsQuery = query(
-          collection(db, "groups"),
-          where("memberIds", "array-contains", userId),
-          limit(50)
-        );
-        const snapshot = await getDocs(groupsQuery);
-        const groupsData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setGroups(groupsData);
       } catch (error) {
         console.error("Error fetching user data:", error);
       }
@@ -96,257 +55,13 @@ export function Header({ userId }: HeaderProps) {
     return () => unsubscribe();
   }, [userId]);
 
-  const handleNavClick = (item: { label: string; action?: string; path?: string }) => {
-    if (item.action) {
-      switch (item.action) {
-        case "CREATE_GROUP":
-          setShowCreateGroup(true);
-          break;
-        case "JOIN_GROUP":
-          setShowJoinGroup(true);
-          break;
-      }
-    } else if (item.path) {
-      router.push(item.path);
-    }
-  };
-
-  // Create Group Handler
-  const handleCreateGroup = async (groupData: any) => {
-    const currentUserId = userId || user?.uid;
-    if (!currentUserId) {
-      alert("You must be signed in to create a group.");
-      return;
-    }
-
-    const groupDoc = {
-      name: groupData.name,
-      tagline: groupData.tagline || "",
-      admin_id: currentUserId,
-      memberIds: [currentUserId],
-      settings: {
-        min_bet: groupData.min_bet || 0,
-        max_bet: groupData.max_bet || 0,
-        starting_balance: 0,
-        season_enabled: groupData.season_enabled,
-        season_type: groupData.season_type || "none",
-        season_end_date: groupData.season_end_date || null,
-        auto_renew: groupData.auto_renew,
-      },
-      inviteType: groupData.inviteType,
-      joinLink: groupData.joinLink,
-      accessCode: groupData.accessCode,
-      created_at: new Date().toISOString(),
-    };
-
-    try {
-      await addDoc(collection(db, "groups"), groupDoc);
-      setShowCreateGroup(false);
-      alert("✅ Group created successfully!");
-    } catch (error: any) {
-      console.error("Firestore error:", error);
-      alert(`Failed to create group: ${error.message || "Unknown error"}`);
-    }
-  };
-
-  // Join Group Handler
-  const handleJoinGroup = async () => {
-    const currentUserId = userId || user?.uid;
-    if (!joinInput) {
-      alert("Please enter a code or link.");
-      return;
-    }
-
-    if (!currentUserId) {
-      alert("You must be signed in to join a group.");
-      return;
-    }
-
-    try {
-      const input = joinInput.trim().toUpperCase();
-      const groupsRef = collection(db, "groups");
-
-      const codeQuery = query(groupsRef, where("accessCode", "==", input));
-      const linkQuery = query(groupsRef, where("joinLink", "==", input));
-
-      const [codeSnap, linkSnap] = await Promise.all([
-        getDocs(codeQuery),
-        getDocs(linkQuery),
-      ]);
-
-      const matchSnap = !codeSnap.empty
-        ? codeSnap.docs[0]
-        : !linkSnap.empty
-        ? linkSnap.docs[0]
-        : null;
-
-      if (!matchSnap) {
-        alert("No group found. Please check the code or link.");
-        return;
-      }
-
-      const groupData = matchSnap.data();
-
-      if (groupData.memberIds?.includes(currentUserId)) {
-        alert("You're already a member of this group!");
-        return;
-      }
-
-      await updateDoc(matchSnap.ref, {
-        memberIds: [...(groupData.memberIds || []), currentUserId],
-      });
-
-      // Get user's display name for activity
-      const userDoc = await getDoc(doc(db, "users", currentUserId));
-      const userData = userDoc.data();
-      const userName = userData?.displayName ||
-                      `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() ||
-                      "Unknown User";
-
-      // Create activity for user joining
-      await createActivity({
-        groupId: matchSnap.id,
-        type: "user_joined",
-        userId: currentUserId,
-        userName: userName
-      });
-
-      alert(`✅ Successfully joined "${groupData.name}"`);
-      setShowJoinGroup(false);
-      setJoinInput("");
-    } catch (err) {
-      console.error("Error joining group:", err);
-      alert("Failed to join group. Please try again.");
-    }
-  };
-
-  // Create Bet Handler
-  const handleCreateBet = async (wizardData: WizardData) => {
-    const currentUserId = userId || user?.uid;
-    if (!currentUserId) {
-      alert("You must be signed in to create a bet.");
-      return;
-    }
-
-    try {
-      // Get user info for notifications
-      const userDoc = await getDoc(doc(db, "users", currentUserId));
-      const userData = userDoc.data();
-      const userName = userData?.displayName ||
-        `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() ||
-        "Unknown User";
-
-      if (wizardData.theme === 'group') {
-        // Create group bet
-        const betDoc = {
-          title: wizardData.title,
-          description: wizardData.description || "",
-          type: wizardData.betType,
-          creatorId: currentUserId,
-          groupId: wizardData.targetId,
-          closingAt: wizardData.closingDate?.toISOString(),
-          createdAt: new Date().toISOString(),
-          status: "OPEN",
-          picks: {},
-          participants: [],
-          winners: [],
-          perUserWager: wizardData.wagerAmount,
-          line: wizardData.line || null,
-          isH2H: false,
-        };
-
-        const docRef = await addDoc(collection(db, "bets"), betDoc);
-
-        // Create activity for bet creation
-        await createActivity({
-          groupId: wizardData.targetId!,
-          type: "bet_created",
-          userId: currentUserId,
-          userName: userName,
-          betId: docRef.id,
-          betTitle: wizardData.title || ""
-        });
-
-        // Get group members for notifications
-        const groupDoc = await getDoc(doc(db, "groups", wizardData.targetId!));
-        if (groupDoc.exists()) {
-          const groupData = groupDoc.data();
-          const memberIds = groupData.memberIds || [];
-
-          // Send notifications to all group members except creator
-          for (const memberId of memberIds) {
-            if (memberId !== currentUserId) {
-              await addDoc(collection(db, "notifications"), {
-                userId: memberId,
-                type: "new_bet",
-                message: `${userName} created a new bet: "${wizardData.title}"`,
-                betId: docRef.id,
-                groupId: wizardData.targetId,
-                read: false,
-                createdAt: new Date().toISOString(),
-              });
-            }
-          }
-        }
-
-        setShowCreateBet(false);
-        router.push('/home');
-      } else {
-        // Create H2H bet
-        // Get challengee info
-        const challengeeDoc = await getDoc(doc(db, "users", wizardData.targetId!));
-        const challengeeData = challengeeDoc.data();
-        const challengeeName = challengeeData?.displayName ||
-          `${challengeeData?.firstName || ''} ${challengeeData?.lastName || ''}`.trim() ||
-          "Unknown User";
-
-        const betDoc = {
-          title: wizardData.title,
-          description: wizardData.description || "",
-          type: wizardData.betType,
-          creatorId: currentUserId,
-          challengerId: currentUserId,
-          challengeeId: wizardData.targetId,
-          challengerName: userName,
-          challengeeName: challengeeName,
-          closingAt: wizardData.closingDate?.toISOString(),
-          createdAt: new Date().toISOString(),
-          status: "OPEN",
-          h2hStatus: "pending",
-          picks: {},
-          participants: [currentUserId],
-          winners: [],
-          betAmount: wizardData.wagerAmount,
-          perUserWager: wizardData.wagerAmount,
-          line: wizardData.line || null,
-          isH2H: true,
-          h2hOdds: { challenger: 1, challengee: 1 },
-          groupId: null,
-        };
-
-        const docRef = await addDoc(collection(db, "bets"), betDoc);
-
-        // Send notification to challengee
-        await addDoc(collection(db, "notifications"), {
-          userId: wizardData.targetId,
-          type: "h2h_challenge",
-          message: `${userName} challenged you to a bet: "${wizardData.title}"`,
-          betId: docRef.id,
-          read: false,
-          createdAt: new Date().toISOString(),
-        });
-
-        setShowCreateBet(false);
-        router.push('/home');
-      }
-    } catch (error: any) {
-      console.error("Error creating bet:", error);
-      alert(`Failed to create bet: ${error.message || "Unknown error"}`);
-    }
-  };
-
   // Handle accepting H2H challenge from notification
   const handleAcceptChallenge = async (betId: string) => {
+    if (onAcceptChallenge) {
+      onAcceptChallenge(betId);
+      return;
+    }
+
     const currentUserId = userId || user?.uid;
     if (!currentUserId) return;
 
@@ -394,6 +109,11 @@ export function Header({ userId }: HeaderProps) {
 
   // Handle declining H2H challenge from notification
   const handleDeclineChallenge = async (betId: string) => {
+    if (onDeclineChallenge) {
+      onDeclineChallenge(betId);
+      return;
+    }
+
     const currentUserId = userId || user?.uid;
     if (!currentUserId) return;
 
@@ -442,194 +162,56 @@ export function Header({ userId }: HeaderProps) {
   };
 
   return (
-    <>
-      <header
-        className="fixed top-0 left-0 right-0 z-50"
+    <header
+      className="fixed top-0 left-0 right-0 z-50 h-14"
+      style={{
+        backgroundColor: "#0a0a0a",
+        fontFamily: "'Montserrat', sans-serif",
+        borderBottom: "1px solid #27272A",
+      }}
+    >
+      <div
+        className="flex items-center justify-between h-full"
         style={{
-          backgroundColor: "#0a0a0a",
-          fontFamily: "'Montserrat', sans-serif",
+          padding: "0 24px",
         }}
       >
-        {/* Top Row: Logo + Create Bet + Bell */}
+        {/* Logo */}
         <div
-          className="flex items-center justify-between"
-          style={{
-            height: "60px",
-            padding: "0 16px",
-            borderBottom: "1px solid #27272A",
-          }}
+          className="flex items-center cursor-pointer"
+          onClick={() => router.push("/home")}
         >
-          {/* Logo */}
-          <div
-            className="flex items-center cursor-pointer"
-            onClick={() => router.push("/home")}
+          <span
+            style={{
+              fontSize: "16px",
+              fontWeight: "800",
+              color: "#FFFFFF",
+              letterSpacing: "0.5px",
+              textShadow: "rgba(0,0,0,0.25) 0px 4px 4px",
+            }}
           >
-            <div
-              className="flex items-center justify-center"
-              style={{
-                width: "24px",
-                height: "24px",
-                backgroundColor: "#FF6B35",
-                borderRadius: "4px",
-              }}
-            >
-              <span style={{ fontSize: "14px", fontWeight: "800", color: "white" }}>
-                S
-              </span>
-            </div>
-            <span
-              style={{
-                fontSize: "16px",
-                fontWeight: "800",
-                color: "#FFFFFF",
-                marginLeft: "8px",
-                letterSpacing: "0.5px",
-              }}
-            >
-              SIDEBET
-            </span>
-          </div>
-
-          {/* Right side */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowCreateBet(true)}
-              style={{
-                backgroundColor: "#FF6B35",
-                color: "white",
-                fontSize: "10px",
-                fontWeight: "700",
-                padding: "12px 16px",
-                minHeight: "44px",
-                borderRadius: "6px",
-                boxShadow: "0px 4px 4px rgba(0,0,0,0.25)",
-                border: "none",
-                cursor: "pointer",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}
-              className="active:scale-95 active:bg-orange-600 transition-transform"
-            >
-              CREATE BET
-            </button>
-
-            {/* Bell icon */}
-            <div>
-              {userId ? (
-                <NotificationBell
-                  userId={userId}
-                  onAcceptChallenge={handleAcceptChallenge}
-                  onDeclineChallenge={handleDeclineChallenge}
-                />
-              ) : (
-                <Bell
-                  size={24}
-                  color="white"
-                  style={{ cursor: "pointer" }}
-                />
-              )}
-            </div>
-          </div>
+            SIDEBET
+          </span>
         </div>
 
-        {/* Bottom Row: Navigation with Gradient Overlay */}
-        <div style={{ borderBottom: "1px solid #27272A" }}>
-          <ScrollableNav className="px-4 py-2">
-            <div className="flex items-center gap-2.5">
-              {navItems.map((item) => {
-                const isActive = item.path && pathname === item.path;
-
-                return (
-                  <button
-                    key={item.label}
-                    onClick={() => handleNavClick(item)}
-                    className={`
-                      flex-shrink-0 px-3 py-2.5 min-h-[44px] rounded-lg
-                      font-montserrat text-[12px] text-center whitespace-nowrap
-                      border-2 border-transparent
-                      transition-all active:scale-95
-                      bg-transparent cursor-pointer
-                      ${isActive
-                        ? 'text-[#ff6b35] font-semibold'
-                        : 'text-white font-semibold hover:text-[#ff6b35]'
-                      }
-                    `}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-          </ScrollableNav>
-        </div>
-      </header>
-
-      {/* Create Bet Wizard */}
-      <BetWizard
-        isOpen={showCreateBet}
-        onClose={() => setShowCreateBet(false)}
-        onComplete={handleCreateBet}
-        userId={userId || user?.uid}
-      />
-
-      {/* Create Group Wizard */}
-      {showCreateGroup && (
-        <Suspense fallback={null}>
-          <CreateGroupWizard
-            isOpen={showCreateGroup}
-            onClose={() => setShowCreateGroup(false)}
-            onCreateGroup={handleCreateGroup}
-          />
-        </Suspense>
-      )}
-
-      {/* Join Group Modal */}
-      {showJoinGroup && (
-        <div
-          className="fixed inset-0 flex justify-center items-center z-[100] bg-black/60"
-          onClick={() => setShowJoinGroup(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-[95%] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl px-5 py-5"
-          >
-            <h3 className="text-lg font-semibold mb-4 text-center text-white">
-              Join a Group
-            </h3>
-
-            <p className="text-sm text-gray-400 mb-3 text-center">
-              Enter an{" "}
-              <span className="text-orange-400 font-medium">Access Code</span> or paste
-              a <span className="text-orange-400 font-medium">Join Link</span> to join a
-              group.
-            </p>
-
-            <input
-              type="text"
-              placeholder="Enter access code or join link"
-              value={joinInput}
-              onChange={(e) => setJoinInput(e.target.value.trim())}
-              className="w-full bg-zinc-800 text-white p-3 rounded-md text-sm border border-zinc-700 mb-4 focus:outline-none focus:border-orange-500"
+        {/* Notification Bell */}
+        <div>
+          {userId ? (
+            <NotificationBell
+              userId={userId}
+              onAcceptChallenge={handleAcceptChallenge}
+              onDeclineChallenge={handleDeclineChallenge}
             />
-
-            <div className="flex justify-between mt-4 gap-3">
-              <button
-                onClick={() => setShowJoinGroup(false)}
-                className="flex-1 text-gray-400 border border-gray-600 px-4 py-3 min-h-[44px] rounded-md text-sm hover:bg-gray-800 transition-all active:scale-95"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleJoinGroup}
-                className="flex-1 bg-orange-500 text-white px-4 py-3 min-h-[44px] rounded-md text-sm font-medium hover:bg-orange-600 active:bg-orange-700 transition-all active:scale-95"
-              >
-                Join Group
-              </button>
-            </div>
-          </div>
+          ) : (
+            <Bell
+              size={20}
+              color="white"
+              style={{ cursor: "pointer" }}
+            />
+          )}
         </div>
-      )}
-    </>
+      </div>
+    </header>
   );
 }
 
