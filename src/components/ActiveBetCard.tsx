@@ -538,7 +538,7 @@ function ActiveBetCard({
             cursor-pointer
             hover:bg-zinc-900/50
             transition-all
-            ${isClosingSoon ? 'shadow-[2px_2px_4px_0px_#ff6b35] pulse-shadow' : ''}
+            ${isClosingSoon ? 'shadow-[2px_2px_4px_0px_#ff6b35] animate-pulse-shadow' : ''}
           `}
         >
           {/* Top Row - Group Name and Closing Time */}
@@ -553,7 +553,7 @@ function ActiveBetCard({
 
           {/* Bet Title Row */}
           <div className="flex items-center w-full">
-            <p className="text-white text-[12px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] truncate">
+            <p className="text-white text-[12px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] line-clamp-2">
               {bet.title}
             </p>
           </div>
@@ -561,7 +561,7 @@ function ActiveBetCard({
           {/* Bottom Row - Pot Info and Chevron */}
           <div className="flex items-center justify-between w-full h-[12px]">
             <p className="text-[#ff6b35] text-[10px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
-              Pot: ${bet.totalPot.toFixed(2)} | {bet.participants.length} Players
+              Pot: ${bet.totalPot?.toFixed(2) || '0.00'} | {bet.participants?.length || 0} Players
             </p>
             <ChevronDown className="w-[14px] h-[14px] text-white flex-shrink-0" />
           </div>

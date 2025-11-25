@@ -225,7 +225,7 @@ footer .active {
   }
 }
 
-.pulse-shadow {
+.animate-pulse-shadow {
   animation: pulse-shadow 2s ease-in-out infinite;
 }
 
