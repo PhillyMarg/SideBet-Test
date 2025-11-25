@@ -2,11 +2,12 @@
 "use client";
 
 import { useState } from "react";
-import { doc, updateDoc, writeBatch, getDoc } from "firebase/firestore";
+import { doc, updateDoc, writeBatch, getDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../lib/firebase/client";
 import { createActivity } from "../lib/activityHelpers";
 import { notifyBetResult } from "../lib/notifications";
 import { validateBetJudging } from "../lib/validation/betValidation";
+import { LedgerEntry } from "../types/ledger";
 
 interface JudgeBetModalProps {
   bet: any;
@@ -205,6 +206,66 @@ export default function JudgeBetModal({ bet, onClose }: JudgeBetModalProps) {
       }
 
       await batch.commit();
+
+      // Create ledger entries for money owed
+      // Determine losers (participants who are not winners)
+      const losers = (bet.participants || []).filter((userId: string) => !winners.includes(userId));
+
+      // Fetch group name for context
+      let groupName = 'Unknown Group';
+      try {
+        if (bet.groupId) {
+          const groupDoc = await getDoc(doc(db, 'groups', bet.groupId));
+          if (groupDoc.exists()) {
+            groupName = groupDoc.data().name || 'Unknown Group';
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching group name for ledger:', error);
+      }
+
+      // Create ledger entries: each loser owes each winner a proportional amount
+      for (const loserId of losers) {
+        // Get loser's user data for name and venmo
+        const loserDoc = await getDoc(doc(db, 'users', loserId));
+        const loserData = loserDoc.exists() ? loserDoc.data() : {};
+        const loserName = loserData.displayName ||
+                         `${loserData.firstName || ''} ${loserData.lastName || ''}`.trim() ||
+                         loserData.email ||
+                         'Unknown User';
+
+        for (const winnerId of winners) {
+          // Get winner's user data for name and venmo
+          const winnerDoc = await getDoc(doc(db, 'users', winnerId));
+          const winnerData = winnerDoc.exists() ? winnerDoc.data() : {};
+          const winnerName = winnerData.displayName ||
+                            `${winnerData.firstName || ''} ${winnerData.lastName || ''}`.trim() ||
+                            winnerData.email ||
+                            'Unknown User';
+
+          // Calculate amount owed: loser's wager divided by number of winners
+          const amountOwed = bet.perUserWager / winners.length;
+
+          // Create ledger entry
+          const ledgerEntry: Omit<LedgerEntry, 'id'> = {
+            fromUserId: loserId,
+            fromUserName: loserName,
+            fromUserVenmo: loserData.venmoUsername || undefined,
+            toUserId: winnerId,
+            toUserName: winnerName,
+            toUserVenmo: winnerData.venmoUsername || undefined,
+            amount: amountOwed,
+            betId: bet.id,
+            betTitle: bet.title,
+            groupId: bet.groupId || '',
+            groupName: groupName,
+            settled: false,
+            createdAt: new Date().toISOString(),
+          };
+
+          await addDoc(collection(db, 'ledger'), ledgerEntry);
+        }
+      }
 
       // Create activity for each winner
       for (const winnerId of winners) {

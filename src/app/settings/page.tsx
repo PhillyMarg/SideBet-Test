@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { auth, db } from "../../lib/firebase/client";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import { Header } from "../../components/layout/Header";
@@ -14,6 +14,9 @@ export default function SettingsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [venmoUsername, setVenmoUsername] = useState('');
+  const [isEditingVenmo, setIsEditingVenmo] = useState(false);
+  const [savingVenmo, setSavingVenmo] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -27,7 +30,9 @@ export default function SettingsPage() {
       try {
         const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
         if (userDoc.exists()) {
-          setUserData(userDoc.data());
+          const data = userDoc.data();
+          setUserData(data);
+          setVenmoUsername(data.venmoUsername || '');
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
@@ -46,6 +51,28 @@ export default function SettingsPage() {
     } catch (error) {
       console.error("Error logging out:", error);
       alert("Failed to log out. Please try again.");
+    }
+  };
+
+  const handleSaveVenmo = async () => {
+    if (!user) return;
+
+    setSavingVenmo(true);
+    try {
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        venmoUsername: venmoUsername.trim() || null,
+      });
+
+      // Update local state
+      setUserData({ ...userData, venmoUsername: venmoUsername.trim() || null });
+      setIsEditingVenmo(false);
+      alert("Venmo username updated successfully!");
+    } catch (error) {
+      console.error("Error updating Venmo username:", error);
+      alert("Failed to update Venmo username. Please try again.");
+    } finally {
+      setSavingVenmo(false);
     }
   };
 
@@ -92,6 +119,49 @@ export default function SettingsPage() {
               <div>
                 <label className="text-sm text-gray-400">Email</label>
                 <p className="text-white text-lg">{user?.email}</p>
+              </div>
+
+              <div>
+                <label className="text-sm text-gray-400">Venmo Username</label>
+                {isEditingVenmo ? (
+                  <div className="flex gap-2 mt-1">
+                    <input
+                      type="text"
+                      value={venmoUsername}
+                      onChange={(e) => setVenmoUsername(e.target.value)}
+                      placeholder="@your-username"
+                      className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                    />
+                    <button
+                      onClick={handleSaveVenmo}
+                      disabled={savingVenmo}
+                      className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-all disabled:opacity-50"
+                    >
+                      {savingVenmo ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsEditingVenmo(false);
+                        setVenmoUsername(userData?.venmoUsername || '');
+                      }}
+                      className="px-4 py-2 border border-zinc-700 text-gray-300 hover:bg-zinc-800 rounded-lg transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <p className="text-white text-lg">
+                      {userData?.venmoUsername || "Not set"}
+                    </p>
+                    <button
+                      onClick={() => setIsEditingVenmo(true)}
+                      className="text-sm text-orange-500 hover:text-orange-400"
+                    >
+                      {userData?.venmoUsername ? "Edit" : "Add"}
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>
