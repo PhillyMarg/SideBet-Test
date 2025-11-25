@@ -12,12 +12,9 @@ import {
   getDocs,
   addDoc,
   updateDoc,
-  limit,
+  onSnapshot,
 } from "firebase/firestore";
-import { motion } from "framer-motion";
-import { Search, X, LogOut, Users, Dices } from "lucide-react";
-import { removeUserFromGroupBets } from "../../utils/groupHelpers";
-import { arrayRemove, doc } from "firebase/firestore";
+import { Search } from "lucide-react";
 import { Header } from "../../components/layout/Header";
 import BottomNav from "../../components/BottomNav";
 import GroupCard from "../../components/GroupCard";
@@ -26,150 +23,48 @@ export default function GroupsPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [groups, setGroups] = useState<any[]>([]);
-  const [groupStats, setGroupStats] = useState<any[]>([]);
-  const [groupActiveBets, setGroupActiveBets] = useState<{ [key: string]: number }>({});
   const [loading, setLoading] = useState(true);
-  const [showAllGroups, setShowAllGroups] = useState(false);
-
-  // Filter, Search & Sort State
-  const [activeTab, setActiveTab] = useState<"all" | "admin" | "member">("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState("alphabetical");
-
-  // Aggregate stats
-  const [totalGroups, setTotalGroups] = useState(0);
-  const [overallWinRate, setOverallWinRate] = useState(0);
-  const [totalWon, setTotalWon] = useState(0);
-  const [activeBetsCount, setActiveBetsCount] = useState(0);
-  const [totalBetsPlaced, setTotalBetsPlaced] = useState(0);
-  const [currentStreak, setCurrentStreak] = useState({ count: 0, type: "W" });
 
   // Modals
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showJoinGroup, setShowJoinGroup] = useState(false);
   const [joinInput, setJoinInput] = useState("");
 
-  // Leave Group state
-  const [showLeaveModal, setShowLeaveModal] = useState(false);
-  const [groupToLeave, setGroupToLeave] = useState<{ id: string; name: string } | null>(null);
-  const [isLeaving, setIsLeaving] = useState(false);
-
-  // Fetch groups and stats
+  // Fetch user's groups
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (!firebaseUser) {
         router.push("/login");
         return;
       }
 
       setUser(firebaseUser);
-
-      try {
-        // Fetch user's groups
-        const groupsQuery = query(
-          collection(db, "groups"),
-          where("memberIds", "array-contains", firebaseUser.uid),
-          limit(50)
-        );
-        const groupsSnap = await getDocs(groupsQuery);
-        const groupsData = groupsSnap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }));
-
-        // Fetch active bets count for each group
-        const activeBetsMap: { [key: string]: number } = {};
-        const activeBetsPromises = groupsData.map(async (group) => {
-          const betsQuery = query(
-            collection(db, "bets"),
-            where("groupId", "==", group.id),
-            limit(10)
-          );
-          const betsSnap = await getDocs(betsQuery);
-          
-          const activeBetsCount = betsSnap.docs.filter(
-            (doc) => doc.data().status !== "JUDGED"
-          ).length;
-          
-          activeBetsMap[group.id] = activeBetsCount;
-        });
-
-        await Promise.all(activeBetsPromises);
-        setGroupActiveBets(activeBetsMap);
-
-        // Sort groups by number of active bets (descending)
-        const sortedGroups = groupsData.sort(
-          (a, b) => (activeBetsMap[b.id] || 0) - (activeBetsMap[a.id] || 0)
-        );
-
-        setGroups(sortedGroups);
-        setTotalGroups(sortedGroups.length);
-
-        // Fetch stats for each group
-        const statsPromises = sortedGroups.map(async (group) => {
-          const leaderboardQuery = query(
-            collection(db, "leaderboards"),
-            where("group_id", "==", group.id),
-            where("user_id", "==", firebaseUser.uid),
-            limit(1)
-          );
-          const leaderboardSnap = await getDocs(leaderboardQuery);
-
-          if (!leaderboardSnap.empty) {
-            return {
-              groupId: group.id,
-              ...leaderboardSnap.docs[0].data(),
-            };
-          }
-          return null;
-        });
-
-        const stats = (await Promise.all(statsPromises)).filter(Boolean);
-        setGroupStats(stats);
-
-        // Calculate aggregate stats
-        let totalWins = 0;
-        let totalLosses = 0;
-        let totalTies = 0;
-        let totalBalance = 0;
-        let longestStreak = { count: 0, type: "W" };
-
-        stats.forEach((stat: any) => {
-          totalWins += stat.wins || 0;
-          totalLosses += stat.losses || 0;
-          totalTies += stat.ties || 0;
-          totalBalance += stat.balance || 0;
-
-          const streakCount = stat.current_streak || 0;
-          const streakType = stat.streak_type || "W";
-          if (streakCount > longestStreak.count) {
-            longestStreak = { count: streakCount, type: streakType };
-          }
-        });
-
-        const totalGames = totalWins + totalLosses + totalTies;
-        const winRate =
-          totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
-
-        setOverallWinRate(winRate);
-        setTotalWon(totalBalance);
-        setTotalBetsPlaced(totalGames);
-        setCurrentStreak(longestStreak);
-
-        const totalActiveBets = Object.values(activeBetsMap).reduce(
-          (sum, count) => sum + count,
-          0
-        );
-        setActiveBetsCount(totalActiveBets);
-      } catch (error) {
-        console.error("Error fetching groups and stats:", error);
-      } finally {
-        setLoading(false);
-      }
+      setLoading(false);
     });
 
     return () => unsubscribe();
   }, [router]);
+
+  // Real-time groups listener
+  useEffect(() => {
+    if (!user) return;
+
+    const groupsQuery = query(
+      collection(db, "groups"),
+      where("memberIds", "array-contains", user.uid)
+    );
+
+    const unsubscribe = onSnapshot(groupsQuery, (snapshot) => {
+      const groupsData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setGroups(groupsData);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   // Create Group Handler
   const handleCreateGroup = async (groupData: any) => {
@@ -205,78 +100,6 @@ export default function GroupsPage() {
     } catch (error: any) {
       console.error("Firestore error:", error);
       alert(`Failed to create group: ${error.message || "Unknown error"}`);
-    }
-  };
-
-  // Create Bet Handler
-  const handleCreateBet = async (betData: any) => {
-    if (betData.type === "OVER_UNDER" && !betData.line) {
-      alert("Please set a valid line ending in .5 for Over/Under bets.");
-      return;
-    }
-
-    if (!user || !betData.title.trim() || !betData.groupId || !betData.wager) {
-      alert("Please complete all required fields.");
-      return;
-    }
-
-    const betDoc = {
-      title: betData.title,
-      description: betData.description || "",
-      type: betData.type,
-      status: "OPEN",
-      line: betData.line || null,
-      perUserWager: parseFloat(betData.wager),
-      participants: [],
-      picks: {},
-      creatorId: user.uid,
-      groupId: betData.groupId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      closingAt: betData.closingAt,
-    };
-
-    try {
-      await addDoc(collection(db, "bets"), betDoc);
-      alert("✅ Bet created successfully!");
-    } catch (err) {
-      console.error("Error creating bet:", err);
-      alert("Failed to create bet. Please try again.");
-    }
-  };
-
-  // Leave Group Handler
-  const handleLeaveGroup = (groupId: string, groupName: string) => {
-    setGroupToLeave({ id: groupId, name: groupName });
-    setShowLeaveModal(true);
-  };
-
-  const confirmLeaveGroup = async () => {
-    if (!groupToLeave || !user || isLeaving) return;
-
-    try {
-      setIsLeaving(true);
-
-      // Step 1: Remove user's picks from all group bets
-      await removeUserFromGroupBets(groupToLeave.id, user.uid);
-
-      // Step 2: Remove user from group members
-      const groupRef = doc(db, "groups", groupToLeave.id);
-      await updateDoc(groupRef, {
-        memberIds: arrayRemove(user.uid),
-      });
-
-      alert(`✅ You've left ${groupToLeave.name}`);
-      setShowLeaveModal(false);
-      setGroupToLeave(null);
-
-      // Refresh the page to update groups list
-      window.location.reload();
-    } catch (error: any) {
-      console.error("Error leaving group:", error);
-      alert(`Failed to leave group: ${error.message}`);
-    } finally {
-      setIsLeaving(false);
     }
   };
 
@@ -336,333 +159,98 @@ export default function GroupsPage() {
     }
   };
 
-  const getGroupBalance = (groupId: string) => {
-    const stat = groupStats.find((s: any) => s.groupId === groupId);
-    return stat?.balance || 0;
-  };
-
-  const getGroupRecord = (groupId: string) => {
-    const stat = groupStats.find((s: any) => s.groupId === groupId);
-    if (!stat) return "0-0-0";
-    return `${stat.wins || 0}-${stat.losses || 0}-${stat.ties || 0}`;
-  };
-
   if (loading) {
     return (
-      <main className="flex items-center justify-center min-h-screen bg-black text-white">
-        Loading...
-      </main>
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
     );
   }
 
-  // Calculate counts for each tab
-  const allGroupsCount = groups.length;
-  const adminGroupsCount = groups.filter(
-    (g) => g.admin_id === user?.uid
-  ).length;
-  const memberGroupsCount = groups.filter(
-    (g) => g.memberIds.includes(user?.uid) && g.admin_id !== user?.uid
-  ).length;
+  if (!user) return null;
 
-  // Apply filters and sort
-  let displayGroups = groups;
-
-  // 1. Filter by active tab
-  if (activeTab === "admin") {
-    displayGroups = groups.filter((g) => g.admin_id === user?.uid);
-  } else if (activeTab === "member") {
-    displayGroups = groups.filter(
-      (g) => g.memberIds.includes(user?.uid) && g.admin_id !== user?.uid
-    );
-  }
-  // "all" shows all groups (no filtering needed)
-
-  // 2. Apply search filter
-  if (searchQuery.trim()) {
-    displayGroups = displayGroups.filter((group) => {
-      const query = searchQuery.toLowerCase();
-      const name = group.name.toLowerCase();
-      const tagline = group.tagline?.toLowerCase() || "";
-      return name.includes(query) || tagline.includes(query);
-    });
-  }
-
-  // 3. Apply sort
-  const sortedGroups = [...displayGroups].sort((a, b) => {
-    switch (sortBy) {
-      case "alphabetical":
-        return a.name.localeCompare(b.name);
-      case "recentActivity":
-        return (
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-      case "memberCount":
-        return (b.memberIds?.length || 0) - (a.memberIds?.length || 0);
-      case "newest":
-        return (
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-      default:
-        return 0;
-    }
-  });
-
-  const visibleGroups = showAllGroups ? sortedGroups : sortedGroups.slice(0, 5);
-  const hasMoreGroups = sortedGroups.length > 5;
+  // Filter groups by search query
+  const filteredGroups = groups.filter((group) =>
+    group.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <>
+    <div className="min-h-screen bg-zinc-950">
+      {/* Header */}
       <Header userId={user?.uid} />
-      <main
-        className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center"
-        style={{ "--content-width": "500px", paddingTop: "56px", paddingBottom: "96px" } as React.CSSProperties}
-      >
-      <div
-        className="w-[92%] mx-auto py-6"
-        style={{ maxWidth: "var(--content-width)" }}
-      >
-        {/* Stats Section */}
-        <section className="bg-orange-500/10 border-2 border-orange-500/30 rounded-2xl p-6 mb-6">
-          <h2 className="text-2xl font-bold text-white mb-4">Your Stats</h2>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-zinc-900/50 rounded-xl p-4">
-              <p className="text-xs text-gray-400 mb-1">Total Groups</p>
-              <p className="text-2xl font-bold text-white">{totalGroups}</p>
-            </div>
+      {/* Main Content */}
+      <main className="pt-14 pb-24">
 
-            <div className="bg-zinc-900/50 rounded-xl p-4">
-              <p className="text-xs text-gray-400 mb-1">Win Rate</p>
-              <p className="text-2xl font-bold text-white">{overallWinRate}%</p>
-            </div>
+        {/* CREATE GROUP + JOIN GROUP Buttons */}
+        <div className="flex gap-9 px-6 py-1 mt-4">
+          {/* CREATE GROUP Button */}
+          <button
+            onClick={() => setShowCreateGroup(true)}
+            className="
+              flex-1 h-9
+              bg-black/25
+              rounded-md
+              flex items-center justify-center
+              text-white text-[10px] font-semibold font-montserrat
+              hover:bg-black/30
+              transition-colors
+            "
+          >
+            CREATE GROUP
+          </button>
 
-            <div className="bg-zinc-900/50 rounded-xl p-4">
-              <p className="text-xs text-gray-400 mb-1">Total Won</p>
-              <p
-                className={`text-2xl font-bold ${
-                  totalWon >= 0 ? "text-green-400" : "text-red-400"
-                }`}
-              >
-                {totalWon >= 0 ? "+" : ""}${totalWon.toFixed(2)}
+          {/* JOIN GROUP Button */}
+          <button
+            onClick={() => setShowJoinGroup(true)}
+            className="
+              flex-1 h-9
+              bg-[rgba(255,107,53,0.52)]
+              hover:bg-[rgba(255,107,53,0.65)]
+              rounded-md
+              flex items-center justify-center
+              text-white text-[10px] font-semibold font-montserrat
+              transition-colors
+            "
+          >
+            JOIN GROUP
+          </button>
+        </div>
+
+        {/* Search Bar */}
+        <div className="px-6 py-2">
+          <div className="bg-[#1e1e1e] rounded-md px-3 py-2 flex items-center gap-2 h-10">
+            <Search className="w-4 h-4 text-[#ff6b35] flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="Search Groups..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="
+                flex-1 bg-transparent border-none outline-none
+                text-[#b3b3b3] placeholder:text-[#b3b3b3]
+                font-montserrat font-semibold text-[12px]
+              "
+            />
+          </div>
+        </div>
+
+        {/* Groups List */}
+        <div className="px-6 flex flex-col gap-4 mt-4">
+          {filteredGroups.length === 0 ? (
+            <div className="text-center text-white/50 py-12">
+              <p className="font-montserrat">
+                {searchQuery ? 'No groups found' : 'You haven\'t joined any groups yet'}
               </p>
-            </div>
-
-            <div className="bg-zinc-900/50 rounded-xl p-4">
-              <p className="text-xs text-gray-400 mb-1">Active Bets</p>
-              <p className="text-2xl font-bold text-white">{activeBetsCount}</p>
-            </div>
-
-            <div className="bg-zinc-900/50 rounded-xl p-4">
-              <p className="text-xs text-gray-400 mb-1">Total Bets</p>
-              <p className="text-2xl font-bold text-white">{totalBetsPlaced}</p>
-            </div>
-
-            <div className="bg-zinc-900/50 rounded-xl p-4">
-              <p className="text-xs text-gray-400 mb-1">Current Streak</p>
-              <p
-                className={`text-2xl font-bold ${
-                  currentStreak.type === "W" && currentStreak.count > 0
-                    ? "text-green-400"
-                    : currentStreak.type === "L" && currentStreak.count > 0
-                    ? "text-red-400"
-                    : "text-gray-400"
-                }`}
-              >
-                {currentStreak.count > 0
-                  ? `${currentStreak.count}${currentStreak.type}`
-                  : "-"}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* My Groups Section */}
-        <section>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-white">My Groups</h2>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowCreateGroup(true)}
-                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition-all"
-              >
-                Create Group
-              </button>
-              <button
-                onClick={() => setShowJoinGroup(true)}
-                className="px-4 py-2 border border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white text-sm font-semibold rounded-lg transition-all"
-              >
-                Join Group
-              </button>
-            </div>
-          </div>
-
-          {/* Filter & Search Section - 2 Row Layout */}
-          <div className="bg-black border border-zinc-800 rounded-xl py-3 space-y-3 mb-4">
-            {/* Row 1: Filter Tabs */}
-            <div className="grid grid-cols-3 gap-2 px-4 sm:px-6">
-              <button
-                onClick={() => setActiveTab("all")}
-                className={`px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap rounded-md transition-colors ${
-                  activeTab === "all"
-                    ? "bg-orange-500 text-white shadow-lg shadow-orange-500/50"
-                    : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border border-zinc-800"
-                }`}
-              >
-                All Groups
-                {allGroupsCount > 0 && (
-                  <span className="ml-1 text-xs">({allGroupsCount})</span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setActiveTab("admin")}
-                className={`px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap rounded-md transition-colors ${
-                  activeTab === "admin"
-                    ? "bg-orange-500 text-white shadow-lg shadow-orange-500/50"
-                    : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border border-zinc-800"
-                }`}
-              >
-                Admin
-                {adminGroupsCount > 0 && (
-                  <span className="ml-1 text-xs">({adminGroupsCount})</span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setActiveTab("member")}
-                className={`px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap rounded-md transition-colors ${
-                  activeTab === "member"
-                    ? "bg-orange-500 text-white shadow-lg shadow-orange-500/50"
-                    : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border border-zinc-800"
-                }`}
-              >
-                Member
-                {memberGroupsCount > 0 && (
-                  <span className="ml-1 text-xs">({memberGroupsCount})</span>
-                )}
-              </button>
-            </div>
-
-            {/* Row 2: Search + Sort */}
-            <div className="flex items-center gap-2 px-4 sm:px-6">
-              {/* Search Bar - 60% width */}
-              <div className="flex-1 max-w-[60%]">
-                <div className="relative">
-                  <Search className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-400" />
-
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search groups..."
-                    className="w-full pl-8 sm:pl-10 pr-8 sm:pr-10 py-2 text-xs sm:text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
-                  />
-
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2"
-                    >
-                      <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-400 hover:text-white" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Sort Dropdown - 40% width */}
-              <div className="flex-shrink-0 max-w-[40%] w-full">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="w-full px-2 sm:px-3 py-2 text-xs sm:text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-orange-500"
-                >
-                  <option value="alphabetical">A-Z</option>
-                  <option value="recentActivity">Recent Activity</option>
-                  <option value="memberCount">Most Members</option>
-                  <option value="newest">Newest</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {sortedGroups.length === 0 ? (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center">
-              {searchQuery.trim() ? (
-                <>
-                  <p className="text-zinc-400 text-sm mb-2">
-                    No groups found for "{searchQuery}"
-                  </p>
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="text-orange-500 text-sm hover:text-orange-600"
-                  >
-                    Clear search
-                  </button>
-                </>
-              ) : activeTab === "admin" ? (
-                <p className="text-zinc-400 text-sm">
-                  You don't admin any groups yet. Create one to get started!
-                </p>
-              ) : activeTab === "member" ? (
-                <p className="text-zinc-400 text-sm">
-                  You're not a member of any groups. Join or create one!
-                </p>
-              ) : (
-                <>
-                  <p className="text-gray-400 mb-4">
-                    You're not in any groups yet.
-                  </p>
-                  <div className="flex justify-center gap-3">
-                    <button
-                      onClick={() => setShowCreateGroup(true)}
-                      className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-all"
-                    >
-                      Create Your First Group
-                    </button>
-                    <button
-                      onClick={() => setShowJoinGroup(true)}
-                      className="px-6 py-2 border border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white font-semibold rounded-lg transition-all"
-                    >
-                      Join a Group
-                    </button>
-                  </div>
-                </>
-              )}
             </div>
           ) : (
-            <>
-              <div className="space-y-4">
-                {visibleGroups.map((group) => {
-                  const activeBets = groupActiveBets[group.id] || 0;
-
-                  return (
-                    <GroupCard
-                      key={group.id}
-                      group={{
-                        ...group,
-                        activeBetsCount: activeBets,
-                      }}
-                    />
-                  );
-                })}
-              </div>
-
-              {hasMoreGroups && (
-                <div className="mt-4 text-center">
-                  <button
-                    onClick={() => setShowAllGroups(!showAllGroups)}
-                    className="px-6 py-2 border border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white rounded-lg font-medium transition-all"
-                  >
-                    {showAllGroups
-                      ? "Show Less"
-                      : `View More (${sortedGroups.length - 5} more)`}
-                  </button>
-                </div>
-              )}
-            </>
+            filteredGroups.map((group) => (
+              <GroupCard key={group.id} group={group} />
+            ))
           )}
-        </section>
-      </div>
+        </div>
+
+      </main>
 
       {/* Create Group Wizard */}
       <CreateGroupWizard
@@ -719,65 +307,8 @@ export default function GroupsPage() {
         </div>
       )}
 
-    {/* Leave Group Confirmation Modal */}
-    {showLeaveModal && groupToLeave && (
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
-        onClick={() => setShowLeaveModal(false)}
-      >
-        <div
-          className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 max-w-sm w-full relative z-[61] shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={() => setShowLeaveModal(false)}
-            className="absolute top-4 right-4 text-zinc-400 hover:text-white"
-          >
-            <X className="w-5 h-5" />
-          </button>
-
-          <h3 className="text-lg font-semibold text-white mb-3">
-            Leave Group?
-          </h3>
-
-          <p className="text-sm text-zinc-400 mb-2">
-            Are you sure you want to leave "<span className="text-white font-medium">{groupToLeave.name}</span>"?
-          </p>
-
-          <p className="text-sm text-zinc-400 mb-4">
-            You'll be removed from all bets in this group and lose access to group activity.
-          </p>
-
-          <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3 mb-4">
-            <p className="text-sm text-orange-500">
-              ⚠️ Your picks will be removed from active bets in this group.
-            </p>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowLeaveModal(false)}
-              disabled={isLeaving}
-              className="flex-1 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-800/50 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              Cancel
-            </button>
-
-            <button
-              onClick={confirmLeaveGroup}
-              disabled={isLeaving}
-              className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              {isLeaving ? "Leaving..." : "Leave"}
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-      </main>
-
       {/* Bottom Navigation */}
       <BottomNav />
-    </>
+    </div>
   );
 }
