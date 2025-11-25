@@ -215,6 +215,20 @@ footer .active {
   animation: pulseYellow 1.5s ease-in-out infinite;
 }
 
+/* ==== Orange pulse shadow animation for urgent bets ==== */
+@keyframes pulse-shadow {
+  0%, 100% {
+    box-shadow: 2px 2px 4px 0px rgba(255, 107, 53, 0.6);
+  }
+  50% {
+    box-shadow: 2px 2px 12px 2px rgba(255, 107, 53, 0.9);
+  }
+}
+
+.pulse-shadow {
+  animation: pulse-shadow 2s ease-in-out infinite;
+}
+
 /* ==== Custom Scrollbar for Chat ==== */
 .scrollbar-thin::-webkit-scrollbar {
   width: 4px;
