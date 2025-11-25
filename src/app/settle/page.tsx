@@ -16,7 +16,7 @@ export default function SettlePage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const [activeSubTab, setActiveSubTab] = useState('balances');
+  const [activeSubTab, setActiveSubTab] = useState<'BALANCE' | 'JUDGE' | 'HISTORY'>('BALANCE');
   const [expandedPerson, setExpandedPerson] = useState<string | null>(null);
   const [showJudgeModal, setShowJudgeModal] = useState<Bet | null>(null);
 
@@ -50,21 +50,21 @@ export default function SettlePage() {
 
   // Fetch balances data when user is available and tab is active
   useEffect(() => {
-    if (user && activeSubTab === 'balances') {
+    if (user && activeSubTab === 'BALANCE') {
       fetchBalancesData();
     }
   }, [user, activeSubTab]);
 
   // Fetch judge data when user is available and tab is active
   useEffect(() => {
-    if (user && activeSubTab === 'judge') {
+    if (user && activeSubTab === 'JUDGE') {
       fetchJudgeData();
     }
   }, [user, activeSubTab]);
 
   // Fetch history data when user is available and tab is active
   useEffect(() => {
-    if (user && activeSubTab === 'history') {
+    if (user && activeSubTab === 'HISTORY') {
       fetchHistoryData();
     }
   }, [user, activeSubTab]);
@@ -281,8 +281,6 @@ export default function SettlePage() {
     return `venmo://paycharge?txn=${txnType}&recipients=${cleanUsername}&amount=${Math.abs(amount).toFixed(2)}&note=${note}`;
   };
 
-  const subTabs = ['Balances', 'Judge', 'History'];
-
   // Calculate totals for summary card
   const totalOwed = consolidatedBalances
     .filter(b => b.netAmount > 0)
@@ -316,41 +314,60 @@ export default function SettlePage() {
       {/* Main Content */}
       <main className="pt-14 pb-24">
 
-        {/* Page Title */}
-        <div className="px-6 py-4">
-          <h1 className="text-2xl font-bold text-white font-montserrat">Settle</h1>
+        {/* Tab Pills */}
+        <div className="flex gap-9 px-6 py-1 mt-4">
+          <button
+            onClick={() => setActiveSubTab('BALANCE')}
+            className={`
+              flex-1 h-9 rounded-md
+              flex items-center justify-center
+              text-white text-[10px] font-semibold font-montserrat uppercase
+              transition-colors
+              ${activeSubTab === 'BALANCE'
+                ? 'bg-[rgba(255,107,53,0.52)] hover:bg-[rgba(255,107,53,0.65)]'
+                : 'bg-black/25 hover:bg-black/30'
+              }
+            `}
+          >
+            BALANCE
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('JUDGE')}
+            className={`
+              flex-1 h-9 rounded-md
+              flex items-center justify-center
+              text-white text-[10px] font-semibold font-montserrat uppercase
+              transition-colors
+              ${activeSubTab === 'JUDGE'
+                ? 'bg-[rgba(255,107,53,0.52)] hover:bg-[rgba(255,107,53,0.65)]'
+                : 'bg-black/25 hover:bg-black/30'
+              }
+            `}
+          >
+            JUDGE
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('HISTORY')}
+            className={`
+              flex-1 h-9 rounded-md
+              flex items-center justify-center
+              text-white text-[10px] font-semibold font-montserrat uppercase
+              transition-colors
+              ${activeSubTab === 'HISTORY'
+                ? 'bg-[rgba(255,107,53,0.52)] hover:bg-[rgba(255,107,53,0.65)]'
+                : 'bg-black/25 hover:bg-black/30'
+              }
+            `}
+          >
+            HISTORY
+          </button>
         </div>
 
-        {/* Sub-tabs */}
-        <div className="flex px-6 gap-2 mb-4">
-          {subTabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveSubTab(tab.toLowerCase())}
-              className={`
-                flex-1 py-2 rounded-lg font-medium text-sm font-montserrat transition-colors
-                ${activeSubTab === tab.toLowerCase()
-                  ? 'bg-[#ff6b35] text-white'
-                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                }
-              `}
-            >
-              {tab}
-              {tab === 'Judge' && pendingJudgments.length > 0 && (
-                <span className="ml-1.5 px-1.5 py-0.5 bg-white/20 rounded-full text-xs">
-                  {pendingJudgments.length}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Content Area */}
-        <div className="px-6">
-
-          {/* Balances Tab */}
-          {activeSubTab === 'balances' && (
-            <div className="space-y-3">
+        {/* Balances Tab */}
+        {activeSubTab === 'BALANCE' && (
+            <>
               {balancesLoading ? (
                 <div className="text-center py-12 text-zinc-400 font-montserrat">Loading...</div>
               ) : consolidatedBalances.length === 0 ? (
@@ -359,155 +376,192 @@ export default function SettlePage() {
                 </div>
               ) : (
                 <>
-                  {/* Summary Card */}
-                  <div className="bg-zinc-800 rounded-xl p-4 mb-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-zinc-400 text-sm font-montserrat">Net Balance</p>
-                        <p className={`text-2xl font-bold font-montserrat ${netBalance >= 0 ? 'text-green-500' : 'text-red-400'}`}>
-                          {netBalance >= 0 ? '+' : ''}${netBalance.toFixed(2)}
-                        </p>
+                  {/* Net Balance Summary Card */}
+                  <div className="mx-6 mt-4 bg-black/25 rounded-md p-3 flex flex-col gap-1">
+                    {/* Row 1: Labels and Totals */}
+                    <div className="flex items-center justify-between w-full h-4">
+                      <p className="text-white text-[10px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
+                        Net Balance:
+                      </p>
+                      <div className="flex gap-2 text-[8px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
+                        <span className="text-white">
+                          You're Owed: <span className="text-[#1bec09]">${totalOwed.toFixed(2)}</span>
+                        </span>
+                        <span className="text-white">
+                          You Owe: <span className="text-[#ea0000]">${totalOwe.toFixed(2)}</span>
+                        </span>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-zinc-400 font-montserrat">
-                          You&apos;re owed: <span className="text-green-500">${totalOwed.toFixed(2)}</span>
-                        </p>
-                        <p className="text-sm text-zinc-400 font-montserrat">
-                          You owe: <span className="text-red-400">${totalOwe.toFixed(2)}</span>
-                        </p>
-                      </div>
+                    </div>
+
+                    {/* Row 2: Net Amount */}
+                    <div className="flex items-center w-full h-4">
+                      <p className={`text-[12px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] ${
+                        netBalance >= 0 ? 'text-[#1bec09]' : 'text-[#ea0000]'
+                      }`}>
+                        {netBalance >= 0 ? '+' : ''} ${Math.abs(netBalance).toFixed(2)}
+                      </p>
                     </div>
                   </div>
 
                   {/* Section: Owed to You */}
                   {consolidatedBalances.filter(b => b.netAmount > 0).length > 0 && (
                     <>
-                      <p className="text-sm text-zinc-500 font-medium mt-4 mb-2 font-montserrat">OWED TO YOU</p>
-                      {consolidatedBalances.filter(b => b.netAmount > 0).map((person) => (
-                        <div key={person.userId} className="bg-zinc-800 rounded-xl overflow-hidden">
-                          <div
-                            onClick={() => setExpandedPerson(expandedPerson === person.userId ? null : person.userId)}
-                            className="p-4 flex items-center justify-between cursor-pointer hover:bg-zinc-700 transition-colors"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-zinc-700 rounded-full flex items-center justify-center text-sm font-medium font-montserrat">
-                                {person.userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                      <h2 className="mx-6 mt-4 mb-2 text-white text-[12px] font-medium font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
+                        OWED TO YOU
+                      </h2>
+                      <div className="px-6 flex flex-col gap-4">
+                        {consolidatedBalances.filter(b => b.netAmount > 0).map((person) => (
+                          <div key={person.userId} className="bg-black/25 rounded-md overflow-hidden">
+                            <div
+                              onClick={() => setExpandedPerson(expandedPerson === person.userId ? null : person.userId)}
+                              className="p-3 flex flex-col gap-1 cursor-pointer hover:bg-black/30 transition-colors h-16"
+                            >
+                              {/* Row 1: Name and Amount */}
+                              <div className="flex items-center justify-between w-full h-4">
+                                <p className="text-white text-[12px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] uppercase">
+                                  {person.userName}
+                                </p>
+                                <p className="text-[#1bec09] text-[12px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
+                                  + ${person.netAmount.toFixed(2)}
+                                </p>
                               </div>
-                              <span className="font-medium font-montserrat">{person.userName}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="text-green-500 font-bold font-montserrat">+${person.netAmount.toFixed(2)}</span>
-                              <ChevronDown className={`w-5 h-5 text-zinc-500 transition-transform ${expandedPerson === person.userId ? 'rotate-180' : ''}`} />
-                            </div>
-                          </div>
 
-                          {expandedPerson === person.userId && (
-                            <div className="px-4 pb-4 border-t border-zinc-700">
-                              <div className="pt-3 space-y-2">
-                                {person.bets.map((bet, idx) => (
-                                  <div key={idx} className="flex justify-between text-sm">
-                                    <span className="text-zinc-400 font-montserrat">{bet.betTitle}</span>
-                                    <span className="text-green-500 font-montserrat">+${bet.amount.toFixed(2)}</span>
-                                  </div>
-                                ))}
+                              {/* Row 2: Bet Count and Chevron */}
+                              <div className="flex items-center justify-between w-full h-3">
+                                <p className="text-[#ff6b35] text-[10px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
+                                  {person.bets.length} Bets
+                                </p>
+                                <ChevronDown className={`w-[14px] h-[14px] text-white flex-shrink-0 transition-transform ${expandedPerson === person.userId ? 'rotate-180' : ''}`} />
                               </div>
-                              {person.venmoUsername ? (
-                                <a
-                                  href={getVenmoLink(person.venmoUsername, person.netAmount, true)}
-                                  className="mt-4 w-full block text-center py-2.5 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium text-sm font-montserrat transition-colors"
-                                >
-                                  Request ${person.netAmount.toFixed(2)} via Venmo
-                                </a>
-                              ) : (
-                                <button
-                                  disabled
-                                  className="mt-4 w-full py-2.5 bg-zinc-700 rounded-lg font-medium text-sm font-montserrat text-zinc-500 cursor-not-allowed"
-                                  title="They haven't added Venmo yet"
-                                >
-                                  Venmo not available
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleMarkSettled(person.userId)}
-                                className="mt-2 w-full py-2.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg font-medium text-sm font-montserrat text-white transition-colors"
-                              >
-                                Mark as Settled
-                              </button>
                             </div>
-                          )}
-                        </div>
-                      ))}
+
+                            {/* Expanded State */}
+                            {expandedPerson === person.userId && (
+                              <div className="px-4 pb-4 border-t border-zinc-700">
+                                <div className="pt-3 space-y-2">
+                                  {person.bets.map((bet, idx) => (
+                                    <div key={idx} className="flex justify-between text-sm">
+                                      <span className="text-zinc-400 font-montserrat">{bet.betTitle}</span>
+                                      <span className="text-green-500 font-montserrat">+${bet.amount.toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                                {person.venmoUsername ? (
+                                  <a
+                                    href={getVenmoLink(person.venmoUsername, person.netAmount, true)}
+                                    className="mt-4 w-full block text-center py-2.5 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium text-sm font-montserrat transition-colors"
+                                  >
+                                    Request ${person.netAmount.toFixed(2)} via Venmo
+                                  </a>
+                                ) : (
+                                  <button
+                                    disabled
+                                    className="mt-4 w-full py-2.5 bg-zinc-700 rounded-lg font-medium text-sm font-montserrat text-zinc-500 cursor-not-allowed"
+                                    title="They haven't added Venmo yet"
+                                  >
+                                    Venmo not available
+                                  </button>
+                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMarkSettled(person.userId);
+                                  }}
+                                  className="mt-2 w-full py-2.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg font-medium text-sm font-montserrat text-white transition-colors"
+                                >
+                                  Mark as Settled
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </>
                   )}
 
                   {/* Section: You Owe */}
                   {consolidatedBalances.filter(b => b.netAmount < 0).length > 0 && (
                     <>
-                      <p className="text-sm text-zinc-500 font-medium mt-6 mb-2 font-montserrat">YOU OWE</p>
-                      {consolidatedBalances.filter(b => b.netAmount < 0).map((person) => (
-                        <div key={person.userId} className="bg-zinc-800 rounded-xl overflow-hidden">
-                          <div
-                            onClick={() => setExpandedPerson(expandedPerson === person.userId ? null : person.userId)}
-                            className="p-4 flex items-center justify-between cursor-pointer hover:bg-zinc-700 transition-colors"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-zinc-700 rounded-full flex items-center justify-center text-sm font-medium font-montserrat">
-                                {person.userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                      <h2 className="mx-6 mt-4 mb-2 text-white text-[12px] font-medium font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
+                        YOU OWE
+                      </h2>
+                      <div className="px-6 flex flex-col gap-4">
+                        {consolidatedBalances.filter(b => b.netAmount < 0).map((person) => (
+                          <div key={person.userId} className="bg-black/25 rounded-md overflow-hidden">
+                            <div
+                              onClick={() => setExpandedPerson(expandedPerson === person.userId ? null : person.userId)}
+                              className="p-3 flex flex-col gap-1 cursor-pointer hover:bg-black/30 transition-colors h-16"
+                            >
+                              {/* Row 1: Name and Amount */}
+                              <div className="flex items-center justify-between w-full h-4">
+                                <p className="text-white text-[12px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] uppercase">
+                                  {person.userName}
+                                </p>
+                                <p className="text-[#ea0000] text-[12px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
+                                  - ${Math.abs(person.netAmount).toFixed(2)}
+                                </p>
                               </div>
-                              <span className="font-medium font-montserrat">{person.userName}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="text-red-400 font-bold font-montserrat">-${Math.abs(person.netAmount).toFixed(2)}</span>
-                              <ChevronDown className={`w-5 h-5 text-zinc-500 transition-transform ${expandedPerson === person.userId ? 'rotate-180' : ''}`} />
-                            </div>
-                          </div>
 
-                          {expandedPerson === person.userId && (
-                            <div className="px-4 pb-4 border-t border-zinc-700">
-                              <div className="pt-3 space-y-2">
-                                {person.bets.map((bet, idx) => (
-                                  <div key={idx} className="flex justify-between text-sm">
-                                    <span className="text-zinc-400 font-montserrat">{bet.betTitle}</span>
-                                    <span className="text-red-400 font-montserrat">${bet.amount.toFixed(2)}</span>
-                                  </div>
-                                ))}
+                              {/* Row 2: Bet Count and Chevron */}
+                              <div className="flex items-center justify-between w-full h-3">
+                                <p className="text-[#ff6b35] text-[10px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
+                                  {person.bets.length} Bets
+                                </p>
+                                <ChevronDown className={`w-[14px] h-[14px] text-white flex-shrink-0 transition-transform ${expandedPerson === person.userId ? 'rotate-180' : ''}`} />
                               </div>
-                              {person.venmoUsername ? (
-                                <a
-                                  href={getVenmoLink(person.venmoUsername, person.netAmount, false)}
-                                  className="mt-4 w-full block text-center py-2.5 bg-green-600 hover:bg-green-500 rounded-lg font-medium text-sm font-montserrat transition-colors"
-                                >
-                                  Pay ${Math.abs(person.netAmount).toFixed(2)} via Venmo
-                                </a>
-                              ) : (
-                                <button
-                                  disabled
-                                  className="mt-4 w-full py-2.5 bg-zinc-700 rounded-lg font-medium text-sm font-montserrat text-zinc-500 cursor-not-allowed"
-                                  title="They haven't added Venmo yet"
-                                >
-                                  Venmo not available
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleMarkSettled(person.userId)}
-                                className="mt-2 w-full py-2.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg font-medium text-sm font-montserrat text-white transition-colors"
-                              >
-                                Mark as Settled
-                              </button>
                             </div>
-                          )}
-                        </div>
-                      ))}
+
+                            {/* Expanded State */}
+                            {expandedPerson === person.userId && (
+                              <div className="px-4 pb-4 border-t border-zinc-700">
+                                <div className="pt-3 space-y-2">
+                                  {person.bets.map((bet, idx) => (
+                                    <div key={idx} className="flex justify-between text-sm">
+                                      <span className="text-zinc-400 font-montserrat">{bet.betTitle}</span>
+                                      <span className="text-red-400 font-montserrat">${bet.amount.toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                                {person.venmoUsername ? (
+                                  <a
+                                    href={getVenmoLink(person.venmoUsername, person.netAmount, false)}
+                                    className="mt-4 w-full block text-center py-2.5 bg-green-600 hover:bg-green-500 rounded-lg font-medium text-sm font-montserrat transition-colors"
+                                  >
+                                    Pay ${Math.abs(person.netAmount).toFixed(2)} via Venmo
+                                  </a>
+                                ) : (
+                                  <button
+                                    disabled
+                                    className="mt-4 w-full py-2.5 bg-zinc-700 rounded-lg font-medium text-sm font-montserrat text-zinc-500 cursor-not-allowed"
+                                    title="They haven't added Venmo yet"
+                                  >
+                                    Venmo not available
+                                  </button>
+                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMarkSettled(person.userId);
+                                  }}
+                                  className="mt-2 w-full py-2.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg font-medium text-sm font-montserrat text-white transition-colors"
+                                >
+                                  Mark as Settled
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </>
                   )}
                 </>
               )}
-            </div>
+            </>
           )}
 
           {/* Judge Tab */}
-          {activeSubTab === 'judge' && (
-            <div className="space-y-3">
+          {activeSubTab === 'JUDGE' && (
+            <div className="px-6 space-y-3">
               {judgeLoading ? (
                 <div className="text-center py-12 text-zinc-400 font-montserrat">Loading...</div>
               ) : pendingJudgments.length === 0 ? (
@@ -558,8 +612,8 @@ export default function SettlePage() {
           )}
 
           {/* History Tab */}
-          {activeSubTab === 'history' && (
-            <div className="space-y-3">
+          {activeSubTab === 'HISTORY' && (
+            <div className="px-6 space-y-3">
               {historyLoading ? (
                 <div className="text-center py-12 text-zinc-400 font-montserrat">Loading...</div>
               ) : completedBets.length === 0 ? (
@@ -619,7 +673,6 @@ export default function SettlePage() {
               )}
             </div>
           )}
-        </div>
 
       </main>
 
