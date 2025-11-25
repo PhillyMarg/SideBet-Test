@@ -177,6 +177,7 @@ function ActiveBetCard({
 
   // Helper function to format closing date as MM/DD/YYYY
   const formatClosingDate = (isoString: string) => {
+    if (!isoString) return 'TBD';
     const date = new Date(isoString);
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -531,37 +532,38 @@ function ActiveBetCard({
         <div
           onClick={() => setIsExpanded(true)}
           className={`
-            bg-zinc-900/40
+            w-full
+            bg-[rgba(24,24,27,0.4)]
             rounded-md
             p-3
             flex flex-col gap-1
             cursor-pointer
-            hover:bg-zinc-900/50
+            hover:bg-[rgba(24,24,27,0.5)]
             transition-all
             ${isClosingSoon ? 'shadow-[2px_2px_4px_0px_#ff6b35] animate-pulse-shadow' : ''}
           `}
         >
-          {/* Top Row - Group Name and Closing Time */}
+          {/* Row 1: Group Name (left) and Closing Time (right) */}
           <div className="flex items-center justify-between w-full">
-            <p className="text-[#ff6b35] text-[8px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
+            <p className="text-[#ff6b35] text-[8px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] leading-normal">
               {groupName}
             </p>
-            <p className="text-[#ff6b35] text-[8px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
+            <p className="text-[#ff6b35] text-[8px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] leading-normal">
               Closes: {formatClosingDate(bet.closingAt)}
             </p>
           </div>
 
-          {/* Bet Title Row */}
+          {/* Row 2: Bet Title/Question */}
           <div className="flex items-center w-full">
-            <p className="text-white text-[12px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] line-clamp-2">
+            <p className="text-white text-[12px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] leading-normal line-clamp-2">
               {bet.title}
             </p>
           </div>
 
-          {/* Bottom Row - Pot Info and Chevron */}
-          <div className="flex items-center justify-between w-full h-[12px]">
-            <p className="text-[#ff6b35] text-[10px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
-              Pot: ${bet.totalPot?.toFixed(2) || '0.00'} | {bet.participants?.length || 0} Players
+          {/* Row 3: Pot + Players (left) and Chevron (right) */}
+          <div className="flex items-center justify-between w-full">
+            <p className="text-[#ff6b35] text-[10px] font-semibold font-montserrat [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] leading-normal">
+              Pot: ${(bet.totalPot || 0).toFixed(2)} | {(bet.participants || []).length} Players
             </p>
             <ChevronDown className="w-[14px] h-[14px] text-white flex-shrink-0" />
           </div>
