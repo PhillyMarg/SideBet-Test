@@ -541,12 +541,12 @@ export default function ActiveBetCard({
                   ) : (
                     <>
                       <div className={`py-3 rounded-md text-center font-semibold ${
-                        (bet.result && bet.result < (bet.line || 0)) ? 'bg-red-600 text-white' : 'bg-zinc-800 text-white'
+                        (bet.result && typeof bet.result === 'number' && bet.result < (bet.line || 0)) ? 'bg-red-600 text-white' : 'bg-zinc-800 text-white'
                       }`}>
                         UNDER {percentages.option1}%
                       </div>
                       <div className={`py-3 rounded-md text-center font-semibold ${
-                        (bet.result && bet.result > (bet.line || 0)) ? 'bg-[#1bec09] text-white' : 'bg-zinc-800 text-white'
+                        (bet.result && typeof bet.result === 'number' && bet.result > (bet.line || 0)) ? 'bg-[#1bec09] text-white' : 'bg-zinc-800 text-white'
                       }`}>
                         OVER {percentages.option2}%
                       </div>
@@ -586,12 +586,12 @@ export default function ActiveBetCard({
                   ) : (
                     <>
                       <div className={`py-3 rounded-md text-center font-semibold ${
-                        (bet.result && bet.result < (bet.line || 0)) ? 'bg-red-600 text-white' : 'bg-zinc-800 text-white'
+                        (bet.result && typeof bet.result === 'number' && bet.result < (bet.line || 0)) ? 'bg-red-600 text-white' : 'bg-zinc-800 text-white'
                       }`}>
                         UNDER {percentages.option1}%
                       </div>
                       <div className={`py-3 rounded-md text-center font-semibold ${
-                        (bet.result && bet.result > (bet.line || 0)) ? 'bg-[#1bec09] text-white' : 'bg-zinc-800 text-white'
+                        (bet.result && typeof bet.result === 'number' && bet.result > (bet.line || 0)) ? 'bg-[#1bec09] text-white' : 'bg-zinc-800 text-white'
                       }`}>
                         OVER {percentages.option2}%
                       </div>
