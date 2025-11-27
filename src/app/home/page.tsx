@@ -76,7 +76,9 @@ export default function HomePage() {
 
   // Filter and sort bets
   const filteredAndSortedBets = useMemo(() => {
-    let filtered = [...bets];
+    // CRITICAL: Only show OPEN and PENDING bets on home page
+    // CLOSED and VOID bets should only appear in Settle > HISTORY
+    let filtered = bets.filter(bet => bet.status === 'OPEN' || bet.status === 'PENDING');
 
     // Apply filter
     if (activeFilter === 'OPEN') {
@@ -84,7 +86,7 @@ export default function HomePage() {
     } else if (activeFilter === 'MY_PICKS') {
       filtered = filtered.filter(bet => bet.picks?.[user?.uid]);
     } else if (activeFilter === 'PENDING') {
-      filtered = filtered.filter(bet => bet.status === 'CLOSED' || bet.status === 'PENDING');
+      filtered = filtered.filter(bet => bet.status === 'PENDING');
     } else if (activeFilter === 'SOON') {
       const twentyFourHours = 24 * 60 * 60 * 1000;
       const now = Date.now();
