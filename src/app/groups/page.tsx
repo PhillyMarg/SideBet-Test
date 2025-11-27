@@ -8,7 +8,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { Search, Bell } from 'lucide-react';
 import GroupCard from '@/components/GroupCard';
 import JoinGroupModal from '@/components/JoinGroupModal';
-import CreateGroupModal from '@/components/CreateGroupModal';
+import CreateGroupWizard from '@/components/CreateGroupWizard';
 import CreateBetWizard from '@/components/CreateBetWizard';
 
 export default function GroupsPage() {
@@ -199,15 +199,13 @@ export default function GroupsPage() {
         />
       )}
 
-      {/* Create Group Modal */}
-      <CreateGroupModal
-        isOpen={showCreateGroup}
-        onClose={() => setShowCreateGroup(false)}
-        onGroupCreated={() => {
-          console.log('Group created successfully');
-          setShowCreateGroup(false);
-        }}
-      />
+      {/* Create Group Wizard */}
+      {showCreateGroup && (
+        <CreateGroupWizard
+          onClose={() => setShowCreateGroup(false)}
+          user={auth.currentUser}
+        />
+      )}
 
       {/* Create Bet Wizard */}
       {showCreateBet && (
