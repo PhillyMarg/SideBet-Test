@@ -68,7 +68,7 @@ export default function SettlePage() {
       const winnerId = bet.winnerId;
       const losers = bet.participants?.filter((p: string) => p !== winnerId) || [];
 
-      losers.forEach(loserId => {
+      losers.forEach((loserId: string) => {
         if (loserId === user.uid) {
           // User lost - they owe the winner
           if (winnerId && winnerId !== user.uid) {

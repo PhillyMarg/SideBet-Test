@@ -124,7 +124,6 @@ export default function GroupsPage() {
               <GroupCard
                 key={group.id}
                 group={group}
-                onClick={() => router.push(`/groups/${group.id}`)}
               />
             ))}
           </div>
