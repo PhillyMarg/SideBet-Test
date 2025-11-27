@@ -97,7 +97,7 @@ export default function GroupsPage() {
           </button>
           <button
             onClick={() => setShowJoinGroup(true)}
-            className="flex-1 h-9 bg-[rgba(255,107,53,0.52)] hover:bg-[rgba(255,107,53,0.65)] text-white text-[10px] font-semibold font-montserrat rounded-md transition-colors"
+            className="flex-1 h-9 bg-[#ff6b35] hover:bg-[#ff8c5c] text-white text-[10px] font-semibold font-montserrat rounded-md transition-colors"
           >
             JOIN GROUP
           </button>
@@ -137,7 +137,7 @@ export default function GroupsPage() {
       {/* CREATE BET Floating Button */}
       <button
         onClick={() => setShowCreateBet(true)}
-        className="fixed bottom-[84px] right-6 z-40 px-6 py-2 h-9 bg-[rgba(255,107,53,0.52)] hover:bg-[rgba(255,107,53,0.65)] text-white text-[10px] font-semibold font-montserrat rounded-md shadow-lg shadow-[#ff6b35]/30 transition-colors"
+        className="fixed bottom-[84px] right-6 z-40 px-6 py-2 h-9 bg-[#ff6b35] hover:bg-[#ff8c5c] text-white text-[10px] font-semibold font-montserrat rounded-md shadow-lg shadow-[#ff6b35]/30 transition-colors"
       >
         CREATE BET
       </button>

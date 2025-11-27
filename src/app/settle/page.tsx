@@ -185,7 +185,7 @@ export default function SettlePage() {
                 flex-1 h-9 rounded-md transition-colors
                 font-montserrat font-semibold text-[10px]
                 ${activeTab === tab
-                  ? 'bg-[rgba(255,107,53,0.52)] text-white'
+                  ? 'bg-[#ff6b35] text-white'
                   : 'bg-black/25 text-white hover:bg-black/30'}
               `}
             >
@@ -509,7 +509,7 @@ export default function SettlePage() {
       {/* CREATE BET Floating Button */}
       <button
         onClick={() => setShowCreateBet(true)}
-        className="fixed bottom-[84px] right-6 z-40 px-6 py-2 h-9 bg-[rgba(255,107,53,0.52)] hover:bg-[rgba(255,107,53,0.65)] text-white text-[10px] font-semibold font-montserrat rounded-md shadow-lg shadow-[#ff6b35]/30 transition-colors"
+        className="fixed bottom-[84px] right-6 z-40 px-6 py-2 h-9 bg-[#ff6b35] hover:bg-[#ff8c5c] text-white text-[10px] font-semibold font-montserrat rounded-md shadow-lg shadow-[#ff6b35]/30 transition-colors"
       >
         CREATE BET
       </button>
