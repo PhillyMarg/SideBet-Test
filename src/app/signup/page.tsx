@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/client';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -12,240 +12,162 @@ export default function SignupPage() {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [venmoUsername, setVenmoUsername] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Validation
+    if (!firstName || !lastName || !email || !password) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Create Firebase Auth user
+      // Create user account
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Create Firestore user document
-      const trimmedFirstName = firstName.trim();
-      const trimmedLastName = lastName.trim();
-      const displayName = `${trimmedFirstName} ${trimmedLastName}`;
+      // Update display name
+      const displayName = `${firstName} ${lastName}`;
+      await updateProfile(user, { displayName });
 
-      const userData: any = {
-        id: user.uid,
-        firstName: trimmedFirstName,
-        lastName: trimmedLastName,
+      // Create user document in Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        firstName: firstName,
+        lastName: lastName,
         displayName: displayName,
-        email: email.trim().toLowerCase(),
-        joined_groups: [],
-        total_stats: { totalBets: 0, wins: 0, losses: 0, net: 0 },
-      };
+        email: email,
+        createdAt: new Date().toISOString(),
+      });
 
-      // Add venmoUsername if provided
-      if (venmoUsername.trim()) {
-        userData.venmoUsername = venmoUsername.trim();
-      }
-
-      await setDoc(doc(db, 'users', user.uid), userData);
-
+      // Redirect to onboarding or home
       router.push('/home');
-    } catch (err: any) {
-      setError(err.message || 'Failed to create account');
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      if (error.code === 'auth/email-already-in-use') {
+        setError('An account with this email already exists');
+      } else if (error.code === 'auth/invalid-email') {
+        setError('Invalid email address');
+      } else if (error.code === 'auth/weak-password') {
+        setError('Password is too weak');
+      } else {
+        setError('Failed to create account. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-[#ff6b35] flex flex-col items-center justify-center px-6 py-12">
-
-      {/* Logo */}
-      <h1 className="font-montserrat font-bold text-[32px] text-white text-center [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]">
-        SIDEBET
-      </h1>
-
-      {/* Tagline */}
-      <p className="font-montserrat font-light italic text-[20px] text-white text-center [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] mt-2">
-        Every Party Needs Stakes.
-      </p>
-
-      {/* Spacer */}
-      <div className="h-8" />
-
-      {/* Form */}
-      <form onSubmit={handleSignUp} className="w-full max-w-md">
-
-        {/* First Name Label */}
-        <p className="font-montserrat font-light italic text-[20px] text-white [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] px-4 mb-2">
-          First Name
-        </p>
-
-        {/* First Name Input */}
-        <input
-          type="text"
-          value={firstName}
-          onChange={(e) => setFirstName(e.target.value)}
-          placeholder="Phil"
-          required
-          className="
-            w-full h-9 px-3 mb-8
-            bg-zinc-900/40
-            border-2 border-[#ff6b35]
-            rounded-md
-            shadow-[2px_2px_4px_0px_#ff6b35]
-            text-[#757579] placeholder:text-[#757579]
-            font-montserrat text-[14px]
-            focus:outline-none focus:border-[#ff6b35]
-          "
-        />
-
-        {/* Last Name Label */}
-        <p className="font-montserrat font-light italic text-[20px] text-white [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] px-4 mb-2">
-          Last Name
-        </p>
-
-        {/* Last Name Input */}
-        <input
-          type="text"
-          value={lastName}
-          onChange={(e) => setLastName(e.target.value)}
-          placeholder="McCracken"
-          required
-          className="
-            w-full h-9 px-3 mb-8
-            bg-zinc-900/40
-            border-2 border-[#ff6b35]
-            rounded-md
-            shadow-[2px_2px_4px_0px_#ff6b35]
-            text-[#757579] placeholder:text-[#757579]
-            font-montserrat text-[14px]
-            focus:outline-none focus:border-[#ff6b35]
-          "
-        />
-
-        {/* Email Label */}
-        <p className="font-montserrat font-light italic text-[20px] text-white [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] px-4 mb-2">
-          Email Address
-        </p>
-
-        {/* Email Input */}
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="PhilMcCracken@gmail.com"
-          required
-          className="
-            w-full h-9 px-3 mb-8
-            bg-zinc-900/40
-            border-2 border-[#ff6b35]
-            rounded-md
-            shadow-[2px_2px_4px_0px_#ff6b35]
-            text-[#757579] placeholder:text-[#757579]
-            font-montserrat text-[14px]
-            focus:outline-none focus:border-[#ff6b35]
-          "
-        />
-
-        {/* Password Label */}
-        <p className="font-montserrat font-light italic text-[20px] text-white [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] px-4 mb-2">
-          Password
-        </p>
-
-        {/* Password Input */}
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="1234567"
-          required
-          minLength={6}
-          className="
-            w-full h-9 px-3 mb-8
-            bg-zinc-900/40
-            border-2 border-[#ff6b35]
-            rounded-md
-            shadow-[2px_2px_4px_0px_#ff6b35]
-            text-[#757579] placeholder:text-[#757579]
-            font-montserrat text-[14px]
-            focus:outline-none focus:border-[#ff6b35]
-          "
-        />
-
-        {/* Venmo Username Label */}
-        <p className="font-montserrat font-light italic text-[20px] text-white [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] px-4 mb-2">
-          Venmo Username (optional)
-        </p>
-
-        {/* Venmo Username Input */}
-        <input
-          type="text"
-          value={venmoUsername}
-          onChange={(e) => setVenmoUsername(e.target.value)}
-          placeholder="@your-username"
-          className="
-            w-full h-9 px-3 mb-2
-            bg-zinc-900/40
-            border-2 border-[#ff6b35]
-            rounded-md
-            shadow-[2px_2px_4px_0px_#ff6b35]
-            text-[#757579] placeholder:text-[#757579]
-            font-montserrat text-[14px]
-            focus:outline-none focus:border-[#ff6b35]
-          "
-        />
-
-        {/* Helper Text */}
-        <p className="font-montserrat text-[12px] text-zinc-400 italic px-4 mb-12">
-          Used for easy settlement with friends
-        </p>
-
-        {/* Error Message */}
-        {error && (
-          <p className="text-red-400 text-sm text-center mb-4 font-montserrat">
-            {error}
+    <div className="min-h-screen bg-gradient-to-b from-[#1e1e1e] via-[#2a1810] to-[#ff6b35] flex items-center justify-center p-6 font-montserrat">
+      <div className="w-full max-w-md">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <h1 className="text-[32px] font-bold text-white tracking-wider mb-2">
+            SIDEBET
+          </h1>
+          <p className="text-[14px] italic text-white/80">
+            Every Party Needs Stakes.
           </p>
-        )}
+        </div>
 
-        {/* Sign Up Button */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="
-            w-full h-9 mb-6
-            bg-[rgba(255,107,53,0.52)] hover:bg-[rgba(255,107,53,0.65)]
-            rounded-md
-            text-white text-[14px] font-montserrat text-center
-            [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]
-            transition-colors
-            disabled:opacity-50
-          "
-        >
-          {loading ? 'CREATING ACCOUNT...' : 'SIGN UP!'}
-        </button>
+        {/* Signup Form */}
+        <form onSubmit={handleSignUp} className="space-y-6">
+          {/* First Name */}
+          <div>
+            <label className="block text-[12px] italic text-white/70 mb-2">
+              First Name
+            </label>
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="Phil"
+              className="w-full h-12 px-4 bg-transparent border-2 border-[#ff6b35] rounded-lg text-[14px] text-white placeholder-white/40 focus:outline-none focus:border-[#ff8c5c]"
+            />
+          </div>
 
-        {/* Login Prompt */}
-        <p className="font-montserrat font-light italic text-[14px] text-white text-center [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px] mb-3">
-          Already been here? Sign in Now!
-        </p>
+          {/* Last Name */}
+          <div>
+            <label className="block text-[12px] italic text-white/70 mb-2">
+              Last Name
+            </label>
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="McCracken"
+              className="w-full h-12 px-4 bg-transparent border-2 border-[#ff6b35] rounded-lg text-[14px] text-white placeholder-white/40 focus:outline-none focus:border-[#ff8c5c]"
+            />
+          </div>
 
-        {/* Sign In Button */}
-        <button
-          type="button"
-          onClick={() => router.push('/login')}
-          className="
-            w-full h-9
-            bg-white/10 hover:bg-white/20
-            rounded-md
-            text-white text-[14px] font-montserrat text-center
-            [text-shadow:rgba(0,0,0,0.25)_0px_4px_4px]
-            transition-colors
-          "
-        >
-          SIGN IN!
-        </button>
+          {/* Email */}
+          <div>
+            <label className="block text-[12px] italic text-white/70 mb-2">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="PhilMcCracken@gmail.com"
+              className="w-full h-12 px-4 bg-transparent border-2 border-[#ff6b35] rounded-lg text-[14px] text-white placeholder-white/40 focus:outline-none focus:border-[#ff8c5c]"
+            />
+          </div>
 
-      </form>
+          {/* Password */}
+          <div>
+            <label className="block text-[12px] italic text-white/70 mb-2">
+              Password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="1234567"
+              className="w-full h-12 px-4 bg-transparent border-2 border-[#ff6b35] rounded-lg text-[14px] text-white placeholder-white/40 focus:outline-none focus:border-[#ff8c5c]"
+            />
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <p className="text-[12px] text-red-400 text-center">{error}</p>
+          )}
+
+          {/* Sign Up Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-12 bg-[#ff6b35] hover:bg-[#ff8c5c] disabled:bg-[#ff6b35]/50 disabled:cursor-not-allowed text-white text-[14px] font-semibold rounded-lg transition-colors"
+          >
+            {loading ? 'CREATING ACCOUNT...' : 'SIGN UP!'}
+          </button>
+
+          {/* Sign In Link */}
+          <div className="text-center space-y-3">
+            <p className="text-[12px] italic text-white/70">
+              Already been here? Sign in Now!
+            </p>
+            <button
+              type="button"
+              onClick={() => router.push('/login')}
+              className="w-full h-12 bg-white/10 hover:bg-white/20 text-white text-[14px] font-semibold rounded-lg transition-colors border border-white/20"
+            >
+              SIGN IN!
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

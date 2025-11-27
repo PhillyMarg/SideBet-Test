@@ -180,7 +180,7 @@ export default function OnboardingWizard({
                 <div className="text-center mb-3 sm:mb-4">
                   <Zap className="w-12 h-12 sm:w-14 sm:h-14 text-orange-500 mx-auto mb-3" />
                   <h4 className="text-lg sm:text-xl font-semibold text-white mb-2">
-                    Three Ways to Bet
+                    Two Ways to Bet
                   </h4>
                 </div>
 
@@ -199,15 +199,6 @@ export default function OnboardingWizard({
                   </div>
                   <div className="text-xs sm:text-sm text-gray-400">
                     &ldquo;Temperature over or under 75.5°F?&rdquo;
-                  </div>
-                </div>
-
-                <div className="w-full p-3 sm:p-4 rounded-lg border-2 border-zinc-700 bg-zinc-800">
-                  <div className="font-semibold text-white text-sm sm:text-base mb-1">
-                    Closest Guess
-                  </div>
-                  <div className="text-xs sm:text-sm text-gray-400">
-                    &ldquo;How many points will LeBron score?&rdquo;
                   </div>
                 </div>
               </motion.div>
