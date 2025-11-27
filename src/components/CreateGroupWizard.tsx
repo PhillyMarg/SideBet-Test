@@ -3,19 +3,20 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { db } from "@/lib/firebase/client";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 interface CreateGroupWizardProps {
-  isOpen: boolean;
   onClose: () => void;
-  onCreateGroup: (groupData: any) => Promise<void>;
+  user: any;
 }
 
 export default function CreateGroupWizard({
-  isOpen,
   onClose,
-  onCreateGroup,
+  user,
 }: CreateGroupWizardProps) {
   const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
   const [groupData, setGroupData] = useState({
     name: "",
     tagline: "",
@@ -32,7 +33,7 @@ export default function CreateGroupWizard({
 
   // Generate codes when wizard opens
   useEffect(() => {
-    if (isOpen && (!groupData.joinLink || !groupData.accessCode)) {
+    if (!groupData.joinLink || !groupData.accessCode) {
       setGroupData((prev) => ({
         ...prev,
         joinLink:
@@ -46,7 +47,7 @@ export default function CreateGroupWizard({
           Math.random().toString(36).substring(2, 7).toUpperCase(),
       }));
     }
-  }, [isOpen]);
+  }, []);
 
   // Utility function for season end date calculation
   const calcEndDate = (type: string) => {
@@ -98,25 +99,41 @@ export default function CreateGroupWizard({
   };
 
   const handleSubmit = async () => {
-    const finalGroupData = {
-      name: groupData.name,
-      tagline: groupData.tagline || "",
-      min_bet: parseFloat(groupData.min_bet) || 0,
-      max_bet: parseFloat(groupData.max_bet) || 0,
-      season_enabled: groupData.season_enabled,
-      season_type: groupData.season_type || "none",
-      season_end_date: groupData.season_end_date || null,
-      auto_renew: groupData.auto_renew,
-      inviteType: groupData.inviteType,
-      joinLink: groupData.joinLink,
-      accessCode: groupData.accessCode,
-    };
+    if (!user) {
+      alert("You must be logged in to create a group");
+      return;
+    }
 
-    await onCreateGroup(finalGroupData);
-    resetAndClose();
+    setLoading(true);
+
+    try {
+      const finalGroupData = {
+        name: groupData.name,
+        tagline: groupData.tagline || "",
+        min_bet: parseFloat(groupData.min_bet) || 0,
+        max_bet: parseFloat(groupData.max_bet) || 0,
+        season_enabled: groupData.season_enabled,
+        season_type: groupData.season_type || "none",
+        season_end_date: groupData.season_end_date || null,
+        auto_renew: groupData.auto_renew,
+        inviteType: groupData.inviteType,
+        joinLink: groupData.joinLink,
+        accessCode: groupData.accessCode,
+        creatorId: user.uid,
+        memberIds: [user.uid],
+        createdAt: serverTimestamp(),
+      };
+
+      await addDoc(collection(db, "groups"), finalGroupData);
+      console.log("Group created successfully");
+      resetAndClose();
+    } catch (error) {
+      console.error("Error creating group:", error);
+      alert("Failed to create group. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
-
-  if (!isOpen) return null;
 
   return (
     <div
@@ -557,10 +574,11 @@ export default function CreateGroupWizard({
           ) : (
             <button
               onClick={handleSubmit}
-              className="flex items-center gap-1 sm:gap-2 px-4 sm:px-5 py-1.5 sm:py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-xs sm:text-sm font-semibold transition-colors"
+              disabled={loading}
+              className="flex items-center gap-1 sm:gap-2 px-4 sm:px-5 py-1.5 sm:py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-md text-xs sm:text-sm font-semibold transition-colors"
             >
               <Check size={16} className="sm:w-5 sm:h-5" />
-              Create Group
+              {loading ? "Creating..." : "Create Group"}
             </button>
           )}
         </div>
