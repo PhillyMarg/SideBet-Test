@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, Check } from "lucide-react";
 
-interface CreateGroupWizardProps {
+export interface CreateGroupWizardProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateGroup: (groupData: any) => Promise<void>;
