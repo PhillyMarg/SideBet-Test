@@ -65,10 +65,17 @@ export default function GroupDetailPage() {
     );
 
     const unsubscribe = onSnapshot(betsQuery, (snapshot) => {
-      const betsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const betsData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          creatorId: data.creatorId || '',
+          totalPot: data.totalPot || 0,
+          participants: data.participants || [],
+          wagerAmount: data.wagerAmount || 0,
+        };
+      });
       setBets(betsData);
     });
 
