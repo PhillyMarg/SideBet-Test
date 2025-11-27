@@ -53,6 +53,7 @@ export default function CreateBet() {
         status: "active",
         closingAt: closingTime.toISOString(),
         createdAt: new Date().toISOString(),
+        closingSoonNotified: false,
       });
 
       alert("Bet created successfully!");

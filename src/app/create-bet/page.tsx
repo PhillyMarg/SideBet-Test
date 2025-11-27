@@ -64,6 +64,7 @@ function CreateBetContent() {
         createdBy: user.uid,
         createdAt: new Date().toISOString(),
         status: "OPEN",
+        closingSoonNotified: false,
         participants: [],
         wager: parseFloat(betData.wager),
         line: betData.line ? parseFloat(betData.line) : null,

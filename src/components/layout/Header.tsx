@@ -196,19 +196,12 @@ export function Header({ userId, onAcceptChallenge, onDeclineChallenge }: Header
 
         {/* Notification Bell */}
         <div>
-          {userId ? (
-            <NotificationBell
-              userId={userId}
-              onAcceptChallenge={handleAcceptChallenge}
-              onDeclineChallenge={handleDeclineChallenge}
-            />
-          ) : (
-            <Bell
-              size={20}
-              color="white"
-              style={{ cursor: "pointer" }}
-            />
-          )}
+          <button
+            onClick={() => router.push('/notifications')}
+            className="text-white hover:text-[#ff6b35] transition-colors"
+          >
+            <Bell size={20} />
+          </button>
         </div>
       </div>
     </header>

@@ -250,6 +250,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
         createdAt: new Date().toISOString(),
         closingAt: closingDateTime.toISOString(),
         status: "OPEN",
+        closingSoonNotified: false,
 
         isH2H: true,
         challengerId: user.uid,
@@ -354,6 +355,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
         createdAt: new Date().toISOString(),
         closingAt: closingDateTime.toISOString(),
         status: "OPEN",
+        closingSoonNotified: false,
         isH2H: false,
         picks: {},
         participants: [],

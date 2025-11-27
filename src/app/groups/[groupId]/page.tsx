@@ -163,7 +163,10 @@ export default function GroupDetailPage() {
               SIDEBET
             </h1>
           </div>
-          <button className="text-white hover:text-[#ff6b35] transition-colors">
+          <button
+            onClick={() => router.push('/notifications')}
+            className="text-white hover:text-[#ff6b35] transition-colors"
+          >
             <Bell className="w-5 h-5" />
           </button>
         </div>

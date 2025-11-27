@@ -93,16 +93,15 @@ service cloud.firestore {
       allow read: if request.auth != null &&
                     resource.data.userId == request.auth.uid;
 
-      // Any authenticated user can create notifications (for others)
-      allow create: if request.auth != null;
-
-      // Users can only update their own notifications (e.g., marking as read)
+      // Users can update their own notifications (mark as read)
       allow update: if request.auth != null &&
-                      resource.data.userId == request.auth.uid;
+                      resource.data.userId == request.auth.uid &&
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['isRead']);
 
-      // Users can delete their own notifications
-      allow delete: if request.auth != null &&
-                      resource.data.userId == request.auth.uid;
+      // Only server/Cloud Functions can create notifications
+      allow create: if false;
+      allow delete: if false;
     }
 
     // Leaderboards collection
