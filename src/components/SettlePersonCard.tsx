@@ -18,9 +18,9 @@ interface Person {
 
 interface SettlePersonCardProps {
   person: Person;
-  onRequestVenmo?: () => void;
-  onSendVenmo?: () => void;
-  onMarkAsSettled?: () => void;
+  onRequestVenmo?: (personId: string, amount: number, betIds: string[]) => void;
+  onSendVenmo?: (personId: string, amount: number, betIds: string[]) => void;
+  onMarkAsSettled?: (personId: string, betIds: string[]) => void;
 }
 
 export default function SettlePersonCard({
@@ -51,7 +51,7 @@ export default function SettlePersonCard({
         <div className="flex gap-2">
           {isOwed && onRequestVenmo && (
             <button
-              onClick={onRequestVenmo}
+              onClick={() => onRequestVenmo(person.id, absAmount, person.bets.map(b => b.id))}
               className="px-3 py-1 bg-[rgba(255,107,53,0.52)] hover:bg-[rgba(255,107,53,0.65)] text-white text-[8px] font-semibold font-montserrat rounded-md transition-colors"
             >
               REQUEST
@@ -59,7 +59,7 @@ export default function SettlePersonCard({
           )}
           {!isOwed && onSendVenmo && (
             <button
-              onClick={onSendVenmo}
+              onClick={() => onSendVenmo(person.id, absAmount, person.bets.map(b => b.id))}
               className="px-3 py-1 bg-[rgba(255,107,53,0.52)] hover:bg-[rgba(255,107,53,0.65)] text-white text-[8px] font-semibold font-montserrat rounded-md transition-colors"
             >
               SEND
@@ -67,7 +67,7 @@ export default function SettlePersonCard({
           )}
           {onMarkAsSettled && (
             <button
-              onClick={onMarkAsSettled}
+              onClick={() => onMarkAsSettled(person.id, person.bets.map(b => b.id))}
               className="px-3 py-1 bg-black/25 hover:bg-black/30 text-white text-[8px] font-semibold font-montserrat rounded-md transition-colors"
             >
               SETTLED
