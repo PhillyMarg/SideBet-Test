@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { collection, addDoc, getDocs, query, where, getDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { validateBetCreation } from "@/lib/validation/betValidation";
-import { Users, Swords, Check, ChevronDown } from "lucide-react";
+import { Users, Swords, Check, ChevronDown, X } from "lucide-react";
 
 interface CreateBetWizardProps {
   user: any;
@@ -442,8 +442,35 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend, pres
   };
 
   return (
-    <div className="w-full">
-      {/* Progress Bar */}
+    // ===== MODAL OVERLAY - Full screen, dark background, highest z-index =====
+    <div
+      className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-6 font-montserrat"
+      onClick={(e) => {
+        // Close modal when clicking overlay (not the content)
+        if (e.target === e.currentTarget && onClose) {
+          onClose();
+        }
+      }}
+    >
+      {/* ===== MODAL CONTENT CARD - Centered card ===== */}
+      <div
+        className="bg-zinc-900 rounded-2xl w-full max-w-md border-2 border-zinc-800 relative max-h-[90vh] overflow-y-auto shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* ===== CLOSE BUTTON ===== */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center hover:bg-zinc-800 rounded-full transition-colors z-10"
+            type="button"
+          >
+            <X className="w-5 h-5 text-white" />
+          </button>
+        )}
+
+        {/* ===== WIZARD CONTENT ===== */}
+        <div className="p-6">
+          {/* Progress Bar */}
       <div className="mb-6">
         <div className="flex items-center gap-2">
           {[1, 2, 3].map((step) => (
@@ -1053,6 +1080,8 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend, pres
           </div>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }
