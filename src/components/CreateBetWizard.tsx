@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase/client";
 import { validateBetCreation } from "@/lib/validation/betValidation";
 import { Users, Swords, Check, ChevronDown, X } from "lucide-react";
 
-interface CreateBetWizardProps {
+export interface CreateBetWizardProps {
   user: any;
   onClose?: () => void;
   preSelectedFriend?: any;
