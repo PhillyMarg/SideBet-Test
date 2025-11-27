@@ -11,9 +11,10 @@ interface CreateBetWizardProps {
   user: any;
   onClose?: () => void;
   preSelectedFriend?: any;
+  preselectedGroupId?: string;
 }
 
-export default function CreateBetWizard({ user, onClose, preSelectedFriend }: CreateBetWizardProps) {
+export default function CreateBetWizard({ user, onClose, preSelectedFriend, preselectedGroupId }: CreateBetWizardProps) {
   const router = useRouter();
 
   // STEP CONTROL - 3 steps
@@ -69,6 +70,17 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
 
     loadGroups();
   }, [user]);
+
+  // Pre-select group if preselectedGroupId is provided
+  useEffect(() => {
+    if (preselectedGroupId && groups.length > 0) {
+      const group = groups.find(g => g.id === preselectedGroupId);
+      if (group) {
+        setSelectedGroup(group);
+        setBetDestination("group");
+      }
+    }
+  }, [preselectedGroupId, groups]);
 
   // Load friends
   useEffect(() => {
