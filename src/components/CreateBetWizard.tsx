@@ -33,7 +33,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
   const [challengerPick, setChallengerPick] = useState<string>(""); // Challenger's side (YES/NO, OVER/UNDER, etc.)
 
   // STEP 2: Bet Type - NOW SECOND
-  const [betType, setBetType] = useState<"YES_NO" | "CLOSEST_GUESS" | "OVER_UNDER">("YES_NO");
+  const [betType, setBetType] = useState<"YES_NO" | "OVER_UNDER">("YES_NO");
 
   // STEP 3: Bet Details - NOW THIRD
   const [betTitle, setBetTitle] = useState("");
@@ -138,7 +138,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
     }
 
     // Validate challenger pick for YES_NO and OVER_UNDER
-    if (betType !== "CLOSEST_GUESS" && !challengerPick) {
+    if (!challengerPick) {
       alert("Please pick your side (YES/NO or OVER/UNDER)");
       return;
     }
@@ -238,7 +238,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
 
       // Build picks object - for YES_NO and OVER_UNDER, challenger picks during creation
       const initialPicks: any = {};
-      if (betType !== "CLOSEST_GUESS" && challengerPick) {
+      if (challengerPick) {
         initialPicks[user.uid] = challengerPick;
       }
 
@@ -269,8 +269,6 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
 
       if (betType === "YES_NO") {
         betData.options = ["YES", "NO"];
-      } else if (betType === "CLOSEST_GUESS") {
-        betData.options = multipleChoiceOptions.filter(opt => opt.trim());
       } else if (betType === "OVER_UNDER") {
         betData.line = overUnderLine;
         betData.options = ["OVER", "UNDER"];
@@ -363,8 +361,6 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
 
       if (betType === "YES_NO") {
         betData.options = ["YES", "NO"];
-      } else if (betType === "CLOSEST_GUESS") {
-        betData.options = multipleChoiceOptions.filter(opt => opt.trim());
       } else if (betType === "OVER_UNDER") {
         betData.line = overUnderLine;
         betData.options = ["OVER", "UNDER"];
@@ -787,7 +783,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
             What type of bet?
           </h2>
 
-          <div className="grid grid-cols-3 gap-3 mb-8">
+          <div className="grid grid-cols-2 gap-3 mb-8">
             <button
               onClick={() => setBetType("YES_NO")}
               className={`p-4 rounded-xl border-2 transition-all ${
@@ -800,20 +796,6 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
                 Yes/No
               </p>
               <p className="text-xs text-zinc-500">Binary choice</p>
-            </button>
-
-            <button
-              onClick={() => setBetType("CLOSEST_GUESS")}
-              className={`p-4 rounded-xl border-2 transition-all ${
-                betType === "CLOSEST_GUESS"
-                  ? `border-${themeColor}-500 bg-${themeColor}-500/10`
-                  : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
-              }`}
-            >
-              <p className={`text-sm font-semibold mb-1 ${betType === "CLOSEST_GUESS" ? `text-${themeColor}-500` : "text-white"}`}>
-                Closest Guess
-              </p>
-              <p className="text-xs text-zinc-500">Numeric guess</p>
             </button>
 
             <button
@@ -889,38 +871,6 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
             />
           </div>
 
-          {/* Closest Guess Options */}
-          {betType === "CLOSEST_GUESS" && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-white mb-2">
-                Options
-              </label>
-              {multipleChoiceOptions.map((option, index) => (
-                <div key={index} className="mb-2">
-                  <input
-                    type="text"
-                    value={option}
-                    onChange={(e) => {
-                      const newOptions = [...multipleChoiceOptions];
-                      newOptions[index] = e.target.value;
-                      setMultipleChoiceOptions(newOptions);
-                    }}
-                    placeholder={`Option ${index + 1}`}
-                    className={`w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none ${
-                      themeColor === 'purple' ? 'focus:border-purple-500' : 'focus:border-orange-500'
-                    }`}
-                  />
-                </div>
-              ))}
-              <button
-                onClick={() => setMultipleChoiceOptions([...multipleChoiceOptions, ""])}
-                className={`${themeColor === 'purple' ? 'text-purple-500 hover:text-purple-600' : 'text-orange-500 hover:text-orange-600'} text-sm`}
-              >
-                + Add Option
-              </button>
-            </div>
-          )}
-
           {/* Over/Under Line */}
           {betType === "OVER_UNDER" && (
             <div className="mb-4">
@@ -974,7 +924,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
           </div>
 
           {/* Challenger Pick (H2H Only) */}
-          {betDestination === "h2h" && betType !== "CLOSEST_GUESS" && (
+          {betDestination === "h2h" && (
             <div className="mb-6 p-4 rounded-xl border-2 border-purple-500/30 bg-purple-500/5">
               <label className="block text-sm font-medium text-white mb-3">
                 <span className="text-purple-400">Your Pick</span> - What do you think will happen? *
@@ -1081,7 +1031,7 @@ export default function CreateBetWizard({ user, onClose, preSelectedFriend }: Cr
                 !betTitle ||
                 !closingDate ||
                 !closingTime ||
-                (betDestination === "h2h" && betType !== "CLOSEST_GUESS" && !challengerPick) ||
+                (betDestination === "h2h" && !challengerPick) ||
                 (betType === "OVER_UNDER" && (!overUnderLine || overUnderLine === 0))
               }
               className={`flex-1 py-3 ${themeColor === 'purple' ? 'bg-purple-500 hover:bg-purple-600' : 'bg-orange-500 hover:bg-orange-600'} disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-lg font-semibold transition-colors`}
