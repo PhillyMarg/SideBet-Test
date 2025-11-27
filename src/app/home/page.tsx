@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, doc, updateDoc, arrayUnion, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase/client';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Search, Bell } from 'lucide-react';
 import ActiveBetCard from '@/components/ActiveBetCard';
+import CreateBetWizard from '@/components/CreateBetWizard';
 
 export default function HomePage() {
   const router = useRouter();
@@ -212,20 +213,144 @@ export default function HomePage() {
                 bet={bet}
                 currentUserId={user.uid}
                 onVote={async (pick) => {
-                  // TODO: Implement vote handler
-                  console.log('Vote:', pick);
+                  if (!user) return;
+
+                  try {
+                    const betRef = doc(db, 'bets', bet.id);
+                    await updateDoc(betRef, {
+                      [`picks.${user.uid}`]: pick,
+                      participants: arrayUnion(user.uid),
+                    });
+
+                    console.log('Vote submitted successfully');
+                    // TODO: Add success toast notification
+                  } catch (error) {
+                    console.error('Error submitting vote:', error);
+                    alert('Failed to submit vote. Please try again.');
+                  }
                 }}
                 onAcceptH2H={async (pick) => {
-                  // TODO: Implement H2H accept handler
-                  console.log('Accept H2H:', pick);
+                  if (!user) return;
+
+                  try {
+                    const betRef = doc(db, 'bets', bet.id);
+                    await updateDoc(betRef, {
+                      status: 'PENDING',
+                      [`picks.${user.uid}`]: pick,
+                      participants: arrayUnion(user.uid),
+                    });
+
+                    console.log('H2H challenge accepted');
+                    // TODO: Add success toast
+                  } catch (error) {
+                    console.error('Error accepting challenge:', error);
+                    alert('Failed to accept challenge. Please try again.');
+                  }
                 }}
                 onDeclineH2H={async () => {
-                  // TODO: Implement H2H decline handler
-                  console.log('Decline H2H');
+                  if (!user) return;
+
+                  try {
+                    const betRef = doc(db, 'bets', bet.id);
+                    await updateDoc(betRef, {
+                      status: 'VOID',
+                      voidReason: 'DECLINED',
+                    });
+
+                    console.log('H2H challenge declined');
+                    // TODO: Add success toast
+                  } catch (error) {
+                    console.error('Error declining challenge:', error);
+                    alert('Failed to decline challenge. Please try again.');
+                  }
                 }}
                 onJudge={async (result) => {
-                  // TODO: Implement judge handler
-                  console.log('Judge:', result);
+                  if (!user) return;
+
+                  try {
+                    const betRef = doc(db, 'bets', bet.id);
+                    const betDoc = await getDoc(betRef);
+
+                    if (!betDoc.exists()) {
+                      alert('Bet not found');
+                      return;
+                    }
+
+                    const betData = betDoc.data();
+                    const picks = betData.picks || {};
+                    const betType = betData.type;
+
+                    let winnerId: string | null = null;
+                    let status = 'CLOSED';
+                    let voidReason: string | undefined = undefined;
+
+                    // Determine winner based on bet type
+                    if (betType === 'YES_NO') {
+                      // Find users who picked the winning answer
+                      const winners = Object.entries(picks).filter(([_, pick]) => pick === result);
+
+                      if (winners.length === 0) {
+                        // No one voted for the winning answer
+                        status = 'VOID';
+                        voidReason = 'NO_VOTES';
+                      } else if (winners.length === 1) {
+                        winnerId = winners[0][0];
+                      } else {
+                        // Multiple winners - tie
+                        status = 'VOID';
+                        voidReason = 'TIE';
+                      }
+                    } else if (betType === 'OVER_UNDER') {
+                      const numResult = typeof result === 'string' ? parseFloat(result) : result;
+                      const line = betData.line;
+
+                      if (isNaN(numResult)) {
+                        alert('Please enter a valid number');
+                        return;
+                      }
+
+                      const correctPick = numResult > line ? 'OVER' : numResult < line ? 'UNDER' : 'PUSH';
+
+                      if (correctPick === 'PUSH') {
+                        status = 'VOID';
+                        voidReason = 'TIE';
+                      } else {
+                        const winners = Object.entries(picks).filter(([_, pick]) => pick === correctPick);
+
+                        if (winners.length === 0) {
+                          status = 'VOID';
+                          voidReason = 'NO_VOTES';
+                        } else if (winners.length === 1) {
+                          winnerId = winners[0][0];
+                        } else {
+                          status = 'VOID';
+                          voidReason = 'TIE';
+                        }
+                      }
+                    }
+
+                    // Update bet with result
+                    const updateData: any = {
+                      status: status,
+                      result: result,
+                    };
+
+                    if (winnerId) {
+                      updateData.winnerId = winnerId;
+                    }
+
+                    if (voidReason) {
+                      updateData.voidReason = voidReason;
+                    }
+
+                    await updateDoc(betRef, updateData);
+
+                    console.log('Bet judged successfully');
+                    // TODO: Add success toast notification
+                  } catch (error) {
+                    console.error('Error judging bet:', error);
+                    alert('Failed to judge bet. Please try again.');
+                  }
                 }}
               />
             ))}
@@ -286,6 +411,14 @@ export default function HomePage() {
           </button>
         </div>
       </nav>
+
+      {/* Create Bet Wizard */}
+      {showCreateBet && (
+        <CreateBetWizard
+          onClose={() => setShowCreateBet(false)}
+          user={auth.currentUser}
+        />
+      )}
     </div>
   );
 }

@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { doc, getDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, onSnapshot, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase/client';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Search, Bell, ChevronLeft, Copy, X } from 'lucide-react';
 import ActiveBetCard from '@/components/ActiveBetCard';
+import CreateBetWizard from '@/components/CreateBetWizard';
 
 export default function GroupDetailPage() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function GroupDetailPage() {
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'OPEN' | 'MY_PICKS' | 'PENDING' | 'SOON'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [showGroupInfo, setShowGroupInfo] = useState(true);
+  const [showCreateBet, setShowCreateBet] = useState(false);
 
   // Auth listener
   useEffect(() => {
@@ -281,12 +283,109 @@ export default function GroupDetailPage() {
                 bet={bet}
                 currentUserId={user.uid}
                 onVote={async (pick) => {
-                  // TODO: Implement vote handler
-                  console.log('Vote:', pick);
+                  if (!user) return;
+
+                  try {
+                    const betRef = doc(db, 'bets', bet.id);
+                    await updateDoc(betRef, {
+                      [`picks.${user.uid}`]: pick,
+                      participants: arrayUnion(user.uid),
+                    });
+
+                    console.log('Vote submitted successfully');
+                    // TODO: Add success toast notification
+                  } catch (error) {
+                    console.error('Error submitting vote:', error);
+                    alert('Failed to submit vote. Please try again.');
+                  }
                 }}
                 onJudge={async (result) => {
-                  // TODO: Implement judge handler
-                  console.log('Judge:', result);
+                  if (!user) return;
+
+                  try {
+                    const betRef = doc(db, 'bets', bet.id);
+                    const betDoc = await getDoc(betRef);
+
+                    if (!betDoc.exists()) {
+                      alert('Bet not found');
+                      return;
+                    }
+
+                    const betData = betDoc.data();
+                    const picks = betData.picks || {};
+                    const betType = betData.type;
+
+                    let winnerId: string | null = null;
+                    let status = 'CLOSED';
+                    let voidReason: string | undefined = undefined;
+
+                    // Determine winner based on bet type
+                    if (betType === 'YES_NO') {
+                      // Find users who picked the winning answer
+                      const winners = Object.entries(picks).filter(([_, pick]) => pick === result);
+
+                      if (winners.length === 0) {
+                        // No one voted for the winning answer
+                        status = 'VOID';
+                        voidReason = 'NO_VOTES';
+                      } else if (winners.length === 1) {
+                        winnerId = winners[0][0];
+                      } else {
+                        // Multiple winners - tie
+                        status = 'VOID';
+                        voidReason = 'TIE';
+                      }
+                    } else if (betType === 'OVER_UNDER') {
+                      const numResult = typeof result === 'string' ? parseFloat(result) : result;
+                      const line = betData.line;
+
+                      if (isNaN(numResult)) {
+                        alert('Please enter a valid number');
+                        return;
+                      }
+
+                      const correctPick = numResult > line ? 'OVER' : numResult < line ? 'UNDER' : 'PUSH';
+
+                      if (correctPick === 'PUSH') {
+                        status = 'VOID';
+                        voidReason = 'TIE';
+                      } else {
+                        const winners = Object.entries(picks).filter(([_, pick]) => pick === correctPick);
+
+                        if (winners.length === 0) {
+                          status = 'VOID';
+                          voidReason = 'NO_VOTES';
+                        } else if (winners.length === 1) {
+                          winnerId = winners[0][0];
+                        } else {
+                          status = 'VOID';
+                          voidReason = 'TIE';
+                        }
+                      }
+                    }
+
+                    // Update bet with result
+                    const updateData: any = {
+                      status: status,
+                      result: result,
+                    };
+
+                    if (winnerId) {
+                      updateData.winnerId = winnerId;
+                    }
+
+                    if (voidReason) {
+                      updateData.voidReason = voidReason;
+                    }
+
+                    await updateDoc(betRef, updateData);
+
+                    console.log('Bet judged successfully');
+                    // TODO: Add success toast notification
+                  } catch (error) {
+                    console.error('Error judging bet:', error);
+                    alert('Failed to judge bet. Please try again.');
+                  }
                 }}
               />
             ))}
@@ -296,7 +395,7 @@ export default function GroupDetailPage() {
 
       {/* CREATE BET Floating Button */}
       <button
-        onClick={() => {/* TODO: Open bet wizard with this group pre-selected */}}
+        onClick={() => setShowCreateBet(true)}
         className="fixed bottom-[84px] right-6 z-40 px-6 py-2 h-9 bg-[rgba(255,107,53,0.52)] hover:bg-[rgba(255,107,53,0.65)] text-white text-[10px] font-semibold font-montserrat rounded-md shadow-lg shadow-[#ff6b35]/30 transition-colors"
       >
         CREATE BET
@@ -347,6 +446,15 @@ export default function GroupDetailPage() {
           </button>
         </div>
       </nav>
+
+      {/* Create Bet Wizard */}
+      {showCreateBet && (
+        <CreateBetWizard
+          onClose={() => setShowCreateBet(false)}
+          user={auth.currentUser}
+          preselectedGroupId={groupId}
+        />
+      )}
     </div>
   );
 }

@@ -7,6 +7,9 @@ import { db, auth } from '@/lib/firebase/client';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Search, Bell } from 'lucide-react';
 import GroupCard from '@/components/GroupCard';
+import JoinGroupModal from '@/components/JoinGroupModal';
+import CreateGroupModal from '@/components/CreateGroupModal';
+import CreateBetWizard from '@/components/CreateBetWizard';
 
 export default function GroupsPage() {
   const router = useRouter();
@@ -17,6 +20,7 @@ export default function GroupsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showJoinGroup, setShowJoinGroup] = useState(false);
+  const [showCreateBet, setShowCreateBet] = useState(false);
 
   // Auth listener
   useEffect(() => {
@@ -132,7 +136,7 @@ export default function GroupsPage() {
 
       {/* CREATE BET Floating Button */}
       <button
-        onClick={() => {/* TODO: Open bet wizard */}}
+        onClick={() => setShowCreateBet(true)}
         className="fixed bottom-[84px] right-6 z-40 px-6 py-2 h-9 bg-[rgba(255,107,53,0.52)] hover:bg-[rgba(255,107,53,0.65)] text-white text-[10px] font-semibold font-montserrat rounded-md shadow-lg shadow-[#ff6b35]/30 transition-colors"
       >
         CREATE BET
@@ -141,7 +145,7 @@ export default function GroupsPage() {
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-black/95 backdrop-blur-sm border-t border-zinc-800">
         <div className="grid grid-cols-4 h-16">
-          <button 
+          <button
             onClick={() => router.push('/home')}
             className="flex flex-col items-center justify-center gap-1 text-white/50 hover:text-white transition-colors"
           >
@@ -151,7 +155,7 @@ export default function GroupsPage() {
             <span className="text-[10px] font-montserrat font-semibold">Home</span>
           </button>
 
-          <button 
+          <button
             onClick={() => router.push('/groups')}
             className="flex flex-col items-center justify-center gap-1 text-[#ff6b35]"
           >
@@ -161,7 +165,7 @@ export default function GroupsPage() {
             <span className="text-[10px] font-montserrat font-semibold">Groups</span>
           </button>
 
-          <button 
+          <button
             onClick={() => router.push('/friends')}
             className="flex flex-col items-center justify-center gap-1 text-white/50 hover:text-white transition-colors"
           >
@@ -171,7 +175,7 @@ export default function GroupsPage() {
             <span className="text-[10px] font-montserrat font-semibold">Friends</span>
           </button>
 
-          <button 
+          <button
             onClick={() => router.push('/settle')}
             className="flex flex-col items-center justify-center gap-1 text-white/50 hover:text-white transition-colors"
           >
@@ -183,6 +187,35 @@ export default function GroupsPage() {
           </button>
         </div>
       </nav>
+
+      {/* Join Group Modal */}
+      {showJoinGroup && (
+        <JoinGroupModal
+          onClose={() => setShowJoinGroup(false)}
+          onSuccess={(groupId) => {
+            console.log('Joined group:', groupId);
+            // Modal will close automatically
+          }}
+        />
+      )}
+
+      {/* Create Group Modal */}
+      <CreateGroupModal
+        isOpen={showCreateGroup}
+        onClose={() => setShowCreateGroup(false)}
+        onGroupCreated={() => {
+          console.log('Group created successfully');
+          setShowCreateGroup(false);
+        }}
+      />
+
+      {/* Create Bet Wizard */}
+      {showCreateBet && (
+        <CreateBetWizard
+          onClose={() => setShowCreateBet(false)}
+          user={auth.currentUser}
+        />
+      )}
     </div>
   );
 }

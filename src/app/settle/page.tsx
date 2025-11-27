@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, doc, updateDoc, getDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase/client';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Search, Bell } from 'lucide-react';
 import SettlePersonCard from '@/components/SettlePersonCard';
 import ActiveBetCard from '@/components/ActiveBetCard';
+import CreateBetWizard from '@/components/CreateBetWizard';
 
 type TabType = 'BALANCE' | 'JUDGE' | 'HISTORY';
 
@@ -20,6 +21,7 @@ export default function SettlePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [bets, setBets] = useState<any[]>([]);
   const [settledBalances, setSettledBalances] = useState<any[]>([]);
+  const [showCreateBet, setShowCreateBet] = useState(false);
 
   // Auth listener
   useEffect(() => {
@@ -104,7 +106,7 @@ export default function SettlePage() {
         name: data.name,
         totalAmount: data.amount,
         bets: data.bets,
-        isSettled: data.isSettled
+        isSettled: data.isSettled || false
       }));
 
     const youOwe = Object.entries(balances)
@@ -114,7 +116,7 @@ export default function SettlePage() {
         name: data.name,
         totalAmount: data.amount,
         bets: data.bets,
-        isSettled: data.isSettled
+        isSettled: data.isSettled || false
       }));
 
     const netBalance = owedToYou.reduce((sum, p) => sum + p.totalAmount, 0) +
@@ -234,8 +236,53 @@ export default function SettlePage() {
                     <SettlePersonCard
                       key={person.id}
                       person={person}
-                      onRequestVenmo={() => {/* TODO */}}
-                      onMarkAsSettled={() => {/* TODO */}}
+                      onRequestVenmo={(personId, amount, betIds) => {
+                        try {
+                          const formattedAmount = amount.toFixed(2);
+
+                          // Create Venmo deep link for requesting money
+                          const venmoUrl = `venmo://paycharge?txn=charge&amount=${formattedAmount}&note=SideBet Payment`;
+
+                          // Try to open Venmo app
+                          window.location.href = venmoUrl;
+
+                          // Fallback to web if app not installed
+                          setTimeout(() => {
+                            window.open(`https://venmo.com/?txn=charge&amount=${formattedAmount}`, '_blank');
+                          }, 500);
+
+                          console.log(`Requesting $${formattedAmount} on Venmo`);
+                        } catch (error) {
+                          console.error('Error opening Venmo:', error);
+                          alert('Failed to open Venmo. Please try again.');
+                        }
+                      }}
+                      onMarkAsSettled={async (personId, betIds) => {
+                        if (!user) return;
+
+                        try {
+                          // Create settlement records for each bet
+                          const batch = writeBatch(db);
+
+                          for (const betId of betIds) {
+                            const settlementRef = doc(collection(db, 'settlements'));
+                            batch.set(settlementRef, {
+                              betId: betId,
+                              personId: personId,
+                              settledBy: user.uid,
+                              settledAt: serverTimestamp(),
+                            });
+                          }
+
+                          await batch.commit();
+
+                          console.log('Marked as settled');
+                          // TODO: Add success toast
+                        } catch (error) {
+                          console.error('Error marking as settled:', error);
+                          alert('Failed to mark as settled. Please try again.');
+                        }
+                      }}
                     />
                   ))}
                 </div>
@@ -257,8 +304,53 @@ export default function SettlePage() {
                     <SettlePersonCard
                       key={person.id}
                       person={person}
-                      onSendVenmo={() => {/* TODO */}}
-                      onMarkAsSettled={() => {/* TODO */}}
+                      onSendVenmo={(personId, amount, betIds) => {
+                        try {
+                          const formattedAmount = amount.toFixed(2);
+
+                          // Create Venmo deep link for sending money
+                          const venmoUrl = `venmo://paycharge?txn=pay&amount=${formattedAmount}&note=SideBet Payment`;
+
+                          // Try to open Venmo app
+                          window.location.href = venmoUrl;
+
+                          // Fallback to web if app not installed
+                          setTimeout(() => {
+                            window.open(`https://venmo.com/?txn=pay&amount=${formattedAmount}`, '_blank');
+                          }, 500);
+
+                          console.log(`Sending $${formattedAmount} on Venmo`);
+                        } catch (error) {
+                          console.error('Error opening Venmo:', error);
+                          alert('Failed to open Venmo. Please try again.');
+                        }
+                      }}
+                      onMarkAsSettled={async (personId, betIds) => {
+                        if (!user) return;
+
+                        try {
+                          // Create settlement records for each bet
+                          const batch = writeBatch(db);
+
+                          for (const betId of betIds) {
+                            const settlementRef = doc(collection(db, 'settlements'));
+                            batch.set(settlementRef, {
+                              betId: betId,
+                              personId: personId,
+                              settledBy: user.uid,
+                              settledAt: serverTimestamp(),
+                            });
+                          }
+
+                          await batch.commit();
+
+                          console.log('Marked as settled');
+                          // TODO: Add success toast
+                        } catch (error) {
+                          console.error('Error marking as settled:', error);
+                          alert('Failed to mark as settled. Please try again.');
+                        }
+                      }}
                     />
                   ))}
                 </div>
@@ -284,8 +376,92 @@ export default function SettlePage() {
                     bet={bet}
                     currentUserId={user.uid}
                     onJudge={async (result) => {
-                      // TODO: Implement judge handler
-                      console.log('Judge:', result);
+                      if (!user) return;
+
+                      try {
+                        const betRef = doc(db, 'bets', bet.id);
+                        const betDoc = await getDoc(betRef);
+
+                        if (!betDoc.exists()) {
+                          alert('Bet not found');
+                          return;
+                        }
+
+                        const betData = betDoc.data();
+                        const picks = betData.picks || {};
+                        const betType = betData.type;
+
+                        let winnerId: string | null = null;
+                        let status = 'CLOSED';
+                        let voidReason: string | undefined = undefined;
+
+                        // Determine winner based on bet type
+                        if (betType === 'YES_NO') {
+                          // Find users who picked the winning answer
+                          const winners = Object.entries(picks).filter(([_, pick]) => pick === result);
+
+                          if (winners.length === 0) {
+                            // No one voted for the winning answer
+                            status = 'VOID';
+                            voidReason = 'NO_VOTES';
+                          } else if (winners.length === 1) {
+                            winnerId = winners[0][0];
+                          } else {
+                            // Multiple winners - tie
+                            status = 'VOID';
+                            voidReason = 'TIE';
+                          }
+                        } else if (betType === 'OVER_UNDER') {
+                          const numResult = typeof result === 'string' ? parseFloat(result) : result;
+                          const line = betData.line;
+
+                          if (isNaN(numResult)) {
+                            alert('Please enter a valid number');
+                            return;
+                          }
+
+                          const correctPick = numResult > line ? 'OVER' : numResult < line ? 'UNDER' : 'PUSH';
+
+                          if (correctPick === 'PUSH') {
+                            status = 'VOID';
+                            voidReason = 'TIE';
+                          } else {
+                            const winners = Object.entries(picks).filter(([_, pick]) => pick === correctPick);
+
+                            if (winners.length === 0) {
+                              status = 'VOID';
+                              voidReason = 'NO_VOTES';
+                            } else if (winners.length === 1) {
+                              winnerId = winners[0][0];
+                            } else {
+                              status = 'VOID';
+                              voidReason = 'TIE';
+                            }
+                          }
+                        }
+
+                        // Update bet with result
+                        const updateData: any = {
+                          status: status,
+                          result: result,
+                        };
+
+                        if (winnerId) {
+                          updateData.winnerId = winnerId;
+                        }
+
+                        if (voidReason) {
+                          updateData.voidReason = voidReason;
+                        }
+
+                        await updateDoc(betRef, updateData);
+
+                        console.log('Bet judged successfully');
+                        // TODO: Add success toast notification
+                      } catch (error) {
+                        console.error('Error judging bet:', error);
+                        alert('Failed to judge bet. Please try again.');
+                      }
                     }}
                   />
                 ))}
@@ -332,7 +508,7 @@ export default function SettlePage() {
 
       {/* CREATE BET Floating Button */}
       <button
-        onClick={() => {/* TODO: Open bet wizard */}}
+        onClick={() => setShowCreateBet(true)}
         className="fixed bottom-[84px] right-6 z-40 px-6 py-2 h-9 bg-[rgba(255,107,53,0.52)] hover:bg-[rgba(255,107,53,0.65)] text-white text-[10px] font-semibold font-montserrat rounded-md shadow-lg shadow-[#ff6b35]/30 transition-colors"
       >
         CREATE BET
@@ -383,6 +559,14 @@ export default function SettlePage() {
           </button>
         </div>
       </nav>
+
+      {/* Create Bet Wizard */}
+      {showCreateBet && (
+        <CreateBetWizard
+          onClose={() => setShowCreateBet(false)}
+          user={auth.currentUser}
+        />
+      )}
     </div>
   );
 }
