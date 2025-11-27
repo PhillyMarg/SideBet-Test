@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { notifyFriendRequest, notifyFriendRequestAccepted } from "@/lib/notifications";
 import { Header } from "@/components/layout/Header";
-import { BetWizard, WizardData } from "@/components/wizard/BetWizard";
+import CreateBetWizard from "@/components/CreateBetWizard";
 
 interface User {
   uid: string;
@@ -486,40 +486,6 @@ export default function FriendsPage() {
     await declineFriendRequest(friendId); // Same logic
   };
 
-  // Handle wizard completion - create bet in Firebase
-  const handleWizardComplete = async (wizardData: WizardData) => {
-    try {
-      console.log('Creating bet:', wizardData);
-
-      const betDoc = {
-        title: wizardData.title,
-        description: wizardData.description || '',
-        type: wizardData.betType,
-        creatorId: user?.uid,
-        groupId: null,
-        friendId: wizardData.targetId,
-        wagerAmount: wizardData.wagerAmount,
-        totalPot: wizardData.wagerAmount,
-        closingDate: wizardData.closingDate,
-        line: wizardData.line,
-        playerCount: 1,
-        votes: {},
-        result: null,
-        createdAt: new Date(),
-      };
-
-      await addDoc(collection(db, 'bets'), betDoc);
-
-      setShowCreateBet(false);
-      setPreSelectedFriend(null);
-      router.push('/home');
-
-    } catch (error) {
-      console.error('Error creating bet:', error);
-      alert('Failed to create bet. Please try again.');
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -531,7 +497,7 @@ export default function FriendsPage() {
   return (
     <>
       <Header userId={user?.uid} />
-      <div className="min-h-screen bg-[#0a0a0a]" style={{ paddingTop: "100px" }}>
+      <div className="min-h-screen bg-[#0a0a0a] pb-24" style={{ paddingTop: "100px" }}>
       {/* Page Title */}
       <div className="px-4 sm:px-6 py-4 border-b border-zinc-800">
         <div className="flex items-center justify-between">
@@ -913,22 +879,76 @@ export default function FriendsPage() {
         </div>
       )}
 
-      {/* NEW BET WIZARD */}
-      <BetWizard
-        isOpen={showCreateBet}
-        onClose={() => {
-          setShowCreateBet(false);
-          setPreSelectedFriend(null);
-        }}
-        onComplete={handleWizardComplete}
-        userId={user?.uid}
+      {/* Floating CREATE BET Button */}
+      <button
+        onClick={() => setShowCreateBet(true)}
+        className="fixed bottom-24 right-6 w-14 h-14 rounded-full bg-[#ff6b35] hover:bg-[#ff8c5c] shadow-lg shadow-[#ff6b35]/30 flex items-center justify-center z-40 transition-colors"
+      >
+        <span className="text-white text-2xl font-bold">+</span>
+      </button>
 
-        // Skip to Step 2 with friend pre-selected
-        initialStep={2}
-        initialTheme="friend"
-        initialTargetId={preSelectedFriend?.uid}
-        initialTargetName={preSelectedFriend?.displayName || `${preSelectedFriend?.firstName || ''} ${preSelectedFriend?.lastName || ''}`.trim()}
-      />
+      {/* Create Bet Wizard */}
+      {showCreateBet && (
+        <CreateBetWizard
+          onClose={() => {
+            setShowCreateBet(false);
+            setPreSelectedFriend(null);
+          }}
+          user={user}
+          preSelectedFriend={preSelectedFriend}
+        />
+      )}
+
+      {/* Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 h-16 bg-zinc-900 border-t border-zinc-800 flex items-center justify-around z-50">
+        <button
+          onClick={() => router.push('/home')}
+          className="flex flex-col items-center justify-center flex-1 h-full"
+        >
+          <div className="w-5 h-5 mb-1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-white/60">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+          </div>
+          <span className="text-[8px] font-semibold text-white/60">HOME</span>
+        </button>
+
+        <button
+          onClick={() => router.push('/groups')}
+          className="flex flex-col items-center justify-center flex-1 h-full"
+        >
+          <div className="w-5 h-5 mb-1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-white/60">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <span className="text-[8px] font-semibold text-white/60">GROUPS</span>
+        </button>
+
+        <button
+          onClick={() => router.push('/friends')}
+          className="flex flex-col items-center justify-center flex-1 h-full"
+        >
+          <div className="w-5 h-5 mb-1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-[#ff6b35]">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          </div>
+          <span className="text-[8px] font-semibold text-[#ff6b35]">FRIENDS</span>
+        </button>
+
+        <button
+          onClick={() => router.push('/settle')}
+          className="flex flex-col items-center justify-center flex-1 h-full"
+        >
+          <div className="w-5 h-5 mb-1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-white/60">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+            </svg>
+          </div>
+          <span className="text-[8px] font-semibold text-white/60">SETTLE</span>
+        </button>
+      </div>
       </div>
     </>
   );
